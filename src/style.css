@@ -26,6 +26,7 @@ header { max-width: 720px; margin-bottom: 36px; }
 .layer-title h2 { margin-bottom: 12px; }
 .layer-toolbar-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 0; border-block: 1px solid #293340; }
 .layer-actions { justify-content: flex-end; }
+.layer-actions button, .layer-actions .file-button { display: inline-flex; align-items: center; justify-content: center; height: 32px; min-height: 32px; padding: 0 10px; border-radius: 7px; font-size: 12px; line-height: 1; white-space: nowrap; }
 .layout-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 32px; margin-top: 12px; color: #929dac; font-size: 12px; }
 .layout-status { padding: 5px 9px; color: #e6c992; border: 1px solid #68562e; border-radius: 99px; font-size: 12px; white-space: nowrap; }
 .layout-status.active { color: #62e5b4; border-color: #39765f; }
