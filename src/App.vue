@@ -25,8 +25,10 @@ const records = ref<InputReportRecord[]>([])
 const deviceType = ref<DeviceTypeResponse | null>(null)
 const firmware = ref<FirmwareVersions | null>(null)
 const iap = ref<IapModeResponse | null>(null)
-const layer0 = ref<KeyboardLayerResponse | null>(null)
+const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
+const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
+const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
 let stopListening: (() => void) | null = null
 
 function downloadJson(filename: string, value: unknown): void {
@@ -71,7 +73,16 @@ async function confirmedRead<T>(name: string, prompt: string, read: () => Promis
 const readDeviceType = () => transport.value && confirmedRead('readDeviceType', '傳送一次已確認的唯讀封包：\n7b 12 31 00 02 00 00 7d 01 01', () => transport.value!.readDeviceType(), value => { deviceType.value = value })
 const readFirmware = () => transport.value && confirmedRead('readFirmwareVersion', '傳送一次已確認的唯讀封包：\n7b 12 31 00 02 00 00 7d 01 03', () => transport.value!.readFirmwareVersion(), value => { firmware.value = value })
 const readIap = () => transport.value && confirmedRead('readIapMode（不切換模式）', '只讀取 IAP 狀態，不切換模式：\n7b 12 31 00 02 00 00 7d 02 02', () => transport.value!.readIapMode(), value => { iap.value = value })
-const readLayer0 = () => transport.value && confirmedRead('Layer 0', '傳送一次已確認的唯讀 Layer 0 查詢：\n7b 12 31 00 03 00 00 7d 10 02 00', () => transport.value!.readKeyboardLayer0(), value => { layer0.value = value })
+const readLayer = (layer: number) => transport.value && confirmedRead(
+  `Layer ${layer}`,
+  `傳送一次已確認的唯讀 Layer ${layer} 查詢：\n7b 12 31 00 03 00 00 7d 10 02 0${layer}`,
+  () => transport.value!.readKeyboardLayer(layer),
+  value => {
+    const next = layers.value.slice()
+    next[layer] = value
+    layers.value = next
+  },
+)
 
 function exportMetadata(): void {
   if (!device.value) return
@@ -80,14 +91,25 @@ function exportMetadata(): void {
 function exportReports(): void {
   downloadJson(`annepro-input-reports-${Date.now()}.json`, records.value.map(record => ({ ...record, bytes: bytesToHex(record.bytes), length: record.bytes.byteLength })))
 }
+function exportLayers(): void {
+  if (!allLayersLoaded.value) return
+  downloadJson(`annepro-layout-backup-${Date.now()}.json`, {
+    format: 'annepro-web-layout-backup',
+    version: 1,
+    capturedAt: new Date().toISOString(),
+    device: device.value ? { vendorId: device.value.vendorId, productId: device.value.productId, productName: device.value.productName } : null,
+    layers: loadedLayers.value.map(layer => ({ index: layer.layer, keycodes: Array.from(layer.data), rawHex: bytesToHex(layer.data) })),
+  })
+}
 </script>
 
 <template>
   <header><p class="eyebrow">READ-ONLY WEBHID EXPLORER</p><h1>Anne Pro Web Configurator</h1><p class="lede">檢視 Anne Pro 2 的 HID collections、裝置資訊與唯讀鍵位層。所有查詢都固定、可核對並需要逐次確認。</p></header>
   <section class="card status"><div><span class="dot"></span>{{ supported ? 'WebHID 可用' : '此瀏覽器不支援 WebHID' }}</div><button :disabled="!supported || connecting" @click="connect">連接 Anne Pro 2</button></section>
   <p id="message" role="status" aria-live="polite">{{ message }}</p>
-  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer0="readLayer0" />
-  <KeyboardLayout v-if="layer0" :layer="layer0" />
+  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
+  <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
+  <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
   <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>

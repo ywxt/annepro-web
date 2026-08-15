@@ -51,4 +51,14 @@ describe('read-only HID transport', () => {
     expect(result.packetCount).toBe(2)
     expect(Array.from(result.data)).toEqual(Array.from({ length: 61 }, (_, index) => index))
   })
+
+  it('uses only a validated layer index in the fixed request', async () => {
+    const device = new FakeHidDevice()
+    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const result = await transport.readKeyboardLayer(3, 100)
+    expect(device.sent[0].data.at(-1)).toBe(3)
+    expect(result.layer).toBe(3)
+    await expect(transport.readKeyboardLayer(4, 100)).rejects.toThrow(RangeError)
+    expect(device.sent).toHaveLength(1)
+  })
 })

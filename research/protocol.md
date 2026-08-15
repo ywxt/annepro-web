@@ -148,3 +148,8 @@ same descriptor. Packet `01` contributed `e3 e2 c0 e6 c0 c1 e4`, completing the
 61-byte Layer 0 payload. This confirms one byte per physical key for the connected
 Anne Pro 2 C18. Only bytes inside the declared frames are retained because the
 second 64-byte HID report contained stale trailing data.
+
+Isolated reads of Layers 1, 2, and 3 subsequently confirmed the same request
+shape and `54 + 7 = 61` response split for layer indices `01`, `02`, and `03`.
+Layer 2 contains firmware-specific usages that remain opaque until independently
+mapped. All four C18 layers are therefore confirmed safe for bounded reads.

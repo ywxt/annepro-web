@@ -76,8 +76,9 @@ export class ReadonlyHidTransport {
     )
   }
 
-  /** Layer 0 is the only layout request independently confirmed on physical hardware. */
-  async readKeyboardLayer0(timeoutMs = 2000): Promise<KeyboardLayerResponse> {
+  /** All four C18 layer indices have been independently confirmed on physical hardware. */
+  async readKeyboardLayer(layer: number, timeoutMs = 2000): Promise<KeyboardLayerResponse> {
+    const request = createReadKeyboardLayerRequest(layer)
     if (this.confirmedReadPending) throw new Error('Another confirmed read is already pending')
     this.confirmedReadPending = true
     const reports: Uint8Array[] = []
@@ -97,7 +98,7 @@ export class ReadonlyHidTransport {
         if (!frame || frame.command !== 0x10 || frame.action !== 0x02) return
         reports.push(bytes)
         try {
-          const result = parseKeyboardLayerResponse(0, reports)
+          const result = parseKeyboardLayerResponse(layer, reports)
           finish()
           resolve(result)
         } catch {
@@ -106,15 +107,19 @@ export class ReadonlyHidTransport {
       }
       const timeout = globalThis.setTimeout(() => {
         finish()
-        reject(new Error(`Confirmed Layer 0 read timed out after ${timeoutMs} ms`))
+        reject(new Error(`Confirmed Layer ${layer} read timed out after ${timeoutMs} ms`))
       }, timeoutMs)
 
       this.device.addEventListener('inputreport', onInput)
-      this.device.sendReport(0, createReadKeyboardLayerRequest(0)).catch((error: unknown) => {
+      this.device.sendReport(0, request).catch((error: unknown) => {
         finish()
         reject(error)
       })
     })
+  }
+
+  async readKeyboardLayer0(timeoutMs = 2000): Promise<KeyboardLayerResponse> {
+    return this.readKeyboardLayer(0, timeoutMs)
   }
 
   private async requestConfirmedRead<T>(

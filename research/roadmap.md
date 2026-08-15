@@ -38,7 +38,7 @@ The goal is functional interoperability, not a copy of ObinsKit source code or U
 - [x] Define the C18 physical row model (`14/14/13/12/8`) while retaining raw keycodes.
 - [x] Preserve unknown keycodes and reject malformed or incomplete downloads.
 - [x] Render a confirmed, read-only Layer 0 keyboard view.
-- [ ] Capture and enable Layers 1–3, then export all layers as a backup file.
+- [x] Capture and enable Layers 1–3, then export all layers as a backup file.
 
 ### M4 — Guarded layout writes
 

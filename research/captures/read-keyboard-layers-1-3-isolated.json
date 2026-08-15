@@ -1,0 +1,41 @@
+{
+  "source": "Three authorized, isolated read-only requests on /dev/hidraw10; one request per layer and two reads from the same descriptor",
+  "capturedAt": "2026-08-15T17:25:00Z",
+  "device": "0x04d9:0xa293",
+  "target": "MCU_MAIN",
+  "reportId": 0,
+  "captures": [
+    {
+      "layer": 1,
+      "request": "7b 12 31 00 03 00 00 7d 10 02 01",
+      "responseDeclaredFrames": [
+        "7b 12 13 80 38 00 00 7d 10 02 29 3a 3b 3c 3d 3e 3f 40 41 42 43 44 45 01 01 01 52 01 01 01 01 4a 2a 4d 49 4a 4d 01 01 50 51 4f 01 01 50 51 52 4f 4b 4e 01 01 01 01 01 01 01 4c 46 01 49 4c 01 01",
+        "7b 12 13 01 09 00 00 7d 10 02 01 01 c0 01 c0 c1 01"
+      ]
+    },
+    {
+      "layer": 2,
+      "request": "7b 12 31 00 03 00 00 7d 10 02 02",
+      "responseDeclaredFrames": [
+        "7b 12 13 80 38 00 00 7d 10 02 01 c8 c9 ca cb cf 01 01 f6 f1 f0 f4 f3 01 01 01 52 01 01 01 01 01 fb 01 46 4a 4d 01 01 50 51 4f 01 01 01 fd fc fe 4b 4e 01 01 01 01 01 01 01 01 01 01 49 4c 01 01",
+        "7b 12 13 01 09 00 00 7d 10 02 01 01 c0 01 c0 c1 01"
+      ]
+    },
+    {
+      "layer": 3,
+      "request": "7b 12 31 00 03 00 00 7d 10 02 03",
+      "responseDeclaredFrames": [
+        "7b 12 13 80 38 00 00 7d 10 02 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 29 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 52 01",
+        "7b 12 13 01 09 00 00 7d 10 02 01 01 2c 01 50 51 4f"
+      ]
+    }
+  ],
+  "decoded": {
+    "command": 16,
+    "action": 2,
+    "packetCountPerLayer": 2,
+    "dataLengthPerLayer": 61,
+    "complete": true
+  },
+  "notes": "Exactly one request was written for each layer. No retries were made. Only declared Liana frame bytes are retained; stale HID trailing data was discarded. Unknown and firmware-specific keycodes remain opaque."
+}
