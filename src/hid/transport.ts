@@ -22,8 +22,16 @@ import {
 import { tryParseLianaFrame } from '../protocol/liana.ts'
 import {
   createReadMacroConfigRequest,
+  createReadMacroActiveListRequest,
+  createReadMacroMapRequest,
+  createReadMacroRequest,
+  parseMacroActiveListResponse,
   parseMacroConfigResponse,
+  parseMacroMapResponse,
+  parseStoredMacro,
+  type MacroBackup,
   type MacroConfigResponse,
+  type StoredMacro,
 } from '../protocol/macro-info.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
@@ -87,6 +95,34 @@ export class ReadonlyHidTransport {
       parseMacroConfigResponse,
       timeoutMs,
     )
+  }
+
+  async readMacroBackup(timeoutMs = 2000): Promise<MacroBackup> {
+    const config = await this.readMacroConfig(timeoutMs)
+    if (!config.hasMacros) return { config, map: [], macros: [], activeList: [] }
+
+    const map = await this.requestConfirmedMultipart(
+      createReadMacroMapRequest(), 0x30, 0x08, parseMacroMapResponse, timeoutMs,
+    )
+    if (map.length > 64) throw new Error(`Refusing implausible macro map with ${map.length} entries`)
+    const macros: StoredMacro[] = []
+    for (const entry of map) {
+      macros.push(await this.requestConfirmedMultipart(
+        createReadMacroRequest(entry.index),
+        0x30,
+        0x09,
+        (reports) => parseStoredMacro(entry, reports),
+        timeoutMs,
+      ))
+    }
+    const activeList = await this.requestConfirmedMultipart(
+      createReadMacroActiveListRequest(),
+      0x30,
+      0x07,
+      parseMacroActiveListResponse,
+      timeoutMs,
+    )
+    return { config, map, macros, activeList }
   }
 
   /** All four C18 layer indices have been independently confirmed on physical hardware. */
@@ -165,6 +201,52 @@ export class ReadonlyHidTransport {
       const timeout = globalThis.setTimeout(() => {
         finish()
         reject(new Error(`Confirmed read timed out after ${timeoutMs} ms`))
+      }, timeoutMs)
+
+      this.device.addEventListener('inputreport', onInput)
+      this.device.sendReport(0, request).catch((error: unknown) => {
+        finish()
+        reject(error)
+      })
+    })
+  }
+
+  private async requestConfirmedMultipart<T>(
+    request: Uint8Array,
+    command: number,
+    action: number,
+    parseResponse: (reports: readonly Uint8Array[]) => T,
+    timeoutMs: number,
+  ): Promise<T> {
+    if (this.confirmedReadPending) throw new Error('Another confirmed read is already pending')
+    this.confirmedReadPending = true
+    const reports: Uint8Array[] = []
+
+    return new Promise<T>((resolve, reject) => {
+      const finish = (): void => {
+        clearTimeout(timeout)
+        this.device.removeEventListener('inputreport', onInput)
+        this.confirmedReadPending = false
+      }
+      const onInput = (event: HIDInputReportEvent): void => {
+        if (event.reportId !== 0) return
+        const bytes = new Uint8Array(
+          event.data.buffer.slice(event.data.byteOffset, event.data.byteOffset + event.data.byteLength),
+        )
+        const frame = tryParseLianaFrame(bytes)
+        if (!frame || frame.command !== command || frame.action !== action) return
+        reports.push(bytes)
+        try {
+          const result = parseResponse(reports)
+          finish()
+          resolve(result)
+        } catch {
+          // Continue until the final indexed packet makes the strict parser succeed.
+        }
+      }
+      const timeout = globalThis.setTimeout(() => {
+        finish()
+        reject(new Error(`Confirmed multipart read timed out after ${timeoutMs} ms`))
       }, timeoutMs)
 
       this.device.addEventListener('inputreport', onInput)

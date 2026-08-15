@@ -13,7 +13,7 @@ import type { DeviceTypeResponse } from './protocol/device-info.ts'
 import type { FirmwareVersions } from './protocol/firmware-info.ts'
 import type { IapModeResponse } from './protocol/iap-info.ts'
 import type { KeyboardLayerResponse } from './protocol/layout.ts'
-import type { MacroConfigResponse } from './protocol/macro-info.ts'
+import type { MacroBackup } from './protocol/macro-info.ts'
 import { bytesToHex } from './protocol/packet.ts'
 
 const supported = isWebHidSupported()
@@ -27,7 +27,7 @@ const records = ref<InputReportRecord[]>([])
 const deviceType = ref<DeviceTypeResponse | null>(null)
 const firmware = ref<FirmwareVersions | null>(null)
 const iap = ref<IapModeResponse | null>(null)
-const macroConfig = ref<MacroConfigResponse | null>(null)
+const macroBackup = ref<MacroBackup | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
@@ -86,11 +86,11 @@ const readLayer = (layer: number) => transport.value && confirmedRead(
     layers.value = next
   },
 )
-const readMacroConfig = () => transport.value && confirmedRead(
-  'readMacroConfig',
-  '傳送一次已由靜態分析與實機 capture 確認的唯讀巨集狀態查詢：\n7b 12 31 00 02 00 00 7d 30 06',
-  () => transport.value!.readMacroConfig(),
-  value => { macroConfig.value = value },
+const readMacroBackup = () => transport.value && confirmedRead(
+  'macro backup',
+  '讀取鍵盤巨集備份。首先傳送固定的 config 查詢；若有巨集，再依 map 宣告的有限數量讀取內容與 active list。所有命令均為 ObinsKit 的唯讀 30/06–09，不會寫入巨集。',
+  () => transport.value!.readMacroBackup(),
+  value => { macroBackup.value = value },
 )
 
 function exportMetadata(): void {
@@ -110,6 +110,18 @@ function exportLayers(): void {
     layers: loadedLayers.value.map(layer => ({ index: layer.layer, keycodes: Array.from(layer.data), rawHex: bytesToHex(layer.data) })),
   })
 }
+function exportMacros(): void {
+  if (!macroBackup.value) return
+  downloadJson(`annepro-macro-backup-${Date.now()}.json`, {
+    format: 'annepro-web-macro-backup',
+    version: 1,
+    capturedAt: new Date().toISOString(),
+    config: { ...macroBackup.value.config, rawFrame: bytesToHex(macroBackup.value.config.rawFrame) },
+    map: macroBackup.value.map.map(entry => ({ ...entry, raw: bytesToHex(entry.raw) })),
+    macros: macroBackup.value.macros.map(macro => ({ ...macro, events: Array.from(macro.events), separator: Array.from(macro.separator) })),
+    activeList: macroBackup.value.activeList,
+  })
+}
 </script>
 
 <template>
@@ -119,7 +131,7 @@ function exportLayers(): void {
   <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" />
-  <MacroPanel v-if="device && protocolReady" :config="macroConfig" :busy="busy !== null" @read-config="readMacroConfig" />
+  <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
   <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>

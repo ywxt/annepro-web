@@ -88,4 +88,12 @@ describe('read-only HID transport', () => {
     ])
     expect(result.hasMacros).toBe(false)
   })
+
+  it('short-circuits a complete macro backup when config reports empty', async () => {
+    const device = new MacroConfigHidDevice()
+    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const backup = await transport.readMacroBackup(100)
+    expect(device.sent).toHaveLength(1)
+    expect(backup).toMatchObject({ map: [], macros: [], activeList: [] })
+  })
 })
