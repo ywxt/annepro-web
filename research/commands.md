@@ -32,14 +32,29 @@ Evidence labels:
 | `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
 | `writeSleepTimeout` | configuration write | command/action `01/0f`, UInt16LE seconds | native dispatch | W1 | implemented with readback |
 | `writeAudioVisualize` | transient stream | `20/11`; `ff 01 + RGB` or `ff 02 + 64 RGB`, multipart when needed | native dispatch + bounded physical frame | W1 | implemented at max 20 FPS, awaited single-flight |
+| `writeAudioVisualConfig` | other-model transient config | MCU_LED route, command/action `21/01` | native dispatch + advanced renderer path | N/A | intentionally capability-excluded on C18 |
+| `writeAudioVisualData` | other-model transient stream | MCU_LED route, command/action `21/02` | native dispatch + advanced renderer path | N/A | intentionally capability-excluded on C18 |
 | indicator color | read/write/readback | `20/1a` read RGB, `20/1b` write RGB | captured same-value round trip | W1 | implemented with backup/restore |
-| factory reset | composed write | ObinsKit defaults + empty macro + 11 lights + BLE clear | renderer/SQL defaults | W2 | implemented behind typed confirmation |
+| factory reset | composed write | ObinsKit defaults + empty macro + final 14-effect model-5 light group + BLE clear | renderer/SQL defaults | W2 | implemented behind typed confirmation |
 | `writeMacro` (legacy) | multi-packet write | `30/01`; index, trigger, event records + separator | native + renderer | W1 | not used; full image path supersedes it |
 | virtual mouse config | other-model read/write | command `60`, actions `01/02/03/05` | native dispatch; C18 no response | N/A | intentionally capability-excluded |
 | combination/OLED/indicator location | other-model operations | model-specific | renderer capability gates | N/A | intentionally capability-excluded |
 | `writeIapMode` | mode switch | unresolved | static symbol | X | forbidden/deferred |
 | `writeIapMemory` | firmware write | unresolved | observed name | X | forbidden/deferred |
 | `writeEraseMemory` | flash erase | unresolved | static symbol | X | forbidden/deferred |
+
+## Audio visualization model split
+
+ObinsKit's Anne Pro 2 keyboard route (`/keyboard/music`, lazy module `87717`) injects
+the `zt` audio store. That store exposes exactly `Pure` and `Colorful` and calls
+`writeAudioVisualize` every 20 ms with an in-flight guard. This is the C18 path
+implemented by the web configurator as command/action `20/11` on MCU_MAIN.
+
+The unpacked renderer also contains a separate, more advanced audio-analysis path.
+Native dispatch maps its `writeAudioVisualConfig` and `writeAudioVisualData` calls to
+MCU_LED command/actions `21/01` and `21/02`. The C18 keyboard page does not consume
+that path, so these reports are classified as another model's capability and are
+not sent to the current keyboard.
 
 ## Captured startup traffic
 

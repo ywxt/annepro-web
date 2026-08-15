@@ -63,6 +63,7 @@ device trial, and only then product UI.
 - [x] Per-key static RGB editor for all 61 physical keys and independent 12-color dynamic palettes.
 - [x] Macro event/binding editor, full-image serialization, CRC-32, staged 49-byte download, commit, backup/restore, and semantic device readback.
 - [x] Audio Visualize pure/colorful transient stream with explicit microphone consent, stop/restore, 20 FPS cap, and awaited single-flight reports.
+- [x] Audit the alternate MCU_LED audio config/data path and exclude it from C18: the Anne Pro 2 renderer uses only the Pure/Colorful `20/11` path.
 - [x] ObinsKit-equivalent factory reset composition for model 5: default settings, empty macro image, final 14-effect default group, and BLE host clearing; protected by typed confirmation.
 - [x] Symmetric full-backup export/import with preflight schema validation, in-memory snapshots, staged restore, and per-capability readback.
 
@@ -94,3 +95,4 @@ device trial, and only then product UI.
 - BLE MAC reading uses the confirmed MCU BLE route.
 - Clearing BLE host bindings is implemented with typed destructive confirmation and physically verified with success status `00`.
 - Model-only combination-mode and virtual-mouse commands are excluded from the Anne Pro 2 UI after C18 returned no response.
+- The native/renderer command audit is recorded in `completion-audit.md`; all ordinary renderer-visible C18 configuration areas are implemented, while model-specific and internal maintenance operations remain capability-excluded.
