@@ -74,6 +74,17 @@ device trial, and only then product UI.
 - [x] Add fixture-based regression tests for every implemented protocol variant.
 - [x] Package as a static HTTPS-capable site with no backend requirement.
 
+### M6.1 — Product interface and localization
+
+- [x] Rename layer 3 to the ObinsKit-facing name **Tap Layer** (Base/Fn1/Fn2/Tap).
+- [x] Remove confirmation dialogs from reads and reversible, verified ordinary writes.
+- [x] Keep strong confirmation only for destructive or non-readable replacement operations.
+- [x] Auto-load the supported keyboard configuration after connection.
+- [x] Gate major feature panels from the detected model/firmware capability profile.
+- [x] Move raw HID collections, reports, frames, and key bytes into collapsed developer tools.
+- [ ] Complete Traditional Chinese and English localization for every user-facing panel and runtime message.
+- [ ] Replace the long single page with task-oriented navigation comparable to a desktop configurator.
+
 ### M7 — IAP and firmware (deferred)
 
 - IAP switching, flash erase, and firmware memory writes remain disabled.

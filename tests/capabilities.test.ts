@@ -9,7 +9,8 @@ const firmware = { key: '2.36', led: '2.33', ble: '2.05', rawFrame: new Uint8Arr
 describe('ObinsKit capability gates', () => {
   it('derives the captured C18 feature set', () => {
     expect(deriveDeviceCapabilities(device, firmware)).toEqual({
-      profileKnown: true, hasLed: true, hasIndicatorLed: false, hasBattery: true,
+      profileKnown: true, keyboardLayers: true, macros: true, generalSettings: true,
+      bluetooth: true, factoryReset: true, hasLed: true, hasIndicatorLed: false, hasBattery: true,
       audioVisualization: true, modernTapSettings: true, sleepTimeout: true,
       ledPowerMode: true, capslockColor: true,
     })

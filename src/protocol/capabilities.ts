@@ -3,6 +3,11 @@ import type { FirmwareVersions } from './firmware-info.ts'
 
 export interface DeviceCapabilities {
   profileKnown: boolean
+  keyboardLayers: boolean
+  macros: boolean
+  generalSettings: boolean
+  bluetooth: boolean
+  factoryReset: boolean
   hasLed: boolean | null
   hasIndicatorLed: boolean | null
   hasBattery: boolean | null
@@ -33,6 +38,11 @@ export function deriveDeviceCapabilities(
   const keyVersion = firmware?.key
   return {
     profileKnown: isAnnePro2,
+    keyboardLayers: isAnnePro2,
+    macros: isAnnePro2,
+    generalSettings: isAnnePro2,
+    bluetooth: isAnnePro2,
+    factoryReset: isAnnePro2,
     hasLed: isAnnePro2 ? true : null,
     hasIndicatorLed: isAnnePro2 ? false : null,
     hasBattery: isAnnePro2 ? true : null,
