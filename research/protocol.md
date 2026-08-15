@@ -129,3 +129,11 @@ offset  size  meaning
 ```
 
 The parser validates boundaries and exposes trailing 64-byte report padding separately. Field names for bytes 1–3 remain provisional until a capture confirms their runtime semantics.
+
+### Keyboard layout read (`uploadKbdLayout`, `10/02`)
+
+ObinsKit 1.2.11 sends one layer index (`00` through `03`) as the request payload.
+The observed response is multipart: packet `80` carries 54 data bytes and packet
+`01` carries the final 7, producing a 61-byte opaque layer payload. The web
+implementation currently models and tests this format offline only; it does not
+yet expose a layout query in the HID transport or interpret the keycodes.
