@@ -49,7 +49,20 @@ response:  7b 12 13 00 04 00 00 7d 01 01 05 01
 decoded:   model 5 (AnnePro2C18), type 1 (Keyboard)
 ```
 
-ObinsKit sent 17 initialization queries in total. Only command/action `01/01` is retained as a fixture or implemented. The other requests are not authorized by this finding. The web implementation exposes this exact request only as a one-shot action with a confirmation dialog and timeout; it does not expose arbitrary report writing.
+ObinsKit sent 17 initialization queries in total. Command/action `01/01` was isolated and retained as a fixture. Each implemented read is separately documented and constrained; the remaining initialization requests are not authorized by this finding. The web implementation exposes confirmed requests only as one-shot actions with a confirmation dialog and timeout; it does not expose arbitrary report writing.
+
+## `readFirmwareVersion`
+
+The Electron renderer calls `readFirmwareVersion(MCU_MAIN)` and decodes either a legacy three-byte payload or a six-byte payload containing low/high version pairs. The controlled trace paired command/action `01/03`:
+
+```text
+report ID: 0
+request:   7b 12 31 00 02 00 00 7d 01 03
+response:  7b 12 13 00 08 00 00 7d 01 03 24 02 21 02 05 02
+decoded:   key 2.36, LED 2.33, BLE 2.05
+```
+
+This exact read is implemented with the same confirmation, single-flight, strict-response, and timeout restrictions as `readDeviceType`. Other captured initialization commands remain unimplemented.
 
 ## Physical metadata capture: `0x04d9:0xa293`
 
