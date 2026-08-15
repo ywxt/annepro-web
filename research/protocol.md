@@ -142,3 +142,9 @@ An isolated Layer 0 request confirmed the first packet exactly: packet `80`
 contains 54 bytes beginning `35 1e 1f 20 ...` and has no HID padding. The capture
 closed before reading packet `01`, so it is deliberately recorded as incomplete
 and is rejected by the complete-layer parser.
+
+A second explicitly approved, single-request capture read both reports from the
+same descriptor. Packet `01` contributed `e3 e2 c0 e6 c0 c1 e4`, completing the
+61-byte Layer 0 payload. This confirms one byte per physical key for the connected
+Anne Pro 2 C18. Only bytes inside the declared frames are retained because the
+second 64-byte HID report contained stale trailing data.

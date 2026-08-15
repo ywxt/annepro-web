@@ -1,0 +1,22 @@
+{
+  "source": "Single explicitly approved write and at most two reads on /dev/hidraw10",
+  "capturedAt": "2026-08-15T17:08:46Z",
+  "device": "0x04d9:0xa293",
+  "target": "MCU_MAIN",
+  "reportId": 0,
+  "layer": 0,
+  "request": "7b 12 31 00 03 00 00 7d 10 02 00",
+  "responseDeclaredFrames": [
+    "7b 12 13 80 38 00 00 7d 10 02 35 1e 1f 20 21 22 23 24 25 26 27 2d 2e 2a 2b 14 1a 08 15 17 1c 18 0c 12 13 2f 30 31 29 04 16 07 09 0a 0b 0d 0e 0f 33 34 28 e1 1d 1b 06 19 05 11 10 36 37 38 e5 e0",
+    "7b 12 13 01 09 00 00 7d 10 02 e3 e2 c0 e6 c0 c1 e4"
+  ],
+  "assembledData": "35 1e 1f 20 21 22 23 24 25 26 27 2d 2e 2a 2b 14 1a 08 15 17 1c 18 0c 12 13 2f 30 31 29 04 16 07 09 0a 0b 0d 0e 0f 33 34 28 e1 1d 1b 06 19 05 11 10 36 37 38 e5 e0 e3 e2 c0 e6 c0 c1 e4",
+  "decoded": {
+    "command": 16,
+    "action": 2,
+    "packetCount": 2,
+    "dataLength": 61,
+    "complete": true
+  },
+  "notes": "Exactly one request was written. Two reports were read from the same descriptor. Bytes outside each declared Liana frame were discarded; the second HID report contained stale trailing buffer data."
+}
