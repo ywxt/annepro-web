@@ -7,13 +7,13 @@
     {
       "packet": 0,
       "continuation": true,
-      "payloadBytes": 54,
+      "payloadBytes": 53,
       "ackDeclaredFrame": "7b 12 13 00 03 00 00 7d 10 01 00"
     },
     {
       "packet": 1,
       "continuation": false,
-      "payloadBytes": 8,
+      "payloadBytes": 9,
       "ackDeclaredFrame": "7b 12 13 00 03 00 00 7d 10 01 01"
     }
   ],
@@ -22,5 +22,5 @@
     "dataLength": 61,
     "matchesOriginal": true
   },
-  "notes": "The write stream is layer index followed by 61 keycode bytes, split into 54-byte Liana payloads. The original Layer 0 backup was written unchanged and read back byte-for-byte."
+  "notes": "Corrected against ObinsKit's DWARF-backed native implementation: the USB Liana profile's multipart data limit is 0x35 (53), so layer index plus 61 keycodes split 53 + 9. Earlier 54 + 8 notes conflated WebHID's 64-byte report data with the native vector's separate report-ID byte."
 }

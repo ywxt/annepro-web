@@ -212,7 +212,8 @@ data and are not interpreted as a universal status code.
 ### Keyboard layout write (`downloadKbdLayout`, `10/01`)
 
 The write body is the one-byte layer index followed by the 61 C18 keycodes.
-ObinsKit's packet builder splits those 62 bytes into payloads of 54 and 8, with
+ObinsKit's USB Liana profile stores `0x35` as its multipart data limit, so the
+packet builder splits those 62 bytes into payloads of 53 and 9, with
 packet markers `80` and `01`. The keyboard acknowledges each packet with a
 single-byte zero-based packet index. A Layer 0 no-op write was followed by the
 existing `10/02` read and matched all 61 bytes. The editor therefore snapshots
@@ -225,12 +226,11 @@ verifies `userLayout === 1` through `readHardwareState`. It does not interleave
 acknowledged first, matching ObinsKit's staging transaction, and all four layers
 are read back only after activation.
 The native `Liana` constructor also starts `checkWriteTimeout` with its cached
-data and active write-queue maps. Treating a missing ACK as success is therefore
-not equivalent to ObinsKit and was disproved by a physical write: the uncommitted
-second packets cleared data indices 53–60, exactly the bottom keyboard row. The
-web transport now mirrors timeout recovery in a stricter bounded form: it waits
-20 ms and resends the exact current packet at most once. It may advance only
-after the retry receives the expected ACK; final readback remains mandatory.
+data and active write-queue maps. A physical failure exposed that the earlier
+web encoder used the incorrect 54 + 8 split: packet 1 repeatedly timed out and
+the final keyboard row was cleared. Missing ACKs are never treated as success;
+the transport advances only after receiving the expected ACK and final readback
+remains mandatory.
 
 #### ObinsKit 1.2.11 implementation comparison
 
@@ -242,7 +242,7 @@ ACK. The completed callback then crosses from the HID addon to the Electron
 backstage renderer and through IPC before the UI loop starts the next layer.
 
 The WebHID encoder is byte-identical (`03/10/01`, a layer byte plus 61 keycodes,
-split 54 + 8, packet markers `80` and `01`, ACK payloads `00` and `01`). Its
+split 53 + 9, packet markers `80` and `01`, ACK payloads `00` and `01`). Its
 original loop differed in timing: it began the next layer from the immediately
 following JavaScript microtask. The transport now inserts a bounded 20 ms
 inter-layer settle interval to represent ObinsKit's native-callback/IPC boundary.

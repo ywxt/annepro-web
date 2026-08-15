@@ -79,8 +79,11 @@ export function createWriteKeyboardLayerRequests(layer: number, data: Uint8Array
   combined[0] = layer
   combined.set(data, 1)
   const requests: Uint8Array[] = []
-  for (let offset = 0, packet = 0; offset < combined.byteLength; offset += 54, packet += 1) {
-    const payload = combined.slice(offset, offset + 54)
+  // ObinsKit's USB Liana profile stores 0x35 (53) as the multipart data limit.
+  // Its native vector has a separate leading report-ID byte, which WebHID's
+  // sendReport API supplies via its reportId argument.
+  for (let offset = 0, packet = 0; offset < combined.byteLength; offset += 53, packet += 1) {
+    const payload = combined.slice(offset, offset + 53)
     const hasMore = offset + payload.byteLength < combined.byteLength
     requests.push(new Uint8Array([
       0x7b, 0x12, 0x31, packet | (hasMore ? 0x80 : 0),

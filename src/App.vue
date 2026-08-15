@@ -642,11 +642,8 @@ async function applyLayers(): Promise<void> {
     layers.value = result.layers
     layerDrafts.value = result.layers.map(layer => layer.data.slice())
     hardwareState.value = result.state
-    const success = result.recoveredAckTimeouts
-      ? t('notice.layersSavedAfterAckTimeout', { count: result.recoveredAckTimeouts })
-      : t('notice.layersSaved')
-    message.value = success
-    layoutNotice.value = success
+    message.value = t('notice.layersSaved')
+    layoutNotice.value = t('notice.layersSaved')
   } catch (error) {
     layoutNotice.value = showWriteError(t('app.keyboardLayers'), error)
   } finally { busy.value = null }
@@ -661,11 +658,8 @@ async function restoreLayers(): Promise<void> {
     layerDrafts.value = result.layers.map(layer => layer.data.slice())
     hardwareState.value = result.state
     layerBackups.value = [null, null, null, null]
-    const success = result.recoveredAckTimeouts
-      ? t('notice.layersSavedAfterAckTimeout', { count: result.recoveredAckTimeouts })
-      : t('notice.layersRestored')
-    message.value = success
-    layoutNotice.value = success
+    message.value = t('notice.layersRestored')
+    layoutNotice.value = t('notice.layersRestored')
   } catch (error) {
     showWriteError(t('layer.restoreAll'), error)
   } finally { busy.value = null }

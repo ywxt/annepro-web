@@ -361,35 +361,19 @@ export class AnneProHidTransport {
   async writeKeyboardLayers(
     layers: readonly Uint8Array[],
     timeoutMs = 5000,
-  ): Promise<{ layers: KeyboardLayerResponse[]; state: HardwareState; recoveredAckTimeouts: number }> {
+  ): Promise<{ layers: KeyboardLayerResponse[]; state: HardwareState }> {
     if (layers.length !== 4) throw new Error(`Expected four keyboard layers, got ${layers.length}`)
     let stage = 'preparing layout'
-    let recoveredAckTimeouts = 0
     try {
       for (const [layer, data] of layers.entries()) {
         const requests = createWriteKeyboardLayerRequests(layer, data)
         for (const [packet, request] of requests.entries()) {
           stage = `downloading Layer ${layer}, packet ${packet + 1}/${requests.length}`
-          try {
-            await this.requestConfirmedRead(
-              request,
-              response => parseWriteKeyboardLayerAck(packet, response),
-              timeoutMs,
-            )
-          } catch (error) {
-            const timedOut = error instanceof Error && error.message === `Confirmed read timed out after ${timeoutMs} ms`
-            if (!timedOut) throw error
-            // ObinsKit keeps the active native write queue in checkWriteTimeout.
-            // Mirror that recovery in a strictly bounded form: wait once,
-            // resend the exact current packet once, and still require its ACK.
-            await new Promise(resolve => globalThis.setTimeout(resolve, 20))
-            await this.requestConfirmedRead(
-              request,
-              response => parseWriteKeyboardLayerAck(packet, response),
-              timeoutMs,
-            )
-            recoveredAckTimeouts += 1
-          }
+          await this.requestConfirmedRead(
+            request,
+            response => parseWriteKeyboardLayerAck(packet, response),
+            timeoutMs,
+          )
         }
         // ObinsKit returns the completed native queue through its callback and
         // two IPC hops before the renderer starts the next layer. Preserve a
@@ -412,7 +396,7 @@ export class AnneProHidTransport {
         }
         activeReadbacks.push(active)
       }
-      return { layers: activeReadbacks, state, recoveredAckTimeouts }
+      return { layers: activeReadbacks, state }
     } catch (error) {
       throw new Error(`${stage}: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
     }
