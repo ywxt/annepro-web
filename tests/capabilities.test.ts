@@ -23,8 +23,18 @@ describe('ObinsKit capability gates', () => {
   })
 
   it('does not invent capabilities for unknown models', () => {
-    expect(deriveDeviceCapabilities({ ...device, model: 99 }, firmware)).toMatchObject({
-      profileKnown: false, hasLed: null, hasIndicatorLed: null, hasBattery: null,
+    expect(deriveDeviceCapabilities({ ...device, model: 99 }, firmware)).toEqual({
+      profileKnown: false, keyboardLayers: false, macros: false, generalSettings: false,
+      bluetooth: false, factoryReset: false, hasLed: null, hasIndicatorLed: null, hasBattery: null,
+      audioVisualization: null, modernTapSettings: null, sleepTimeout: null,
+      ledPowerMode: null, capslockColor: null,
+    })
+  })
+
+  it('gates firmware-dependent controls on older Anne Pro 2 firmware', () => {
+    expect(deriveDeviceCapabilities(device, { ...firmware, key: '2.10' })).toMatchObject({
+      keyboardLayers: true, macros: true, generalSettings: true, bluetooth: true,
+      modernTapSettings: false, sleepTimeout: false, ledPowerMode: false, capslockColor: false,
     })
   })
 })

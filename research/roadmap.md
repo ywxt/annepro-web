@@ -82,7 +82,7 @@ device trial, and only then product UI.
 - [x] Auto-load the supported keyboard configuration after connection.
 - [x] Gate major feature panels from the detected model/firmware capability profile.
 - [x] Move raw HID collections, reports, frames, and key bytes into collapsed developer tools.
-- [ ] Complete Traditional Chinese and English localization for every user-facing panel and runtime message. Core panels, navigation, settings, lighting, macros, device information, and common notices are complete; full-backup validation and a few failure paths remain.
+- [x] Complete Traditional Chinese and English localization for every user-facing panel, destructive prompt, import validation, and runtime notice; enforce locale key parity with tests.
 - [x] Replace the long single page with capability-driven task navigation comparable to a desktop configurator; the key editor has dedicated Base/Fn1/Fn2/Tap layer tabs.
 
 ### M7 — IAP and firmware (deferred)

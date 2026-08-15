@@ -20,9 +20,16 @@ pnpm dev
 With nix-direnv enabled, run `direnv allow` once; the checked-in `.envrc` then loads the same flake automatically whenever the directory is entered.
 
 Open the localhost URL printed by Vite, click **選擇 Anne Pro 2**, and choose the
-protocol interface. Once permission has been granted, **快速重連** opens the
+protocol interface. The app automatically reads the model and supported
+configuration, then presents capability-gated **Device**, **Keys**, **Lighting**,
+**Macros**, and **Settings** workspaces. Once permission has been granted, **快速重連** opens the
 preferred interface without showing the chooser. WebHID is available only in a
 secure context: HTTPS or localhost. It is not supported by Firefox or Safari.
+
+The language selector switches the complete user interface and runtime notices
+between Traditional Chinese and English and remembers the choice in browser
+storage. Raw HID collections, input reports, frame bytes, and protocol controls
+are collapsed under **Developer tools** rather than mixed into normal setup.
 
 The chooser narrows all four supported VID/PID pairs to the descriptor observed
 on Anne Pro 2 `0xa293`: usage page `0x0001`, usage `0x0000`, with 64-byte input
@@ -37,7 +44,7 @@ USB removal is detected; reconnect the keyboard and use **快速重連**.
 - Device model, firmware versions, IAP state (read only), masked UDID, BLE MAC,
   battery voltage/estimate, cumulative runtime, HID collections, and raw reports.
 - Read, export, edit, verify, and restore all four 61-key layers with named HID
-  and Anne Pro keycodes.
+  and Anne Pro keycodes, presented as Base, Fn1, Fn2, and Tap Layer.
 - Read and modify layout selection, Magic Fn, macro enable, CapsLock behavior and
   RGB, backlight brightness, auto-sleep, Tap mode/timeout, sleep timeout, and LED
   power mode.

@@ -37,9 +37,10 @@ import { annePro2FactoryLights, ANNE_PRO_2_FACTORY_SETTINGS } from './protocol/f
 import { parseFullBackup } from './protocol/full-backup.ts'
 
 const supported = isWebHidSupported()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const connecting = ref(false)
 const message = ref(supported ? '' : t('app.unsupported'))
+watch(locale, () => { message.value = supported ? '' : t('app.unsupported') })
 const device = shallowRef<HIDDevice | null>(null)
 const transport = shallowRef<AnneProHidTransport | null>(null)
 const protocolReady = ref(false)
@@ -172,8 +173,7 @@ onMounted(() => {
   navigator.hid.addEventListener('connect', onHidConnect)
 })
 
-async function confirmedRead<T>(name: string, prompt: string, read: () => Promise<T>, assign: (value: T) => void): Promise<void> {
-  void prompt
+async function confirmedRead<T>(name: string, read: () => Promise<T>, assign: (value: T) => void): Promise<void> {
   busy.value = name
   message.value = t('notice.waiting', { name })
   try { assign(await read()); message.value = t('notice.done', { name }) }
@@ -181,9 +181,9 @@ async function confirmedRead<T>(name: string, prompt: string, read: () => Promis
   finally { busy.value = null }
 }
 
-const readDeviceType = () => transport.value && confirmedRead('readDeviceType', '傳送一次已確認的唯讀封包：\n7b 12 31 00 02 00 00 7d 01 01', () => transport.value!.readDeviceType(), value => { deviceType.value = value })
-const readFirmware = () => transport.value && confirmedRead('readFirmwareVersion', '傳送一次已確認的唯讀封包：\n7b 12 31 00 02 00 00 7d 01 03', () => transport.value!.readFirmwareVersion(), value => { firmware.value = value })
-const readIap = () => transport.value && confirmedRead('readIapMode（不切換模式）', '只讀取 IAP 狀態，不切換模式：\n7b 12 31 00 02 00 00 7d 02 02', () => transport.value!.readIapMode(), value => { iap.value = value })
+const readDeviceType = () => transport.value && confirmedRead('readDeviceType', () => transport.value!.readDeviceType(), value => { deviceType.value = value })
+const readFirmware = () => transport.value && confirmedRead('readFirmwareVersion', () => transport.value!.readFirmwareVersion(), value => { firmware.value = value })
+const readIap = () => transport.value && confirmedRead('readIapMode', () => transport.value!.readIapMode(), value => { iap.value = value })
 async function readAll(): Promise<void> {
   if (!transport.value) return
   busy.value = 'read all'
@@ -206,12 +206,11 @@ async function readAll(): Promise<void> {
     if (capabilities.value?.macros) macroBackup.value = await transport.value.readMacroBackup()
     message.value = t('notice.loaded')
   } catch (error) {
-    message.value = `完整讀取在 ${busy.value} 階段失敗：${error instanceof Error ? error.message : String(error)}；先前已完成的資料仍保留。`
+    message.value = t('notice.failed', { name: t('device.refresh'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 const readLayer = (layer: number) => transport.value && confirmedRead(
-  `Layer ${layer}`,
-  `傳送一次已確認的唯讀 Layer ${layer} 查詢：\n7b 12 31 00 03 00 00 7d 10 02 0${layer}`,
+  t(`layer.${layer}`),
   () => transport.value!.readKeyboardLayer(layer),
   value => {
     const next = layers.value.slice()
@@ -220,26 +219,22 @@ const readLayer = (layer: number) => transport.value && confirmedRead(
   },
 )
 const readMacroBackup = () => transport.value && confirmedRead(
-  'macro backup',
-  '讀取鍵盤巨集備份。首先傳送固定的 config 查詢；若有巨集，再依 map 宣告的有限數量讀取內容與 active list。所有命令均為 ObinsKit 的唯讀 30/06–09，不會寫入巨集。',
+  t('macro.title'),
   () => transport.value!.readMacroBackup(),
   value => { macroBackup.value = value },
 )
 const readHardwareState = () => transport.value && confirmedRead(
-  'readHardwareState',
-  '傳送一次 ObinsKit 的唯讀硬體狀態查詢：\n7b 12 31 00 02 00 00 7d 01 09',
+  t('settings.title'),
   () => transport.value!.readHardwareState(),
   value => { hardwareState.value = value },
 )
 const readLedPowerMode = () => transport.value && confirmedRead(
-  'readLedPowerMode',
-  '傳送一次已確認的唯讀 LED 功率模式查詢：\n7b 12 31 00 02 00 00 7d 20 1e',
+  t('settings.ledPower'),
   () => transport.value!.readLedPowerMode(),
   value => { ledPowerMode.value = value },
 )
 const readIndicatorColor = () => transport.value && confirmedRead(
-  'readLedIndicatorColor',
-  '傳送一次已確認的唯讀 CapsLock 指示顏色查詢：\n7b 12 31 00 02 00 00 7d 20 1a',
+  t('settings.capsColor'),
   () => transport.value!.readIndicatorColor(),
   value => { indicatorColor.value = value },
 )
@@ -247,15 +242,15 @@ async function applyIndicatorColor(hex: string): Promise<void> {
   if (!transport.value || !indicatorColor.value) return
   indicatorColorBackup.value ??= indicatorColor.value.hex
   busy.value = 'write indicator color'
-  try { indicatorColor.value = await transport.value.writeIndicatorColor(hex); message.value = 'CapsLock 指示顏色已寫入並回讀驗證。' }
-  catch (error) { message.value = `指示顏色寫入失敗：${error instanceof Error ? error.message : String(error)}` }
+  try { indicatorColor.value = await transport.value.writeIndicatorColor(hex); message.value = t('notice.settingSaved', { name: t('settings.capsColor') }) }
+  catch (error) { message.value = t('notice.failed', { name: t('settings.capsColor'), error: error instanceof Error ? error.message : String(error) }) }
   finally { busy.value = null }
 }
 async function restoreIndicatorColor(): Promise<void> {
   if (!transport.value || !indicatorColorBackup.value) return
   busy.value = 'restore indicator color'
-  try { indicatorColor.value = await transport.value.writeIndicatorColor(indicatorColorBackup.value); indicatorColorBackup.value = null; message.value = 'CapsLock 指示顏色已復原並驗證。' }
-  catch (error) { message.value = `指示顏色復原失敗：${error instanceof Error ? error.message : String(error)}` }
+  try { indicatorColor.value = await transport.value.writeIndicatorColor(indicatorColorBackup.value); indicatorColorBackup.value = null; message.value = t('notice.layerRestored', { name: t('settings.capsColor') }) }
+  catch (error) { message.value = t('notice.failed', { name: t('settings.restoreColor'), error: error instanceof Error ? error.message : String(error) }) }
   finally { busy.value = null }
 }
 async function readRuntimeInfo(): Promise<void> {
@@ -264,9 +259,9 @@ async function readRuntimeInfo(): Promise<void> {
   try {
     powerOnTime.value = await transport.value.readPowerOnTime()
     battery.value = await transport.value.readBattery()
-    message.value = '電池與運行時間讀取完成。'
+    message.value = t('notice.done', { name: t('runtime.title') })
   } catch (error) {
-    message.value = `執行期資訊讀取失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('runtime.title'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -276,9 +271,9 @@ async function readIdentity(): Promise<void> {
   try {
     udid.value = await transport.value.readUdid()
     bleMac.value = await transport.value.readBleMac()
-    message.value = '裝置識別與 BLE MAC 讀取完成。'
+    message.value = t('notice.done', { name: t('identity.title') })
   } catch (error) {
-    message.value = `識別資訊讀取失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('identity.title'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -289,9 +284,9 @@ async function deleteBleHosts(): Promise<void> {
   busy.value = 'delete BLE hosts'
   try {
     await transport.value.deleteBleHosts()
-    message.value = '鍵盤已確認清除所有藍牙配對；請在作業系統中重新配對。'
+    message.value = t('notice.done', { name: t('identity.clear') })
   } catch (error) {
-    message.value = `清除藍牙配對失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('identity.clear'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -320,9 +315,9 @@ async function factoryReset(): Promise<void> {
     await transport.value.deleteBleHosts()
     hardwareState.value = await transport.value.readHardwareState()
     if (capabilities.value.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
-    message.value = '已恢復 ObinsKit Anne Pro 2 原廠設定並回讀一般設定；BLE 配對已清除。'
+    message.value = t('notice.done', { name: t('factory.title') })
   } catch (error) {
-    message.value = `原廠重設中斷：${error instanceof Error ? error.message : String(error)}。已完成的步驟不會自動回滾，請使用各區塊的復原按鈕。`
+    message.value = t('notice.failed', { name: t('factory.title'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -348,11 +343,11 @@ async function applySetting(key: HardwareSettingKey, value: number): Promise<voi
     await transport.value.writeHardwareSetting(key, value)
     if (key === 'ledPowerMode') {
       const readback = await transport.value.readLedPowerMode()
-      if (readback.mode !== value) throw new Error(`回讀值 ${readback.mode} 不符合 ${value}`)
+      if (readback.mode !== value) throw new Error(t('validation.readback', { name: settingName(key), actual: readback.mode, expected: value }))
       ledPowerMode.value = readback
     } else {
       const readback = await transport.value.readHardwareState()
-      if (readback[key] !== value) throw new Error(`回讀值 ${readback[key]} 不符合 ${value}`)
+      if (readback[key] !== value) throw new Error(t('validation.readback', { name: settingName(key), actual: readback[key], expected: value }))
       hardwareState.value = readback
     }
     message.value = t('notice.settingSaved', { name: settingName(key) })
@@ -384,7 +379,7 @@ async function restoreSettings(): Promise<void> {
         || backup.state.sleepTimeoutRaw < 10
         || backup.state.sleepTimeoutRaw > 3600
       )) continue
-      if (readback[key] !== backup.state[key]) throw new Error(`${key} 回讀不一致`)
+      if (readback[key] !== backup.state[key]) throw new Error(t('validation.readback', { name: settingName(key), actual: readback[key], expected: backup.state[key] }))
     }
     hardwareState.value = readback
     if (backup.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
@@ -453,12 +448,12 @@ function exportFullBackup(): void {
 
 async function importFullBackup(file: File): Promise<void> {
   if (!transport.value || !device.value || !deviceType.value || !hardwareState.value || !macroBackup.value || !allLayersLoaded.value) return
-  let stage = '解析備份'
+  let stage = t('backup.parse')
   try {
     const backup = parseFullBackup(JSON.parse(await file.text()) as unknown)
-    if (backup.device.model !== deviceType.value.model) throw new Error(`備份 model ${backup.device.model} 與目前鍵盤 model ${deviceType.value.model} 不符`)
-    const productWarning = backup.device.productId === device.value.productId ? '' : `\n注意：來源 PID 0x${backup.device.productId.toString(16)}，目前 PID 0x${device.value.productId.toString(16)}。`
-    const confirmation = window.prompt(`將完整覆寫四層鍵位、巨集、一般設定、CapsLock 顏色及 ${backup.lights.length} 個燈效。\n所有可讀的目前資料已在記憶體中保留；燈效沒有裝置讀回能力。${productWarning}\n\n請輸入 RESTORE FULL BACKUP 繼續：`)
+    if (backup.device.model !== deviceType.value.model) throw new Error(t('backup.modelMismatch', { source: backup.device.model, current: deviceType.value.model }))
+    const productWarning = backup.device.productId === device.value.productId ? '' : t('danger.pidWarning', { source: `0x${backup.device.productId.toString(16)}`, current: `0x${device.value.productId.toString(16)}` })
+    const confirmation = window.prompt(t('danger.fullRestore', { count: backup.lights.length, warning: productWarning }))
     if (confirmation !== 'RESTORE FULL BACKUP') return
 
     settingsBackup.value ??= { state: hardwareState.value, ledPowerMode: ledPowerMode.value }
@@ -469,7 +464,7 @@ async function importFullBackup(file: File): Promise<void> {
     layerBackups.value = savedLayers
     busy.value = 'restore full backup'
 
-    stage = '還原四層鍵位'
+    stage = t('backup.layers')
     for (let index = 0; index < 4; index += 1) {
       const current = layers.value[index]!.data
       if (current.every((value, offset) => value === backup.layers[index][offset])) continue
@@ -477,14 +472,14 @@ async function importFullBackup(file: File): Promise<void> {
       const next = layers.value.slice(); next[index] = readback; layers.value = next
     }
 
-    stage = '還原巨集'
+    stage = t('backup.macros')
     macroBackup.value = await transport.value.writeMacros(backup.macros, backup.bindings)
 
-    stage = '還原燈效'
+    stage = t('backup.lights')
     await transport.value.installLights(backup.lights)
     lightEffects.value = backup.lights
 
-    stage = '還原一般設定'
+    stage = t('backup.settings')
     for (const key of STATE_KEYS) {
       if (key === 'sleepTimeoutRaw' && (!capabilities.value?.sleepTimeout || backup.settings.sleepTimeoutRaw === undefined)) continue
       const value = backup.settings[key]
@@ -498,20 +493,20 @@ async function importFullBackup(file: File): Promise<void> {
       indicatorColor.value = await transport.value.writeIndicatorColor(backup.settings.indicatorColor)
     }
 
-    stage = '驗證一般設定'
+    stage = t('backup.verify')
     const readback = await transport.value.readHardwareState()
     for (const key of STATE_KEYS) {
       if (key === 'sleepTimeoutRaw' && (!capabilities.value?.sleepTimeout || backup.settings.sleepTimeoutRaw === undefined)) continue
-      if (readback[key] !== backup.settings[key]) throw new Error(`${key} 回讀 ${readback[key]}，預期 ${backup.settings[key]}`)
+      if (readback[key] !== backup.settings[key]) throw new Error(t('validation.readback', { name: settingName(key), actual: readback[key], expected: backup.settings[key] }))
     }
     hardwareState.value = readback
     if (capabilities.value?.ledPowerMode && backup.settings.ledPowerMode !== undefined) {
       ledPowerMode.value = await transport.value.readLedPowerMode()
-      if (ledPowerMode.value.mode !== backup.settings.ledPowerMode) throw new Error('LED power mode 回讀不一致')
+      if (ledPowerMode.value.mode !== backup.settings.ledPowerMode) throw new Error(t('validation.readback', { name: t('settings.ledPower'), actual: ledPowerMode.value.mode, expected: backup.settings.ledPowerMode }))
     }
-    message.value = `完整備份 ${file.name} 已還原：4 層、${backup.macros.length} 個巨集與一般設定已回讀驗證；${backup.lights.length} 個燈效已取得逐封包 acknowledgement。`
+    message.value = t('backup.restored', { file: file.name, macros: backup.macros.length, lights: backup.lights.length })
   } catch (error) {
-    message.value = `完整備份還原在「${stage}」失敗：${error instanceof Error ? error.message : String(error)}。已完成的階段不會自動回滾；可讀配置可使用各區塊復原，燈效則沒有裝置讀回備份。`
+    message.value = t('backup.failed', { stage, error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -555,34 +550,34 @@ async function importMacros(file: File): Promise<void> {
   if (!transport.value) return
   try {
     const parsed = JSON.parse(await file.text()) as { format?: string; macros?: Array<Record<string, unknown>>; activeList?: ActiveMacroBinding[] }
-    if (parsed.format !== 'annepro-web-macro-backup' || !Array.isArray(parsed.macros) || !Array.isArray(parsed.activeList)) throw new Error('檔案格式不符')
-    if (parsed.macros.length > 16 || parsed.activeList.length > 64) throw new Error('巨集或綁定數量超出裝置限制')
+    if (parsed.format !== 'annepro-web-macro-backup' || !Array.isArray(parsed.macros) || !Array.isArray(parsed.activeList)) throw new Error(t('validation.format'))
+    if (parsed.macros.length > 16 || parsed.activeList.length > 64) throw new Error(t('validation.macroLimit'))
     const macros: StoredMacro[] = parsed.macros.map((item, index) => {
-      if (!Array.isArray(item.events) || !item.events.every(value => Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 255)) throw new Error(`Macro ${index} events 無效`)
+      if (!Array.isArray(item.events) || !item.events.every(value => Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 255)) throw new Error(t('validation.macroEvents', { index: index + 1 }))
       const name = String(item.name ?? '')
       const icon = Number(item.icon ?? 0)
-      if (name.length > 64 || !Number.isInteger(icon) || icon < 0 || icon > 65535) throw new Error(`Macro ${index} metadata 無效`)
+      if (name.length > 64 || !Number.isInteger(icon) || icon < 0 || icon > 65535) throw new Error(t('validation.macroMetadata', { index: index + 1 }))
       return { id: index, uuid: String(item.uuid ?? '0'), name, icon, events: new Uint8Array(item.events as number[]), separator: new Uint8Array([0, 0, 0]) }
     })
     const bindings = parsed.activeList.map((binding, index) => {
       if (![binding.layer, binding.matrixPosition, binding.macroIndex].every(Number.isInteger)
         || binding.layer < 0 || binding.layer > 3 || binding.matrixPosition < 0 || binding.matrixPosition > 255
-        || binding.macroIndex < 0 || binding.macroIndex >= macros.length) throw new Error(`Binding ${index} 無效`)
+        || binding.macroIndex < 0 || binding.macroIndex >= macros.length) throw new Error(t('validation.binding', { index: index + 1 }))
       return { ...binding }
     })
     if (!macroBackup.value) macroBackup.value = await transport.value.readMacroBackup()
     await applyMacros(macros, bindings)
-  } catch (error) { message.value = `巨集匯入失敗：${error instanceof Error ? error.message : String(error)}` }
+  } catch (error) { message.value = t('notice.failed', { name: t('macro.import'), error: error instanceof Error ? error.message : String(error) }) }
 }
 
 async function importLayout(file: File): Promise<void> {
   if (!transport.value || !allLayersLoaded.value) return
   try {
     const parsed = JSON.parse(await file.text()) as { format?: string; layers?: Array<{ index?: number; keycodes?: number[] }> }
-    if (parsed.format !== 'annepro-web-layout-backup' || !Array.isArray(parsed.layers) || parsed.layers.length !== 4) throw new Error('必須是含四層的 annepro-web layout backup')
+    if (parsed.format !== 'annepro-web-layout-backup' || !Array.isArray(parsed.layers) || parsed.layers.length !== 4) throw new Error(t('validation.layout'))
     const imported = Array.from({ length: 4 }, (_, index) => {
       const layer = parsed.layers!.find(candidate => candidate.index === index)
-      if (!layer || !Array.isArray(layer.keycodes) || layer.keycodes.length !== 61 || !layer.keycodes.every(value => Number.isInteger(value) && value >= 0 && value <= 255)) throw new Error(`Layer ${index} 無效`)
+      if (!layer || !Array.isArray(layer.keycodes) || layer.keycodes.length !== 61 || !layer.keycodes.every(value => Number.isInteger(value) && value >= 0 && value <= 255)) throw new Error(t('validation.layer', { name: t(`layer.${index}`) }))
       return new Uint8Array(layer.keycodes)
     })
     busy.value = 'import layout'
@@ -593,8 +588,8 @@ async function importLayout(file: File): Promise<void> {
       const readback = await transport.value.writeKeyboardLayer(index, imported[index])
       const next = layers.value.slice(); next[index] = readback; layers.value = next
     }
-    message.value = '四層鍵位備份已匯入並逐 byte 回讀驗證。'
-  } catch (error) { message.value = `鍵位匯入失敗：${error instanceof Error ? error.message : String(error)}` }
+    message.value = t('notice.done', { name: t('app.importLayers') })
+  } catch (error) { message.value = t('notice.failed', { name: t('app.importLayers'), error: error instanceof Error ? error.message : String(error) }) }
   finally { busy.value = null }
 }
 
@@ -668,8 +663,8 @@ function exportLights(): void {
 async function importLights(file: File): Promise<void> {
   try {
     const parsed = JSON.parse(await file.text()) as { format?: string; effects?: LightEffect[] }
-    if (parsed.format !== 'annepro-web-light-profile' || !Array.isArray(parsed.effects)) throw new Error('檔案格式不符')
-    if (parsed.effects.length > 32) throw new Error('燈效不可超過 32 個')
+    if (parsed.format !== 'annepro-web-light-profile' || !Array.isArray(parsed.effects)) throw new Error(t('validation.format'))
+    if (parsed.effects.length > 32) throw new Error(t('validation.lightLimit'))
     parsed.effects.forEach(encodeLightRgb)
     lightEffects.value = parsed.effects
     message.value = t('notice.lightsImported', { count: parsed.effects.length })
@@ -703,12 +698,12 @@ async function startAudioVisualize(): Promise<void> {
       audioSending = true
       transport.value.sendAudioVisualizeFrame(rgb)
         .then(() => { audioFrames.value += 1 })
-        .catch((error: unknown) => { message.value = `Audio Visualize 傳送失敗：${error instanceof Error ? error.message : String(error)}`; void stopAudioVisualize(false) })
+        .catch((error: unknown) => { message.value = t('notice.failed', { name: t('audio.title'), error: error instanceof Error ? error.message : String(error) }); void stopAudioVisualize(false) })
         .finally(() => { audioSending = false })
     }, 50)
     message.value = t('notice.audioStarted')
   } catch (error) {
-    message.value = `無法開始 Audio Visualize：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('audio.start'), error: error instanceof Error ? error.message : String(error) })
     await stopAudioVisualize(false)
   } finally { busy.value = null }
 }
@@ -723,7 +718,7 @@ async function stopAudioVisualize(restore = true): Promise<void> {
   audioContext = null
   if (restore && transport.value && lightEffects.value[0]) {
     try { await transport.value.previewLight(lightEffects.value[0]); message.value = t('notice.audioStopped') }
-    catch (error) { message.value = `Audio Visualize 已停止，但恢復燈效失敗：${error instanceof Error ? error.message : String(error)}` }
+    catch (error) { message.value = t('notice.failed', { name: t('audio.stop'), error: error instanceof Error ? error.message : String(error) }) }
   }
 }
 
