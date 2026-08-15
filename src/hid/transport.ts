@@ -9,6 +9,11 @@ import {
   parseFirmwareVersionResponse,
   type FirmwareVersions,
 } from '../protocol/firmware-info.ts'
+import {
+  createReadIapModeRequest,
+  parseIapModeResponse,
+  type IapModeResponse,
+} from '../protocol/iap-info.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -53,6 +58,14 @@ export class ReadonlyHidTransport {
     return this.requestConfirmedRead(
       createReadFirmwareVersionRequest(),
       parseFirmwareVersionResponse,
+      timeoutMs,
+    )
+  }
+
+  async readIapMode(timeoutMs = 1500): Promise<IapModeResponse> {
+    return this.requestConfirmedRead(
+      createReadIapModeRequest(),
+      parseIapModeResponse,
       timeoutMs,
     )
   }

@@ -64,6 +64,19 @@ decoded:   key 2.36, LED 2.33, BLE 2.05
 
 This exact read is implemented with the same confirmation, single-flight, strict-response, and timeout restrictions as `readDeviceType`. Other captured initialization commands remain unimplemented.
 
+## `readIapMode`
+
+Static analysis shows `readIapMode(target)` calls `hidWriteWithArg0(target, 02, 02)`. A separately approved, isolated request to `MCU_MAIN` confirmed:
+
+```text
+report ID: 0
+request:   7b 12 31 00 02 00 00 7d 02 02
+response:  7b 12 13 00 03 00 00 7d 02 02 02
+decoded:   mode code 2
+```
+
+The response contains one declared payload byte. The semantic name of value 2 is not present in the inspected renderer path and remains intentionally unmapped. This query does not call `writeIapMode` and cannot switch modes.
+
 ## Physical metadata capture: `0x04d9:0xa293`
 
 The first browser capture (`annepro-hid-metadata-1786811850854.json`) contains one top-level collection:

@@ -15,7 +15,7 @@ app.innerHTML = `
   <section class="card status"><div><span class="dot"></span><span id="support"></span></div>
     <button id="connect" type="button">連接 Anne Pro 2</button></section>
   <p id="message" role="status" aria-live="polite"></p>
-  <section id="device-section" class="card hidden"><div class="section-heading"><h2>裝置</h2><div><button id="read-device-type" class="secondary hidden" type="button">讀取裝置類型</button><button id="read-firmware-version" class="secondary hidden" type="button">讀取韌體版本</button></div></div><div id="device"></div><p id="device-type-result" class="decoded"></p><p id="firmware-version-result" class="decoded"></p></section>
+  <section id="device-section" class="card hidden"><div class="section-heading"><h2>裝置</h2><div><button id="read-device-type" class="secondary hidden" type="button">讀取裝置類型</button><button id="read-firmware-version" class="secondary hidden" type="button">讀取韌體版本</button><button id="read-iap-mode" class="secondary hidden" type="button">讀取 IAP 狀態</button></div></div><div id="device"></div><p id="device-type-result" class="decoded"></p><p id="firmware-version-result" class="decoded"></p><p id="iap-mode-result" class="decoded"></p></section>
   <section id="collections-section" class="hidden"><div class="section-heading"><h2>Collections</h2><div><span id="collection-count"></span><button id="export-metadata" class="secondary" type="button">匯出 metadata</button></div></div><div id="collections" class="collection-grid"></div></section>
   <section id="reports-section" class="card hidden"><div class="section-heading"><h2>Input reports</h2><div><button id="export" class="secondary" type="button">匯出 JSON</button><button id="clear" class="secondary" type="button">清除</button></div></div><div id="reports" class="reports"><p class="empty">等待輸入報告…</p></div></section>
   <footer>安全模式：只開啟裝置並監聽 inputreport</footer>`
@@ -97,6 +97,7 @@ connectButton.addEventListener('click', async () => {
     if (selection.hasProtocolCollection) {
       show('#read-device-type')
       show('#read-firmware-version')
+      show('#read-iap-mode')
     }
     message.textContent = selection.hasProtocolCollection
       ? `已從 ${selection.candidates.length} 個候選介面中連接協議候選 collection；正在唯讀監聽 input reports。`
@@ -159,6 +160,26 @@ document.querySelector('#read-firmware-version')?.addEventListener('click', asyn
     result.textContent = `Firmware · Key ${response.key} · LED ${response.led} · BLE ${response.ble} · Frame ${bytesToHex(response.rawFrame)} · Ignored ${response.trailingLength} trailing bytes`
   } catch (error) {
     result.textContent = `readFirmwareVersion 失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    button.disabled = false
+  }
+})
+
+document.querySelector('#read-iap-mode')?.addEventListener('click', async () => {
+  if (!connectedTransport) return
+  const approved = window.confirm(
+    '這只會讀取目前 IAP 狀態，不會切換模式。封包已由單次實機 capture 確認。\n\nReport ID 0\n7b 12 31 00 02 00 00 7d 02 02\n\n確定繼續？',
+  )
+  if (!approved) return
+  const button = document.querySelector<HTMLButtonElement>('#read-iap-mode')!
+  const result = document.querySelector<HTMLElement>('#iap-mode-result')!
+  button.disabled = true
+  result.textContent = '等待 readIapMode 回應…'
+  try {
+    const response = await connectedTransport.readIapMode()
+    result.textContent = `IAP state code ${response.mode} · Frame ${bytesToHex(response.rawFrame)} · Ignored ${response.trailingLength} trailing bytes`
+  } catch (error) {
+    result.textContent = `readIapMode 失敗：${error instanceof Error ? error.message : String(error)}`
   } finally {
     button.disabled = false
   }

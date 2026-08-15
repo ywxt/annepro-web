@@ -30,7 +30,7 @@ npm run build
 
 ## Safety boundary
 
-The transport opens the device, listens for input, and exposes narrowly scoped `readDeviceType()` and `readFirmwareVersion()` operations confirmed by a controlled ObinsKit capture. The UI shows the exact packet and requires confirmation before each one-shot query. No arbitrary `sendReport`, feature-report, firmware write, IAP, erase, or configuration API is exposed.
+The transport opens the device, listens for input, and exposes narrowly scoped `readDeviceType()`, `readFirmwareVersion()`, and `readIapMode()` operations confirmed by controlled captures. The UI shows the exact packet and requires confirmation before each one-shot query. `readIapMode` only reports the state code and cannot switch modes. No arbitrary `sendReport`, feature-report, firmware write, IAP switch, erase, or configuration API is exposed.
 
 ## Next protocol research
 

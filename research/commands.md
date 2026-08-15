@@ -10,7 +10,7 @@ Evidence labels:
 | --- | --- | --- | --- | --- | --- |
 | `readDeviceType` | read | command/action `01/01`, report ID 0 | captured | R1 | implemented |
 | `readFirmwareVersion(MCU_MAIN)` | read | command/action `01/03`, report ID 0 | captured | R1 | implemented |
-| `readIapMode(target)` | read | native `hidWriteWithArg0(target, 02, 02)` | static | R1 | pending isolated capture |
+| `readIapMode(MCU_MAIN)` | read | command/action `02/02`, report ID 0 | captured | R1 | implemented; mode labels pending |
 | `readUDID` | read sensitive | captured startup query strongly correlates with `01/0d` | renderer + capture correlation | R1/private | not implemented |
 | `downloadKbdLayout` | multi-packet read | native `multi_package_create(03, 10, 01, ...)` | static | R1 | framing/payload research pending |
 | `downloadMacro` | multi-packet read | native `multi_package_create(03, 30, 05, ...)` | static | R1 | framing/payload research pending |
@@ -25,4 +25,3 @@ Evidence labels:
 ## Captured startup traffic
 
 The 12-second ObinsKit trace issued 17 queries. Presence in that trace does not by itself authorize an implementation. Known pairs include `01/01` and `01/03`; remaining frames are retained only in temporary analysis data and must be individually correlated, redacted, and reviewed before becoming fixtures.
-
