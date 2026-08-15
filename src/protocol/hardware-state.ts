@@ -1,4 +1,5 @@
 import { parseLianaFrame } from './liana.ts'
+import type { DeviceCapabilities } from './capabilities.ts'
 
 const READ_HARDWARE_STATE_REQUEST = new Uint8Array([
   0x7b, 0x12, 0x31, 0x00, 0x02, 0x00, 0x00, 0x7d, 0x01, 0x09,
@@ -20,6 +21,56 @@ export interface HardwareState {
   reservedPrefix: Uint8Array
   rawFrame: Uint8Array
   trailingLength: number
+}
+
+export interface HardwareStateDescription {
+  userLayout: string
+  magicFn: string
+  macroTrigger: string
+  capslockLed: string
+  indicatorBrightness: string
+  backlightBrightness: string
+  ledHold: string
+  tapStatus: string
+  tapActMode: string
+  tapTimeout: string
+  sleepTimeout: string
+}
+
+function option(value: number, labels: Record<number, string>): string {
+  return labels[value] ?? `未知選項 (${value})`
+}
+
+function brightness(value: number): string {
+  if (value < 1 || value > 10) return `異常／保留值 (${value})`
+  return `${value * 10}%`
+}
+
+/** Matches ObinsKit's slider conversion: 10–59 seconds, then 1–60 minutes. */
+export function describeSleepTimeout(rawSeconds: number): string {
+  if (rawSeconds < 60) return `${Math.max(rawSeconds, 10)} 秒`
+  const minutes = Math.min(Math.floor(rawSeconds / 60), 60)
+  return `${minutes} 分鐘${rawSeconds > 3600 ? '（ObinsKit 上限；原始值超出範圍）' : ''}`
+}
+
+export function describeHardwareState(state: HardwareState, capabilities?: DeviceCapabilities | null): HardwareStateDescription {
+  return {
+    userLayout: option(state.userLayout, { 0: '預設配置', 1: '使用者配置' }),
+    magicFn: option(state.magicFn, { 0: '停用', 1: 'Fn1', 2: 'Fn2' }),
+    macroTrigger: option(state.macroTrigger, { 0: '停用', 1: '啟用' }),
+    capslockLed: option(state.capslockLed, { 0: '僅 CapsLock 鍵', 1: '所有按鍵' }),
+    indicatorBrightness: capabilities?.hasIndicatorLed === false
+      ? `此型號不支援（保留值 ${state.indicatorBrightness}）`
+      : brightness(state.indicatorBrightness),
+    backlightBrightness: brightness(state.backlightBrightness),
+    ledHold: state.ledHold === 1 ? '啟用（自動休眠）' : state.ledHold === 0 ? '停用（不自動休眠）' : `未知選項 (${state.ledHold})`,
+    tapStatus: state.tapStatus >= 1 ? '啟用' : '停用',
+    tapActMode: option(state.tapActMode, { 2: '一般模式', 3: '組合模式' }),
+    tapTimeout: `${state.tapTimeoutValue * 10} ms`,
+    sleepTimeout: capabilities?.sleepTimeout === false
+      ? `韌體不支援（保留值 ${state.sleepTimeoutRaw}）`
+      : `${describeSleepTimeout(state.sleepTimeoutRaw)}${state.ledHold === 0 ? '（目前不生效）' : ''}`,
+  }
 }
 
 export function createReadHardwareStateRequest(): Uint8Array {

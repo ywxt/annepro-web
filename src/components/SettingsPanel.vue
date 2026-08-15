@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { DeviceCapabilities } from '../protocol/capabilities.ts'
 import type { HardwareState } from '../protocol/hardware-state.ts'
+import { describeHardwareState } from '../protocol/hardware-state.ts'
 import { bytesToHex } from '../protocol/packet.ts'
 
-defineProps<{ state: HardwareState | null; busy: boolean }>()
+const props = defineProps<{ state: HardwareState | null; capabilities: DeviceCapabilities | null; busy: boolean }>()
 defineEmits<{ readState: [] }>()
+const description = computed(() => props.state ? describeHardwareState(props.state, props.capabilities) : null)
 </script>
 
 <template>
@@ -11,13 +15,13 @@ defineEmits<{ readState: [] }>()
     <div class="section-heading"><div><p class="eyebrow">READ-ONLY</p><h2>一般設定</h2></div><button class="secondary" :disabled="busy" @click="$emit('readState')">讀取硬體狀態</button></div>
     <p v-if="!state" class="empty">尚未讀取鍵盤設定快照。</p>
     <template v-else>
-      <dl class="settings-grid">
-        <div><dt>Format</dt><dd>{{ state.format }}</dd></div><div><dt>User layout</dt><dd>{{ state.userLayout }}</dd></div>
-        <div><dt>Magic Fn</dt><dd>{{ state.magicFn }}</dd></div><div><dt>Macro trigger</dt><dd>{{ state.macroTrigger }}</dd></div>
-        <div><dt>CapsLock LED</dt><dd>{{ state.capslockLed }}</dd></div><div><dt>Indicator brightness</dt><dd>{{ state.indicatorBrightness }}</dd></div>
-        <div><dt>Backlight brightness</dt><dd>{{ state.backlightBrightness }}</dd></div><div><dt>LED hold</dt><dd>{{ state.ledHold }}</dd></div>
-        <div><dt>Tap enabled</dt><dd>{{ state.tapStatus }}</dd></div><div><dt>Tap mode</dt><dd>{{ state.tapActMode }}</dd></div>
-        <div><dt>Tap timeout</dt><dd>{{ state.tapTimeoutValue }}</dd></div><div><dt>Sleep timeout (raw)</dt><dd>{{ state.sleepTimeoutRaw }}</dd></div>
+      <dl v-if="description" class="settings-grid">
+        <div><dt>資料格式</dt><dd>{{ state.format }} <small>raw</small></dd></div><div><dt>按鍵配置</dt><dd>{{ description.userLayout }} <small>{{ state.userLayout }}</small></dd></div>
+        <div><dt>Magic Fn</dt><dd>{{ description.magicFn }} <small>{{ state.magicFn }}</small></dd></div><div><dt>巨集觸發</dt><dd>{{ description.macroTrigger }} <small>{{ state.macroTrigger }}</small></dd></div>
+        <div><dt>CapsLock 燈效</dt><dd>{{ description.capslockLed }} <small>{{ state.capslockLed }}</small></dd></div><div><dt>指示燈亮度</dt><dd>{{ description.indicatorBrightness }} <small>{{ state.indicatorBrightness }}</small></dd></div>
+        <div><dt>背光亮度</dt><dd>{{ description.backlightBrightness }} <small>{{ state.backlightBrightness }}</small></dd></div><div><dt>自動休眠</dt><dd>{{ description.ledHold }} <small>{{ state.ledHold }}</small></dd></div>
+        <div><dt>Tap</dt><dd>{{ description.tapStatus }} <small>{{ state.tapStatus }}</small></dd></div><div><dt>Tap 模式</dt><dd>{{ description.tapActMode }} <small>{{ state.tapActMode }}</small></dd></div>
+        <div><dt>Tap 判定時間</dt><dd>{{ description.tapTimeout }} <small>{{ state.tapTimeoutValue }}</small></dd></div><div><dt>休眠時間</dt><dd>{{ description.sleepTimeout }} <small>{{ state.sleepTimeoutRaw }}</small></dd></div>
       </dl>
       <code class="layout-raw">{{ bytesToHex(state.rawFrame) }}</code>
     </template>

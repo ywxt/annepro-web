@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import type { DeviceCapabilities } from '../protocol/capabilities.ts'
 import type { DeviceTypeResponse } from '../protocol/device-info.ts'
 import type { FirmwareVersions } from '../protocol/firmware-info.ts'
 import type { IapModeResponse } from '../protocol/iap-info.ts'
 import { bytesToHex, formatHex } from '../protocol/packet.ts'
 
-defineProps<{ device: HIDDevice; deviceType: DeviceTypeResponse | null; firmware: FirmwareVersions | null; iap: IapModeResponse | null; busy: string | null; protocolReady: boolean }>()
+defineProps<{ device: HIDDevice; deviceType: DeviceTypeResponse | null; firmware: FirmwareVersions | null; iap: IapModeResponse | null; capabilities: DeviceCapabilities | null; busy: string | null; protocolReady: boolean }>()
 defineEmits<{ readDeviceType: []; readFirmware: []; readIap: []; readLayer: [layer: number] }>()
 </script>
 
@@ -20,5 +21,14 @@ defineEmits<{ readDeviceType: []; readFirmware: []; readIap: []; readLayer: [lay
     <p v-if="deviceType" class="decoded">Model {{ deviceType.model }} ({{ deviceType.modelName }}) · Type {{ deviceType.type }} ({{ deviceType.typeName }}) · Frame {{ bytesToHex(deviceType.rawFrame) }} · Ignored {{ deviceType.trailingLength }} trailing bytes</p>
     <p v-if="firmware" class="decoded">Firmware · Key {{ firmware.key }} · LED {{ firmware.led }} · BLE {{ firmware.ble }} · Frame {{ bytesToHex(firmware.rawFrame) }} · Ignored {{ firmware.trailingLength }} trailing bytes</p>
     <p v-if="iap" class="decoded">IAP state code {{ iap.mode }} · Frame {{ bytesToHex(iap.rawFrame) }} · Ignored {{ iap.trailingLength }} trailing bytes</p>
+    <div v-if="capabilities" class="decoded">
+      <strong>ObinsKit 能力摘要</strong> ·
+      RGB {{ capabilities.hasLed ? '支援' : '不支援' }} ·
+      獨立指示燈 {{ capabilities.hasIndicatorLed ? '支援' : '不支援' }} ·
+      電池／休眠 {{ capabilities.hasBattery ? '支援' : '不支援' }} ·
+      音訊燈效 {{ capabilities.audioVisualization ? '支援' : '不支援' }} ·
+      Tap 進階設定 {{ capabilities.modernTapSettings === null ? '等待韌體版本' : capabilities.modernTapSettings ? '支援' : '不支援' }} ·
+      LED 功率模式 {{ capabilities.ledPowerMode === null ? '等待韌體版本' : capabilities.ledPowerMode ? '支援' : '不支援' }}
+    </div>
   </section>
 </template>

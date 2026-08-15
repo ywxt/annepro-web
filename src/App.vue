@@ -10,6 +10,7 @@ import { collectMetadata } from './hid/device.ts'
 import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
 import { ReadonlyHidTransport } from './hid/transport.ts'
 import type { InputReportRecord } from './hid/types.ts'
+import { deriveDeviceCapabilities } from './protocol/capabilities.ts'
 import type { DeviceTypeResponse } from './protocol/device-info.ts'
 import type { FirmwareVersions } from './protocol/firmware-info.ts'
 import type { IapModeResponse } from './protocol/iap-info.ts'
@@ -35,6 +36,7 @@ const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
 const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
+const capabilities = computed(() => deriveDeviceCapabilities(deviceType.value, firmware.value))
 let stopListening: (() => void) | null = null
 
 function downloadJson(filename: string, value: unknown): void {
@@ -137,11 +139,11 @@ function exportMacros(): void {
   <header><p class="eyebrow">READ-ONLY WEBHID EXPLORER</p><h1>Anne Pro Web Configurator</h1><p class="lede">檢視 Anne Pro 2 的 HID collections、裝置資訊與唯讀鍵位層。所有查詢都固定、可核對並需要逐次確認。</p></header>
   <section class="card status"><div><span class="dot"></span>{{ supported ? 'WebHID 可用' : '此瀏覽器不支援 WebHID' }}</div><button :disabled="!supported || connecting" @click="connect">連接 Anne Pro 2</button></section>
   <p id="message" role="status" aria-live="polite">{{ message }}</p>
-  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
+  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" />
-  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :busy="busy !== null" @read-state="readHardwareState" />
+  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :capabilities="capabilities" :busy="busy !== null" @read-state="readHardwareState" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
   <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>
