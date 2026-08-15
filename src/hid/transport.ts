@@ -385,6 +385,11 @@ export class AnneProHidTransport {
             missedFinalAcks.push(stage)
           }
         }
+        // ObinsKit returns the completed native queue through its callback and
+        // two IPC hops before the renderer starts the next layer. Preserve a
+        // small, bounded equivalent gap instead of starting the next layer in
+        // the same JavaScript microtask.
+        if (layer < layers.length - 1) await new Promise(resolve => globalThis.setTimeout(resolve, 20))
       }
       stage = 'activating User layout'
       await this.writeHardwareSetting('userLayout', 1, timeoutMs)

@@ -230,6 +230,29 @@ resending. It continues, activates User layout, and accepts the operation only
 when all four active layers match byte-for-byte on final readback. A first
 packet timeout remains fatal because its continuation cannot be treated as safe.
 
+#### ObinsKit 1.2.11 implementation comparison
+
+The unpacked renderer module `15541` awaits one `downloadKbdLayout(layer,
+Buffer)` call per layer. Native `Liana::downloadKbdLayout` invokes
+`multi_package_create(03, 10, 01, ...)`, and `Liana::hidWrite` keeps both
+packets in one native queue: packet 2 is sent only while processing packet 1's
+ACK. The completed callback then crosses from the HID addon to the Electron
+backstage renderer and through IPC before the UI loop starts the next layer.
+
+The WebHID encoder is byte-identical (`03/10/01`, a layer byte plus 61 keycodes,
+split 54 + 8, packet markers `80` and `01`, ACK payloads `00` and `01`). Its
+original loop differed in timing: it began the next layer from the immediately
+following JavaScript microtask. The transport now inserts a bounded 20 ms
+inter-layer settle interval to represent ObinsKit's native-callback/IPC boundary.
+It does not delay between the two packets belonging to one layer beyond waiting
+for the first ACK.
+
+After all four awaited downloads, ObinsKit's UI calls `writeKbdLayout(1)` without
+returning or awaiting the store's Promise. The web implementation deliberately
+remains stricter here: it awaits that activation, waits 150 ms, reads the state,
+and verifies all four active layers byte-for-byte. This is an intentional safety
+difference, not a packet-format difference.
+
 ### Lighting (`20/03` and `20/04`)
 
 `previewLight` and `downloadLight` share the native packet builder. Their body
