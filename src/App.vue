@@ -68,6 +68,7 @@ const audioFrames = ref(0)
 type WorkspaceSection = 'device' | 'keys' | 'lighting' | 'macros'
 const activeSection = ref<WorkspaceSection>('device')
 const activeLayer = ref(0)
+const layoutNotice = ref('')
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const layerDrafts = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
@@ -605,6 +606,7 @@ async function importLayout(file: File): Promise<void> {
     })
     layerDrafts.value = imported
     message.value = t('notice.layersImported')
+    layoutNotice.value = t('notice.layersImported')
   } catch (error) { message.value = t('notice.failed', { name: t('app.importLayers'), error: error instanceof Error ? error.message : String(error) }) }
   finally { busy.value = null }
 }
@@ -615,6 +617,7 @@ function updateLayerDraft(layer: number, data: Uint8Array): void {
   const drafts = layerDrafts.value.slice()
   drafts[layer] = data
   layerDrafts.value = drafts
+  layoutNotice.value = t('notice.layersPending', { count: layerChangeCount.value })
 }
 
 async function applyLayers(): Promise<void> {
@@ -622,14 +625,18 @@ async function applyLayers(): Promise<void> {
   const drafts = layerDrafts.value as Uint8Array[]
   layerBackups.value = layers.value.map((layer, index) => layerBackups.value[index] ?? layer!.data.slice())
   busy.value = 'write all layers'
+  layoutNotice.value = t('notice.layersWriting')
   try {
     const result = await transport.value.writeKeyboardLayers(drafts)
     layers.value = result.layers
     layerDrafts.value = result.layers.map(layer => layer.data.slice())
     hardwareState.value = result.state
     message.value = t('notice.layersSaved')
+    layoutNotice.value = t('notice.layersSaved')
   } catch (error) {
-    message.value = t('notice.failed', { name: t('app.keyboardLayers'), error: error instanceof Error ? error.message : String(error) })
+    const failure = t('notice.failed', { name: t('app.keyboardLayers'), error: error instanceof Error ? error.message : String(error) })
+    message.value = failure
+    layoutNotice.value = failure
   } finally { busy.value = null }
 }
 
@@ -643,6 +650,7 @@ async function restoreLayers(): Promise<void> {
     hardwareState.value = result.state
     layerBackups.value = [null, null, null, null]
     message.value = t('notice.layersRestored')
+    layoutNotice.value = t('notice.layersRestored')
   } catch (error) {
     message.value = t('notice.failed', { name: t('layer.restoreAll'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
@@ -758,7 +766,7 @@ onBeforeUnmount(() => {
     <p id="message" role="status" aria-live="polite">{{ message }}</p>
     <nav v-if="device && protocolReady" class="workspace-nav" :aria-label="t('app.title')"><button v-for="item in navigation" :key="item.id" class="nav-button" :class="{ active: activeSection === item.id }" @click="activeSection = item.id">{{ item.label }}</button></nav>
     <template v-if="device && activeSection === 'device'"><DevicePanel :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></template>
-    <section v-if="activeSection === 'keys'" class="card keys-workspace"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="embedded-settings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><div v-if="allLayersLoaded" class="layer-workspace"><div class="section-heading layer-heading"><div><p class="eyebrow">4 LAYERS · VERIFIED WRITE</p><h2>{{ t('app.keyboardLayers') }}</h2><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div></div><div class="actions"><span class="layout-status" :class="{ active: hardwareState?.userLayout === 1 }">{{ hardwareState?.userLayout === 1 ? t('layer.userActive') : t('layer.userInactive') }}</span><span>{{ t('layer.totalChanges', { count: layerChangeCount }) }}</span><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="busy !== null" @change="pickLayoutFile"></label><button class="secondary" @click="exportLayers">{{ t('app.exportLayers') }}</button><button v-if="layerBackups.every(layer => layer !== null)" class="secondary" :disabled="busy !== null" @click="restoreLayers">{{ t('layer.restoreAll') }}</button><button :disabled="busy !== null || layerChangeCount === 0" @click="applyLayers">{{ t('layer.applyAll') }}</button></div></div><KeyboardLayout v-if="layers[activeLayer] && layerDrafts[activeLayer]" :layer="layers[activeLayer]!" :draft="layerDrafts[activeLayer]!" :busy="busy !== null" @update="updateLayerDraft" /></div></section>
+    <section v-if="activeSection === 'keys'" class="card keys-workspace"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="embedded-settings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><div v-if="allLayersLoaded" class="layer-workspace"><div class="layer-title"><p class="eyebrow">4 LAYERS · VERIFIED WRITE</p><h2>{{ t('app.keyboardLayers') }}</h2></div><div class="layer-toolbar-row"><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div><div class="actions layer-actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="busy !== null" @change="pickLayoutFile"></label><button class="secondary" @click="exportLayers">{{ t('app.exportLayers') }}</button><button v-if="layerBackups.every(layer => layer !== null)" class="secondary" :disabled="busy !== null" @click="restoreLayers">{{ t('layer.restoreAll') }}</button><button :disabled="busy !== null || layerDrafts.some(layer => !layer)" @click="applyLayers">{{ t('layer.applyAll') }}</button></div></div><div class="layout-meta"><span class="layout-status" :class="{ active: hardwareState?.userLayout === 1 }">{{ hardwareState?.userLayout === 1 ? t('layer.userActive') : t('layer.userInactive') }}</span><span>{{ t('layer.totalChanges', { count: layerChangeCount }) }}</span><span v-if="layoutNotice" role="status" aria-live="polite">{{ layoutNotice }}</span></div><KeyboardLayout v-if="layers[activeLayer] && layerDrafts[activeLayer]" :layer="layers[activeLayer]!" :draft="layerDrafts[activeLayer]!" :busy="busy !== null" @update="updateLayerDraft" /></div></section>
     <template v-if="device && protocolReady && activeSection === 'lighting'"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" /></template>
     <template v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></template>
     <details v-if="device" class="developer-tools"><summary><strong>{{ t('app.developerTools') }}</strong> · {{ t('app.developerHint') }}</summary><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></details>
