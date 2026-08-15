@@ -32,26 +32,28 @@ describe('keyboard layout read protocol', () => {
     expect(() => createReadKeyboardLayerRequest(1.5)).toThrow(RangeError)
   })
 
-  it('encodes a 61-byte layer with ObinsKit USB profile 53-byte chunks', () => {
+  it('encodes a 61-byte layer exactly like the ObinsKit USB native profile', () => {
     const data = new Uint8Array(Array.from({ length: 61 }, (_, index) => index))
     const requests = createWriteKeyboardLayerRequests(2, data)
     expect(requests).toHaveLength(2)
     expect(Array.from(requests[0].slice(0, 11))).toEqual([
-      0x7b, 0x12, 0x31, 0x80, 55, 0, 0, 0x7d, 0x10, 0x01, 2,
+      0x7b, 0x10, 0x31, 0x20, 55, 0, 0, 0x7d, 0x10, 0x01, 2,
     ])
     expect(requests[0]).toHaveLength(63)
     expect(Array.from(requests[1])).toEqual([
-      0x7b, 0x12, 0x31, 0x01, 12, 0, 0, 0x7d, 0x10, 0x01, 2,
+      0x7b, 0x10, 0x31, 0x21, 12, 0, 0, 0x7d, 0x10, 0x01, 2,
       ...Array.from(data.slice(52)),
     ])
   })
 
   it('validates per-packet layout write acknowledgements', () => {
     const ack = new Uint8Array([
-      0x7b, 0x12, 0x13, 0, 3, 0, 0, 0x7d, 0x10, 0x01, 1,
+      0x7b, 0x10, 0x13, 0x10, 3, 0, 0, 0x7d, 0x10, 0x01, 0,
     ])
     expect(parseWriteKeyboardLayerAck(1, ack)).toMatchObject({ packet: 1 })
-    expect(() => parseWriteKeyboardLayerAck(0, ack)).toThrow('does not match packet 0')
+    const failed = ack.slice()
+    failed[10] = 1
+    expect(() => parseWriteKeyboardLayerAck(0, failed)).toThrow('is not successful')
   })
 
   it('assembles and identifies a raw 61-byte layer', () => {

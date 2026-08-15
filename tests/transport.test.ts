@@ -81,7 +81,7 @@ class LayerWriteHidDevice extends FakeHidDevice {
     const action = bytes[9]
     queueMicrotask(() => {
       if (command === 0x10 && action === 0x01) {
-        const packet = bytes[3] & 0x7f
+        const packet = bytes[3] & 0x0f
         const payload = Array.from(bytes.slice(10, 8 + bytes[4]))
         const layer = payload[0]
         if (packet === 0) this.staged.set(layer, payload.slice(1))
@@ -89,7 +89,7 @@ class LayerWriteHidDevice extends FakeHidDevice {
           const current = this.staged.get(layer)
           if (current) this.staged.set(layer, [...current, ...payload.slice(1)])
         }
-        this.emitFrame(0x10, 0x01, [packet])
+        this.emitFrame(0x10, 0x01, [0], 0x10, 0x10)
       } else if (command === 0x10 && action === 0x02) {
         const layer = bytes[10]
         const data = this.staged.get(layer) ?? []
@@ -105,8 +105,8 @@ class LayerWriteHidDevice extends FakeHidDevice {
     })
   }
 
-  private emitFrame(command: number, action: number, payload: number[], packet = 0): void {
-    const bytes = new Uint8Array([0x7b, 0x12, 0x13, packet, payload.length + 2, 0, 0, 0x7d, command, action, ...payload])
+  private emitFrame(command: number, action: number, payload: number[], packet = 0, protocol = 0x12): void {
+    const bytes = new Uint8Array([0x7b, protocol, 0x13, packet, payload.length + 2, 0, 0, 0x7d, command, action, ...payload])
     const event = { reportId: 0, data: new DataView(bytes.buffer) } as HIDInputReportEvent
     for (const listener of this.listeners) listener(event)
   }
@@ -144,6 +144,13 @@ describe('typed Anne Pro HID transport', () => {
     const result = await transport.writeKeyboardLayers(layers, 100)
     expect(result.layers.map(layer => Array.from(layer.data))).toEqual(layers.map(layer => Array.from(layer)))
     expect(result.state.userLayout).toBe(1)
+    const layoutWrites = device.sent.slice(0, 8).map(({ data }) => [data[1], data[3], data[10]])
+    expect(layoutWrites).toEqual([
+      [0x10, 0x20, 0], [0x10, 0x21, 0],
+      [0x10, 0x20, 1], [0x10, 0x21, 1],
+      [0x10, 0x20, 2], [0x10, 0x21, 2],
+      [0x10, 0x20, 3], [0x10, 0x21, 3],
+    ])
     expect(device.sent.map(({ data }) => [data[8], data[9]])).toEqual([
       [0x10, 0x01], [0x10, 0x01],
       [0x10, 0x01], [0x10, 0x01],

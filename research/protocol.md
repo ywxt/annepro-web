@@ -215,10 +215,12 @@ The write body is the one-byte layer index followed by the 61 C18 keycodes.
 ObinsKit passes the layer index as a separate prefix vector. Its USB Liana
 profile stores `0x35` as the multipart data limit, subtracts the one-byte prefix,
 and therefore splits the keycodes 52 + 9. The layer prefix is repeated in both
-packet payloads (`layer + 52`, then `layer + 9`), with
-packet markers `80` and `01`. The keyboard acknowledges each packet with a
-single-byte zero-based packet index. A Layer 0 no-op write was followed by the
-existing `10/02` read and matched all 61 bytes. The editor therefore snapshots
+packet payloads (`layer + 52`, then `layer + 9`). A native-addon `strace` of a
+physical Layer 0 no-op write confirmed protocol byte `10`, packet markers `20`
+and `21`, and frame lengths `37` and `0c`. The keyboard acknowledges both
+packets with status payload `00`; it does not echo the packet index. Both ACK
+frames observed were `7b 10 13 10 03 00 00 7d 10 01 00`. The no-op write was
+followed by the existing `10/02` read and matched all 61 bytes. The editor therefore snapshots
 the original four layers, preserves drafts while switching tabs, writes all four
 layers as one user action, and rejects any non-identical readback. The unpacked
 renderer then calls `writeKbdLayout(1)` after all `downloadKbdLayout` calls; the
@@ -244,7 +246,7 @@ ACK. The completed callback then crosses from the HID addon to the Electron
 backstage renderer and through IPC before the UI loop starts the next layer.
 
 The WebHID encoder is byte-identical (`03/10/01`, a layer prefix on every packet,
-keycodes split 52 + 9, packet markers `80` and `01`, ACK payloads `00` and `01`). Its
+keycodes split 52 + 9, packet markers `20` and `21`, ACK status `00` for both). Its
 original loop differed in timing: it began the next layer from the immediately
 following JavaScript microtask. The transport now inserts a bounded 20 ms
 inter-layer settle interval to represent ObinsKit's native-callback/IPC boundary.

@@ -84,9 +84,11 @@ export function createWriteKeyboardLayerRequests(layer: number, data: Uint8Array
     const payload = new Uint8Array(1 + keycodes.byteLength)
     payload[0] = layer
     payload.set(keycodes, 1)
-    const hasMore = offset + keycodes.byteLength < data.byteLength
+    // ObinsKit's USB profile uses 0x20 as the multipart write marker and
+    // increments its low bits for each packet. This differs from the 0x12
+    // profile's response-side 0x80 continuation marker used by layout reads.
     requests.push(new Uint8Array([
-      0x7b, 0x12, 0x31, packet | (hasMore ? 0x80 : 0),
+      0x7b, 0x10, 0x31, 0x20 | packet,
       payload.byteLength + 2, 0, 0, 0x7d, 0x10, 0x01, ...payload,
     ]))
   }
@@ -98,8 +100,10 @@ export function parseWriteKeyboardLayerAck(packet: number, data: Uint8Array): Ke
   if (frame.command !== 0x10 || frame.action !== 0x01) {
     throw new Error('Response is not downloadKbdLayout (10/01)')
   }
-  if (frame.payload.byteLength !== 1 || frame.payload[0] !== packet) {
-    throw new Error(`Layer write acknowledgement does not match packet ${packet}`)
+  // Native traces show the keyboard returns status 0 for every successfully
+  // queued packet; the packet number is not echoed in the ACK payload.
+  if (frame.payload.byteLength !== 1 || frame.payload[0] !== 0) {
+    throw new Error(`Layer write acknowledgement for packet ${packet} is not successful`)
   }
   return {
     packet,
