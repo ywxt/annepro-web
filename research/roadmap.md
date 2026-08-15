@@ -58,10 +58,12 @@ device trial, and only then product UI.
 - Keep unsupported bytes opaque and preserve them on round trips.
 - [x] Ordinary settings editor with first-write snapshot and readback verification.
 - [x] LED power-mode read and guarded write.
+- [x] CapsLock indicator RGB read, guarded write, readback verification, and restore.
 - [x] Host-managed lighting list, preview, download, and local backup/import.
 - [x] Per-key static RGB editor for all 61 physical keys and independent 12-color dynamic palettes.
 - [x] Macro event/binding editor, full-image serialization, CRC-32, staged 49-byte download, commit, backup/restore, and semantic device readback.
 - [x] Audio Visualize pure/colorful transient stream with explicit microphone consent, stop/restore, 20 FPS cap, and awaited single-flight reports.
+- [x] ObinsKit-equivalent factory reset composition for model 5: default settings, empty macro image, eleven default lights, and BLE host clearing; protected by typed confirmation.
 
 ### M6 — Compatibility and release
 

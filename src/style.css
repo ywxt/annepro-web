@@ -58,6 +58,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .info-grid span { color: #929dac; font-size: 12px; }
 .info-grid strong { font-size: 18px; }
 .identity-value { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+.factory-reset { display: flex; align-items: center; justify-content: space-between; gap: 24px; border-color: #713b42; }
 .audio-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
 .audio-controls label { display: flex; align-items: center; gap: 8px; }
 .audio-controls select { padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }

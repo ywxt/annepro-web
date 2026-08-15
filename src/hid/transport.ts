@@ -83,6 +83,13 @@ import {
   type BleMacAddress,
   type DeviceUdid,
 } from '../protocol/device-identity.ts'
+import {
+  createReadIndicatorColorRequest,
+  createWriteIndicatorColorRequest,
+  parseIndicatorColorResponse,
+  parseWriteIndicatorColorAck,
+  type IndicatorColorResponse,
+} from '../protocol/indicator-color.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -181,6 +188,17 @@ export class ReadonlyHidTransport {
 
   async deleteBleHosts(timeoutMs = 1500): Promise<void> {
     return this.requestConfirmedRead(createDeleteBleHostRequest(), parseDeleteBleHostAck, timeoutMs)
+  }
+
+  async readIndicatorColor(timeoutMs = 1500): Promise<IndicatorColorResponse> {
+    return this.requestConfirmedRead(createReadIndicatorColorRequest(), parseIndicatorColorResponse, timeoutMs)
+  }
+
+  async writeIndicatorColor(hex: string, timeoutMs = 1500): Promise<IndicatorColorResponse> {
+    await this.requestConfirmedRead(createWriteIndicatorColorRequest(hex), parseWriteIndicatorColorAck, timeoutMs)
+    const readback = await this.readIndicatorColor(timeoutMs)
+    if (readback.hex.toLowerCase() !== hex.toLowerCase()) throw new Error(`Indicator color readback ${readback.hex} does not match ${hex}`)
+    return readback
   }
 
   async writeHardwareSetting(

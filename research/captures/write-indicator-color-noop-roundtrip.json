@@ -1,0 +1,12 @@
+{
+  "capturedAt": "2026-08-16",
+  "device": "/dev/hidraw10",
+  "deviceId": "04d9:a293",
+  "operation": "read, write identical value, read back",
+  "readRequest": "7b 12 31 00 02 00 00 7d 20 1a",
+  "initialResponse": "7b 12 13 00 05 00 00 7d 20 1a ff 98 00",
+  "writeRequest": "7b 12 31 00 05 00 00 7d 20 1b ff 98 00",
+  "writeAck": "7b 12 13 00 03 00 00 7d 20 1b 00",
+  "readbackResponse": "7b 12 13 00 05 00 00 7d 20 1a ff 98 00",
+  "result": "The existing RGB value was preserved byte-for-byte."
+}

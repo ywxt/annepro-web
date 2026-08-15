@@ -7,9 +7,10 @@ import type { LedPowerModeResponse } from '../protocol/led-power.ts'
 import type { HardwareSettingKey } from '../protocol/settings-write.ts'
 import SettingsEditor from './SettingsEditor.vue'
 import { bytesToHex } from '../protocol/packet.ts'
+import type { IndicatorColorResponse } from '../protocol/indicator-color.ts'
 
-const props = defineProps<{ state: HardwareState | null; ledPowerMode: LedPowerModeResponse | null; capabilities: DeviceCapabilities | null; busy: boolean; hasBackup: boolean }>()
-defineEmits<{ readState: []; readLedPowerMode: []; applySetting: [key: HardwareSettingKey, value: number]; restoreSettings: [] }>()
+const props = defineProps<{ state: HardwareState | null; ledPowerMode: LedPowerModeResponse | null; indicatorColor: IndicatorColorResponse | null; capabilities: DeviceCapabilities | null; busy: boolean; hasBackup: boolean; hasColorBackup: boolean }>()
+defineEmits<{ readState: []; readLedPowerMode: []; readIndicatorColor: []; applySetting: [key: HardwareSettingKey, value: number]; applyIndicatorColor: [hex: string]; restoreSettings: []; restoreIndicatorColor: [] }>()
 const description = computed(() => props.state ? describeHardwareState(props.state, props.capabilities) : null)
 </script>
 
@@ -29,6 +30,7 @@ const description = computed(() => props.state ? describeHardwareState(props.sta
       <code class="layout-raw">{{ bytesToHex(state.rawFrame) }}</code>
     </template>
     <p v-if="ledPowerMode" class="decoded">LED 功率模式：{{ ledPowerMode.modeName }}（raw {{ ledPowerMode.mode }}）· Frame {{ bytesToHex(ledPowerMode.rawFrame) }} · Ignored {{ ledPowerMode.trailingLength }} trailing bytes</p>
+    <div v-if="capabilities?.capslockColor" class="settings-editor"><div class="section-heading"><div><h3>CapsLock 指示顏色</h3><p class="empty">新版 Anne Pro 2 使用 LED indicator color 命令控制 CapsLock 顏色。</p></div><button class="secondary" :disabled="busy" @click="$emit('readIndicatorColor')">讀取顏色</button></div><div v-if="indicatorColor" class="audio-controls"><input id="caps-color" type="color" :value="indicatorColor.hex" @change="$emit('applyIndicatorColor', ($event.target as HTMLInputElement).value)"><code>{{ indicatorColor.hex }} · {{ bytesToHex(indicatorColor.rawFrame) }}</code><button v-if="hasColorBackup" class="secondary" :disabled="busy" @click="$emit('restoreIndicatorColor')">復原原色</button></div></div>
     <SettingsEditor v-if="state" :state="state" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy" :has-backup="hasBackup" @apply="(key, value) => $emit('applySetting', key, value)" @restore="$emit('restoreSettings')" />
   </section>
 </template>

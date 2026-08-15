@@ -10,6 +10,7 @@ export interface DeviceCapabilities {
   modernTapSettings: boolean | null
   sleepTimeout: boolean | null
   ledPowerMode: boolean | null
+  capslockColor: boolean | null
 }
 
 function compareVersion(left: string, right: string): number {
@@ -39,5 +40,6 @@ export function deriveDeviceCapabilities(
     modernTapSettings: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.11') >= 0 : null,
     sleepTimeout: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.14') > 0 : null,
     ledPowerMode: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null,
+    capslockColor: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null,
   }
 }

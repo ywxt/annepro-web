@@ -11,7 +11,7 @@ describe('ObinsKit capability gates', () => {
     expect(deriveDeviceCapabilities(device, firmware)).toEqual({
       profileKnown: true, hasLed: true, hasIndicatorLed: false, hasBattery: true,
       audioVisualization: true, modernTapSettings: true, sleepTimeout: true,
-      ledPowerMode: true,
+      ledPowerMode: true, capslockColor: true,
     })
   })
 

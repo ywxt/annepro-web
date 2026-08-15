@@ -236,3 +236,9 @@ imported, and exported by the browser rather than described as device backups.
 - `40/30` (`readBleMac`, MCU BLE route `0x5`, request header byte `0x51`) returns the six-byte BLE address.
 - `40/05` (`deleteBleHost`, MCU BLE route `0x5`) clears remembered BLE hosts. It is exposed only behind typed destructive confirmation and was not sent during protocol verification.
 - C18 did not respond to the statically identified `01/04`, `01/11`, `01/f1`, or `60/05` requests. The latter two are used by other ObinsKit model families and are not exposed for Anne Pro 2.
+
+# CapsLock indicator color
+
+- Newer Anne Pro 2 firmware uses `20/1a` (`readLedIndicatorColor`) for a three-byte RGB value and `20/1b` (`writeLedIndicatorColor`) to replace it.
+- A successful write acknowledgement contains status byte `00`. A same-value physical round trip preserved `ff 98 00` exactly.
+- The Discovery-specific `20/1d`/`20/1c` pair did not respond on the tested C18 and is therefore not used.

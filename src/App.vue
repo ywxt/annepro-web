@@ -10,6 +10,7 @@ import SettingsPanel from './components/SettingsPanel.vue'
 import RuntimeInfoPanel from './components/RuntimeInfoPanel.vue'
 import AudioVisualizePanel from './components/AudioVisualizePanel.vue'
 import IdentityPanel from './components/IdentityPanel.vue'
+import FactoryResetPanel from './components/FactoryResetPanel.vue'
 import { collectMetadata } from './hid/device.ts'
 import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
 import { ReadonlyHidTransport } from './hid/transport.ts'
@@ -28,6 +29,8 @@ import { bytesToHex } from './protocol/packet.ts'
 import type { BatteryResponse, PowerOnTimeResponse } from './protocol/runtime-info.ts'
 import { audioRgbFromFrequencyData, type AudioVisualizeMode } from './protocol/audio-visualize.ts'
 import type { BleMacAddress, DeviceUdid } from './protocol/device-identity.ts'
+import type { IndicatorColorResponse } from './protocol/indicator-color.ts'
+import { annePro2FactoryLights, ANNE_PRO_2_FACTORY_SETTINGS } from './protocol/factory-defaults.ts'
 
 const supported = isWebHidSupported()
 const connecting = ref(false)
@@ -48,6 +51,8 @@ const battery = ref<BatteryResponse | null>(null)
 const powerOnTime = ref<PowerOnTimeResponse | null>(null)
 const udid = ref<DeviceUdid | null>(null)
 const bleMac = ref<BleMacAddress | null>(null)
+const indicatorColor = ref<IndicatorColorResponse | null>(null)
+const indicatorColorBackup = ref<string | null>(null)
 const audioRunning = ref(false)
 const audioMode = ref<AudioVisualizeMode>('pure')
 const audioColor = ref('#00ff80')
@@ -151,6 +156,27 @@ const readLedPowerMode = () => transport.value && confirmedRead(
   () => transport.value!.readLedPowerMode(),
   value => { ledPowerMode.value = value },
 )
+const readIndicatorColor = () => transport.value && confirmedRead(
+  'readLedIndicatorColor',
+  '傳送一次已確認的唯讀 CapsLock 指示顏色查詢：\n7b 12 31 00 02 00 00 7d 20 1a',
+  () => transport.value!.readIndicatorColor(),
+  value => { indicatorColor.value = value },
+)
+async function applyIndicatorColor(hex: string): Promise<void> {
+  if (!transport.value || !indicatorColor.value || !window.confirm(`修改 CapsLock 指示顏色：${indicatorColor.value.hex} → ${hex}\n\n寫入後會立即回讀驗證。`)) return
+  indicatorColorBackup.value ??= indicatorColor.value.hex
+  busy.value = 'write indicator color'
+  try { indicatorColor.value = await transport.value.writeIndicatorColor(hex); message.value = 'CapsLock 指示顏色已寫入並回讀驗證。' }
+  catch (error) { message.value = `指示顏色寫入失敗：${error instanceof Error ? error.message : String(error)}` }
+  finally { busy.value = null }
+}
+async function restoreIndicatorColor(): Promise<void> {
+  if (!transport.value || !indicatorColorBackup.value || !window.confirm(`復原 CapsLock 指示顏色為 ${indicatorColorBackup.value}？`)) return
+  busy.value = 'restore indicator color'
+  try { indicatorColor.value = await transport.value.writeIndicatorColor(indicatorColorBackup.value); indicatorColorBackup.value = null; message.value = 'CapsLock 指示顏色已復原並驗證。' }
+  catch (error) { message.value = `指示顏色復原失敗：${error instanceof Error ? error.message : String(error)}` }
+  finally { busy.value = null }
+}
 async function readRuntimeInfo(): Promise<void> {
   if (!transport.value || !window.confirm('依序傳送兩個已確認的唯讀資訊查詢：\n01/02 readPowerOnTime\n01/05 readBattery')) return
   busy.value = 'runtime info'
@@ -185,6 +211,37 @@ async function deleteBleHosts(): Promise<void> {
     message.value = '鍵盤已確認清除所有藍牙配對；請在作業系統中重新配對。'
   } catch (error) {
     message.value = `清除藍牙配對失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
+async function factoryReset(): Promise<void> {
+  if (!transport.value || !hardwareState.value || !capabilities.value?.profileKnown) return
+  const confirmation = window.prompt('這會覆寫一般設定與燈效、清空所有巨集及 BLE 配對。燈效與 BLE 配對無法自動復原。\n\n請輸入 FACTORY RESET 繼續：')
+  if (confirmation !== 'FACTORY RESET') return
+  busy.value = 'factory reset'
+  try {
+    settingsBackup.value ??= { state: hardwareState.value, ledPowerMode: ledPowerMode.value }
+    if (capabilities.value.capslockColor && !indicatorColor.value) indicatorColor.value = await transport.value.readIndicatorColor()
+    if (indicatorColor.value) indicatorColorBackup.value ??= indicatorColor.value.hex
+    const currentMacros = macroBackup.value ?? await transport.value.readMacroBackup()
+    macroBackup.value = currentMacros
+    originalMacroBackup.value ??= cloneMacroBackup(currentMacros)
+    for (const key of STATE_KEYS) {
+      if (key === 'sleepTimeoutRaw' && !capabilities.value.sleepTimeout) continue
+      await transport.value.writeHardwareSetting(key, ANNE_PRO_2_FACTORY_SETTINGS[key])
+    }
+    if (capabilities.value.ledPowerMode) await transport.value.writeHardwareSetting('ledPowerMode', ANNE_PRO_2_FACTORY_SETTINGS.ledPowerMode)
+    if (capabilities.value.capslockColor) indicatorColor.value = await transport.value.writeIndicatorColor('#ff0000')
+    macroBackup.value = await transport.value.writeMacros([], [])
+    const defaults = annePro2FactoryLights()
+    await transport.value.installLights(defaults)
+    lightEffects.value = defaults
+    await transport.value.deleteBleHosts()
+    hardwareState.value = await transport.value.readHardwareState()
+    if (capabilities.value.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
+    message.value = '已恢復 ObinsKit Anne Pro 2 原廠設定並回讀一般設定；BLE 配對已清除。'
+  } catch (error) {
+    message.value = `原廠重設中斷：${error instanceof Error ? error.message : String(error)}。已完成的步驟不會自動回滾，請使用各區塊的復原按鈕。`
   } finally { busy.value = null }
 }
 
@@ -462,8 +519,9 @@ onBeforeUnmount(() => { void stopAudioVisualize(false) })
   <AudioVisualizePanel v-if="device && protocolReady && capabilities?.hasLed" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" />
   <RuntimeInfoPanel v-if="device && protocolReady" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" />
   <IdentityPanel v-if="device && protocolReady" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" />
+  <FactoryResetPanel v-if="device && protocolReady" :busy="busy !== null" :ready="hardwareState !== null && capabilities?.profileKnown === true" @reset="factoryReset" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @apply="applyMacros" @restore="restoreMacros" />
-  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @apply-setting="applySetting" @restore-settings="restoreSettings" />
+  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-setting="applySetting" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
   <footer>安全模式：不提供任意封包；一般設定寫入需確認及回讀驗證；IAP、韌體與 flash erase 永遠停用</footer>
