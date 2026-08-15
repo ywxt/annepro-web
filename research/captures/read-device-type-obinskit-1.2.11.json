@@ -1,0 +1,15 @@
+{
+  "source": "ObinsKit 1.2.11 Linux x64, controlled strace of /dev/hidraw10",
+  "capturedAt": "2026-08-15T16:47:00Z",
+  "device": "0x04d9:0xa293",
+  "reportId": 0,
+  "request": "7b 12 31 00 02 00 00 7d 01 01",
+  "responseDeclaredFrame": "7b 12 13 00 04 00 00 7d 01 01 05 01",
+  "decoded": {
+    "model": 5,
+    "modelName": "AnnePro2C18",
+    "type": 1,
+    "typeName": "Keyboard"
+  },
+  "notes": "The native hid_write buffer included report ID 00 as its first byte. Only the declared response frame is retained; unrelated 64-byte trailing report contents were discarded."
+}

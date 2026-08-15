@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# Never commit proprietary ObinsKit archives, extracted applications, or raw traces.
+ObinsKit_*
+*.asar
+*.strace

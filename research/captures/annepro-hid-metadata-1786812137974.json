@@ -1,0 +1,30 @@
+{
+  "capturedAt": "2026-08-15T16:42:17.974Z",
+  "vendorId": 1241,
+  "productId": 41619,
+  "productName": "OBINS\nAnnePro2",
+  "opened": true,
+  "collections": [
+    {
+      "depth": 0,
+      "usagePage": 1,
+      "usage": 0,
+      "vendorDefined": false,
+      "reports": [
+        {
+          "kind": "input",
+          "reportId": 0,
+          "reportSizeBits": 512,
+          "reportSizeBytes": 64
+        },
+        {
+          "kind": "output",
+          "reportId": 0,
+          "reportSizeBits": 512,
+          "reportSizeBytes": 64
+        }
+      ],
+      "protocolCandidate": true
+    }
+  ]
+}
