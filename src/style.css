@@ -46,7 +46,8 @@ dl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 0;
 .control-grid label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding: 12px; color: #aab4c1; border: 1px solid #293340; border-radius: 8px; font-size: 13px; }
 .control-grid select, .control-grid input { min-width: 0; padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }
 .control-grid select, .control-grid input[type="range"] { grid-column: 1 / -1; width: 100%; }
-.control-grid button { padding: 7px 10px; }
+.control-grid label.inactive { opacity: .5; }
+.button-label { margin-left: 6px; }
 dl div { min-width: 0; } dt { color: #7e8998; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; } dd { margin: 5px 0 0; overflow-wrap: anywhere; font: 600 15px ui-monospace, monospace; }
 .collection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin: 18px 0 30px; }
 .collection { padding: 18px; } .collection.vendor { border-color: #39765f; box-shadow: inset 3px 0 #62e5b4; }
@@ -88,6 +89,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .audio-controls select { padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }
 .audio-controls input[type="color"] { width: 48px; height: 38px; padding: 3px; border: 1px solid #354252; border-radius: 6px; background: #111923; }
 .light-item { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr) 55px auto auto auto auto; align-items: center; gap: 9px; margin-top: 10px; padding: 10px; border: 1px solid #293340; border-radius: 8px; }
+.light-item.selected { border-color: #39765f; }
 .light-item input, .light-item select { min-width: 0; padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }
 .light-item input[type="color"] { width: 48px; height: 38px; padding: 3px; }
 .light-color-editor { grid-column: 1 / -1; padding: 12px; overflow-x: auto; border-top: 1px solid #293340; }
@@ -95,9 +97,13 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .light-color-editor label { display: grid; justify-items: center; gap: 2px; color: #7e8998; font: 10px ui-monospace, monospace; }
 .light-color-editor input[type="color"] { width: 54px; height: 38px; }
 .palette-colors { display: flex; flex-wrap: wrap; gap: 8px; }
+.light-keyboard-preview { display: grid; justify-items: center; gap: 5px; margin: 18px 0; padding: 14px; overflow-x: auto; border: 1px solid #293340; border-radius: 10px; background: #090d13; }
+.preview-heading { display: flex; justify-content: space-between; width: 100%; margin-bottom: 8px; color: #929dac; font-size: 12px; }
+.light-preview-row { display: flex; gap: 4px; min-width: 682px; }
+.light-preview-key { width: calc(42px * var(--key-width) + 4px * (var(--key-width) - 1)); min-width: calc(42px * var(--key-width) + 4px * (var(--key-width) - 1)); height: 24px; border: 1px solid rgba(255, 255, 255, .22); border-radius: 4px; box-shadow: 0 0 8px color-mix(in srgb, currentColor 45%, transparent); }
 button.danger { padding: 8px 11px; color: #ffb5b5; border: 1px solid #713b42; background: transparent; }
 .file-button { display: inline-block; padding: 8px 11px; color: #d8e0ea; border: 1px solid #354252; border-radius: 8px; cursor: pointer; font-weight: 750; }
 .file-button input { display: none; }
 .hidden { display: none; } footer { margin-top: 44px; font-size: 13px; text-align: center; }
-@media (max-width: 700px) { main { padding-top: 42px; } .topbar, .status, .section-heading { align-items: stretch; flex-direction: column; } dl { grid-template-columns: repeat(2, 1fr); } .report { grid-template-columns: 1fr 70px 80px; } .report code { grid-column: 1 / -1; } }
+@media (max-width: 700px) { main { padding-top: 42px; } .topbar, .status, .section-heading { align-items: stretch; flex-direction: column; } dl { grid-template-columns: repeat(2, 1fr); } .report { grid-template-columns: 1fr 70px 80px; } .report code { grid-column: 1 / -1; } .button-label { display: none; } }
 @media (max-width: 700px) { .light-item { grid-template-columns: 1fr 1fr; } }

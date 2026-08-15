@@ -14,6 +14,7 @@ import IdentityPanel from './components/IdentityPanel.vue'
 import FactoryResetPanel from './components/FactoryResetPanel.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
 import PlatformRequirements from './components/PlatformRequirements.vue'
+import { appLocale } from './i18n.ts'
 import { collectMetadata } from './hid/device.ts'
 import { getPreferredGrantedAnneProDevice, isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
 import type { DeviceSelection } from './hid/types.ts'
@@ -38,10 +39,10 @@ import { annePro2FactoryLights, ANNE_PRO_2_FACTORY_SETTINGS } from './protocol/f
 import { parseFullBackup } from './protocol/full-backup.ts'
 
 const supported = isWebHidSupported()
-const { t, locale } = useI18n({ useScope: 'global' })
+const { t } = useI18n({ useScope: 'global' })
 const connecting = ref(false)
 const message = ref(supported ? '' : t('app.unsupported'))
-watch(locale, () => { message.value = supported ? '' : t('app.unsupported') })
+watch(appLocale, () => { message.value = supported ? '' : t('app.unsupported') })
 const device = shallowRef<HIDDevice | null>(null)
 const transport = shallowRef<AnneProHidTransport | null>(null)
 const protocolReady = ref(false)
@@ -335,24 +336,30 @@ function settingName(key: HardwareSettingKey): string {
   return names[key]
 }
 
-async function applySetting(key: HardwareSettingKey, value: number): Promise<void> {
-  if (!transport.value || !hardwareState.value) return
+async function applySettings(changes: Array<{ key: HardwareSettingKey; value: number }>): Promise<void> {
+  if (!transport.value || !hardwareState.value || changes.length === 0) return
   settingsBackup.value ??= { state: hardwareState.value, ledPowerMode: ledPowerMode.value }
-  busy.value = `write ${key}`
+  busy.value = 'write settings'
   try {
-    await transport.value.writeHardwareSetting(key, value)
-    if (key === 'ledPowerMode') {
-      const readback = await transport.value.readLedPowerMode()
-      if (readback.mode !== value) throw new Error(t('validation.readback', { name: settingName(key), actual: readback.mode, expected: value }))
-      ledPowerMode.value = readback
-    } else {
+    for (const { key, value } of changes) await transport.value.writeHardwareSetting(key, value)
+    const stateChanges = changes.filter(({ key }) => key !== 'ledPowerMode')
+    const powerChange = changes.find(({ key }) => key === 'ledPowerMode')
+    if (stateChanges.length) {
       const readback = await transport.value.readHardwareState()
-      if (readback[key] !== value) throw new Error(t('validation.readback', { name: settingName(key), actual: readback[key], expected: value }))
+      for (const { key, value } of stateChanges) {
+        if (key === 'ledPowerMode') continue
+        if (readback[key] !== value) throw new Error(t('validation.readback', { name: settingName(key), actual: readback[key], expected: value }))
+      }
       hardwareState.value = readback
     }
-    message.value = t('notice.settingSaved', { name: settingName(key) })
+    if (powerChange) {
+      const readback = await transport.value.readLedPowerMode()
+      if (readback.mode !== powerChange.value) throw new Error(t('validation.readback', { name: settingName(powerChange.key), actual: readback.mode, expected: powerChange.value }))
+      ledPowerMode.value = readback
+    }
+    message.value = t('notice.settingsSaved', { count: changes.length })
   } catch (error) {
-    message.value = t('notice.failed', { name: settingName(key), error: error instanceof Error ? error.message : String(error) })
+    message.value = t('notice.failed', { name: t('settings.edit'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -734,16 +741,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div :key="locale" class="app-shell">
+  <div :key="appLocale" class="app-shell">
     <div class="topbar"><header><p class="eyebrow">WEBHID CONFIGURATOR</p><h1>{{ t('app.title') }}</h1><p class="lede">{{ t('app.subtitle') }}</p></header><LanguageSwitcher /></div>
     <PlatformRequirements v-if="!device" />
     <section class="card status"><div><span class="dot"></span>{{ supported ? t('app.available') : t('app.unsupported') }}</div><div class="actions"><button class="secondary" :disabled="!supported || connecting" @click="reconnectGranted">{{ t('app.reconnect') }}</button><button :disabled="!supported || connecting" @click="connect">{{ t('app.connect') }}</button></div></section>
     <p id="message" role="status" aria-live="polite">{{ message }}</p>
     <nav v-if="device && protocolReady" class="workspace-nav" :aria-label="t('app.title')"><button v-for="item in navigation" :key="item.id" class="nav-button" :class="{ active: activeSection === item.id }" @click="activeSection = item.id">{{ item.label }}</button></nav>
-    <template v-if="device && activeSection === 'device'"><DevicePanel :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-setting="applySetting" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></template>
-    <template v-if="activeSection === 'keys'"><section v-if="loadedLayers.length" class="section-heading"><div><h2>{{ t('app.keyboardLayers') }}</h2><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div></div><div class="actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="!allLayersLoaded || busy !== null" @change="pickLayoutFile"></label><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">{{ t('app.exportLayers') }}</button></div></section><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-setting="applySetting" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><KeyboardLayout v-if="layers[activeLayer]" :key="activeLayer" :layer="layers[activeLayer]!" :busy="busy !== null" :has-backup="layerBackups[activeLayer] !== null" @apply="applyLayer" @restore="restoreLayer" /></template>
-    <template v-if="device && protocolReady && activeSection === 'lighting'"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-setting="applySetting" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" /></template>
-    <template v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-setting="applySetting" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></template>
+    <template v-if="device && activeSection === 'device'"><DevicePanel :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></template>
+    <template v-if="activeSection === 'keys'"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><section v-if="loadedLayers.length" class="card layer-toolbar"><div class="section-heading"><div><h2>{{ t('app.keyboardLayers') }}</h2><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div></div><div class="actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="!allLayersLoaded || busy !== null" @change="pickLayoutFile"></label><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">{{ t('app.exportLayers') }}</button></div></div></section><KeyboardLayout v-if="layers[activeLayer]" :key="activeLayer" :layer="layers[activeLayer]!" :busy="busy !== null" :has-backup="layerBackups[activeLayer] !== null" @apply="applyLayer" @restore="restoreLayer" /></template>
+    <template v-if="device && protocolReady && activeSection === 'lighting'"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" /></template>
+    <template v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></template>
     <details v-if="device" class="developer-tools"><summary><strong>{{ t('app.developerTools') }}</strong> · {{ t('app.developerHint') }}</summary><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></details>
     <footer>{{ t('app.footer') }}</footer>
   </div>

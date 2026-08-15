@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   ANNE_PRO_PROTOCOL_FILTERS,
+  ANNE_PRO_FILTERS,
   getPreferredGrantedAnneProDevice,
   isAnneProDevice,
   selectPreferredDevice,
+  requestAnneProDevice,
 } from '../src/hid/discovery.ts'
 
 function device(usagePage: number, vendorId = 0x04d9, productId = 0xa293): HIDDevice {
@@ -68,5 +70,17 @@ describe('Anne Pro discovery', () => {
     const protocol = protocolDevice()
     Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { hid: { getDevices: async () => [keyboard, protocol] } } })
     await expect(getPreferredGrantedAnneProDevice()).resolves.toMatchObject({ device: protocol, candidates: [keyboard, protocol], hasProtocolCollection: true })
+  })
+
+  it('requests by VID/PID and selects the protocol collection after permission', async () => {
+    const protocol = protocolDevice()
+    let requestedFilters: HIDDeviceFilter[] = []
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { hid: {
+      requestDevice: async ({ filters }: HIDDeviceRequestOptions) => { requestedFilters = filters; return [protocol] },
+      getDevices: async () => [protocol],
+    } } })
+    await expect(requestAnneProDevice()).resolves.toMatchObject({ device: protocol, hasProtocolCollection: true })
+    expect(requestedFilters).toEqual(ANNE_PRO_FILTERS)
+    expect(requestedFilters.every(filter => filter.usagePage === undefined && filter.usage === undefined)).toBe(true)
   })
 })

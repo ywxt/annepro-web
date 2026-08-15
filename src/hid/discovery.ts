@@ -48,7 +48,10 @@ export async function getPreferredGrantedAnneProDevice(): Promise<DeviceSelectio
 }
 
 export async function requestAnneProDevice(): Promise<DeviceSelection> {
-  const requested = await navigator.hid.requestDevice({ filters: ANNE_PRO_PROTOCOL_FILTERS })
+  // Keep permission discovery independent of OS-specific collection exposure.
+  // Protected keyboard collections remain unavailable to WebHID; selection of
+  // the 64-byte protocol collection happens from the granted metadata below.
+  const requested = await navigator.hid.requestDevice({ filters: ANNE_PRO_FILTERS })
   const granted = await getGrantedAnneProDevices()
   const candidates = Array.from(new Set([...requested, ...granted]))
   const device = selectPreferredDevice(candidates)

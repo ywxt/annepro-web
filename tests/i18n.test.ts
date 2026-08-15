@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { i18n, messages, setAppLocale } from '../src/i18n.ts'
+import { appLocale, i18n, messages, setAppLocale } from '../src/i18n.ts'
 
 function paths(value: object, prefix = ''): string[] {
   return Object.entries(value).flatMap(([key, child]) => {
@@ -20,8 +20,10 @@ describe('user interface translations', () => {
 
   it('switches the global translator immediately', () => {
     setAppLocale('en')
+    expect(appLocale.value).toBe('en')
     expect(i18n.global.t('nav.settings')).toBe('Settings')
     setAppLocale('zh-TW')
+    expect(appLocale.value).toBe('zh-TW')
     expect(i18n.global.t('nav.settings')).toBe('設定')
   })
 })

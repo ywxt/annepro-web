@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { requiredLightColorCount, type LightEffect } from '../protocol/lighting.ts'
+import { KEY_WIDTHS } from '../protocol/layout.ts'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ effects: LightEffect[]; busy: boolean }>()
@@ -14,12 +15,15 @@ const typeNames: Record<number, string> = {
 }
 const count = computed(() => props.effects.length)
 const expanded = ref<number | null>(null)
+const selected = ref(0)
+const selectedEffect = computed(() => props.effects[selected.value] ?? null)
 const { t } = useI18n({ useScope: 'global' })
 const rowLengths = [14, 14, 13, 12, 8]
 const rowOffsets = [0, 14, 28, 41, 53]
 const rainbow = ['#ff0000', '#ff8000', '#ffff00', '#80ff00', '#00ff00', '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff', '#ff00ff', '#ff0080']
 
 function replace(index: number, patch: Partial<LightEffect>): void {
+  selected.value = index
   const next = props.effects.map((effect, current) => current === index ? { ...effect, ...patch } : effect)
   emit('update', next)
 }
@@ -42,6 +46,11 @@ function add(): void {
   emit('update', [...props.effects, { name: t('lighting.effectName', { count: props.effects.length + 1 }), type: 1, colors: ['#ff0000'] }])
 }
 function remove(index: number): void { emit('update', props.effects.filter((_, current) => current !== index)) }
+function previewColor(effect: LightEffect, keyIndex: number): string {
+  if (effect.type === 2) return effect.colors[keyIndex] ?? '#000000'
+  if (effect.colors.length === 1) return effect.colors[0]
+  return effect.colors[keyIndex % effect.colors.length] ?? '#000000'
+}
 function pickFile(event: Event): void {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (file) emit('import', file)
@@ -52,7 +61,13 @@ function pickFile(event: Event): void {
   <section class="card">
     <div class="section-heading"><div><p class="eyebrow">HOST-MANAGED · WRITE</p><h2>{{ t('lighting.title') }}</h2></div><div class="actions"><label class="file-button">{{ t('lighting.import') }}<input type="file" accept="application/json" @change="pickFile"></label><button class="secondary" @click="$emit('export')">{{ t('lighting.export') }}</button><button class="secondary" :disabled="busy || count >= 32" @click="add">{{ t('lighting.add') }}</button><button :disabled="busy || count === 0" @click="$emit('install')">{{ t('lighting.install', { count }) }}</button></div></div>
     <p class="empty">{{ t('lighting.help') }}</p>
-    <div v-for="(effect, index) in effects" :key="index" class="light-item">
+    <div v-if="selectedEffect" class="light-keyboard-preview" :aria-label="t('lighting.keyboardPreview')">
+      <div class="preview-heading"><strong>{{ t('lighting.keyboardPreview') }}</strong><span>{{ selectedEffect.name }}</span></div>
+      <div v-for="(length, row) in rowLengths" :key="row" class="light-preview-row">
+        <span v-for="column in length" :key="column" class="light-preview-key" :style="{ '--key-width': KEY_WIDTHS[row][column - 1], backgroundColor: previewColor(selectedEffect, rowOffsets[row] + column - 1) }"></span>
+      </div>
+    </div>
+    <div v-for="(effect, index) in effects" :key="index" class="light-item" :class="{ selected: selected === index }" @click="selected = index">
       <input :value="effect.name" maxlength="40" @change="replace(index, { name: ($event.target as HTMLInputElement).value })">
       <select :value="effect.type" @change="changeType(index, Number(($event.target as HTMLSelectElement).value))"><option v-for="(name, type) in typeNames" :key="type" :value="Number(type)">{{ name }} ({{ type }})</option></select>
       <input type="color" :value="effect.colors[0]" @input="changePrimary(index, ($event.target as HTMLInputElement).value)">
