@@ -54,6 +54,23 @@ class MacroConfigHidDevice extends FakeHidDevice {
   }
 }
 
+class LedPowerHidDevice extends FakeHidDevice {
+  override async sendReport(reportId: number, data: BufferSource): Promise<void> {
+    const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data as ArrayBuffer)
+    this.sent.push({ reportId, data: bytes })
+    queueMicrotask(() => {
+      this.emitReport(new Uint8Array([
+        0x7b, 0x12, 0x13, 0, 3, 0, 0, 0x7d, 0x20, 0x1e, 2,
+      ]))
+    })
+  }
+
+  private emitReport(bytes: Uint8Array): void {
+    const event = { reportId: 0, data: new DataView(bytes.buffer) } as HIDInputReportEvent
+    for (const listener of this.listeners) listener(event)
+  }
+}
+
 describe('read-only HID transport', () => {
   it('sends the fixed Layer 0 request once and assembles exactly two reports', async () => {
     const device = new FakeHidDevice()
@@ -95,5 +112,16 @@ describe('read-only HID transport', () => {
     const backup = await transport.readMacroBackup(100)
     expect(device.sent).toHaveLength(1)
     expect(backup).toMatchObject({ map: [], macros: [], activeList: [] })
+  })
+
+  it('sends only the captured LED power-mode read', async () => {
+    const device = new LedPowerHidDevice()
+    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const result = await transport.readLedPowerMode(100)
+    expect(device.sent).toHaveLength(1)
+    expect(Array.from(device.sent[0].data)).toEqual([
+      0x7b, 0x12, 0x31, 0, 2, 0, 0, 0x7d, 0x20, 0x1e,
+    ])
+    expect(result).toMatchObject({ mode: 2, modeName: 'High' })
   })
 })

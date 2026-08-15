@@ -171,3 +171,12 @@ The modern renderer reads a 24-byte payload and uses indices 12–23 for ordinar
 settings. Older firmware uses a separate 6-byte layout. Both formats are parsed.
 The first 12 modern bytes and the raw sleep-timeout value are preserved without
 inventing semantics not present in the renderer.
+
+### LED power mode (`20/1e`)
+
+Native dispatch maps renderer operation `readLedPowerMode` to an argument-free
+MCU_MAIN read. One isolated request returned the single-byte value `02`, which
+the renderer's option list labels `High` (`01` is `Low`). The control is enabled
+for Anne Pro 2 key firmware newer than 2.35. The similarly named light preview
+and download operations are both writes; ObinsKit stores editable light effects
+on the host and exposes no device-to-host light-effect backup command.

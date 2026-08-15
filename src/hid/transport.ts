@@ -38,6 +38,11 @@ import {
   parseHardwareStateResponse,
   type HardwareState,
 } from '../protocol/hardware-state.ts'
+import {
+  createReadLedPowerModeRequest,
+  parseLedPowerModeResponse,
+  type LedPowerModeResponse,
+} from '../protocol/led-power.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -106,6 +111,14 @@ export class ReadonlyHidTransport {
     return this.requestConfirmedRead(
       createReadHardwareStateRequest(),
       parseHardwareStateResponse,
+      timeoutMs,
+    )
+  }
+
+  async readLedPowerMode(timeoutMs = 1500): Promise<LedPowerModeResponse> {
+    return this.requestConfirmedRead(
+      createReadLedPowerModeRequest(),
+      parseLedPowerModeResponse,
       timeoutMs,
     )
   }

@@ -17,6 +17,7 @@ import type { IapModeResponse } from './protocol/iap-info.ts'
 import type { HardwareState } from './protocol/hardware-state.ts'
 import type { KeyboardLayerResponse } from './protocol/layout.ts'
 import type { MacroBackup } from './protocol/macro-info.ts'
+import type { LedPowerModeResponse } from './protocol/led-power.ts'
 import { bytesToHex } from './protocol/packet.ts'
 
 const supported = isWebHidSupported()
@@ -32,6 +33,7 @@ const firmware = ref<FirmwareVersions | null>(null)
 const iap = ref<IapModeResponse | null>(null)
 const hardwareState = ref<HardwareState | null>(null)
 const macroBackup = ref<MacroBackup | null>(null)
+const ledPowerMode = ref<LedPowerModeResponse | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
@@ -103,6 +105,12 @@ const readHardwareState = () => transport.value && confirmedRead(
   () => transport.value!.readHardwareState(),
   value => { hardwareState.value = value },
 )
+const readLedPowerMode = () => transport.value && confirmedRead(
+  'readLedPowerMode',
+  '傳送一次已確認的唯讀 LED 功率模式查詢：\n7b 12 31 00 02 00 00 7d 20 1e',
+  () => transport.value!.readLedPowerMode(),
+  value => { ledPowerMode.value = value },
+)
 
 function exportMetadata(): void {
   if (!device.value) return
@@ -143,7 +151,7 @@ function exportMacros(): void {
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" />
-  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :capabilities="capabilities" :busy="busy !== null" @read-state="readHardwareState" />
+  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
   <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>

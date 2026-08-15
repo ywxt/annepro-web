@@ -38,7 +38,7 @@ pnpm build
 
 ## Safety boundary
 
-The transport opens the device, listens for input, and exposes narrowly scoped `readDeviceType()`, `readFirmwareVersion()`, `readIapMode()`, and Layer 0 read operations confirmed by controlled captures. The UI shows the exact packet and requires confirmation before each one-shot query. `readIapMode` only reports the state code and cannot switch modes. No arbitrary `sendReport`, feature-report, firmware write, IAP switch, erase, or configuration API is exposed.
+The transport opens the device, listens for input, and exposes narrowly scoped device information, hardware state, LED power mode, macro backup, and four-layer layout reads confirmed by controlled captures. The UI shows the exact packet and requires confirmation before each bounded query. `readIapMode` only reports the state code and cannot switch modes. No arbitrary `sendReport`, feature-report, firmware write, IAP switch, erase, or configuration API is exposed.
 
 ## Next protocol research
 

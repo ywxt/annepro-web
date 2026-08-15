@@ -1,0 +1,14 @@
+{
+  "source": "Single authorized read-only request on /dev/hidraw10",
+  "capturedAt": "2026-08-16T01:54:00+08:00",
+  "device": "0x04d9:0xa293",
+  "target": "MCU_MAIN",
+  "reportId": 0,
+  "request": "7b 12 31 00 02 00 00 7d 20 1e",
+  "responseDeclaredFrame": "7b 12 13 00 03 00 00 7d 20 1e 02",
+  "decoded": {
+    "mode": 2,
+    "modeName": "High"
+  },
+  "notes": "Exactly one request was written and one report read. Bytes after the declared frame were stale hidraw buffer data and are excluded by the parser."
+}

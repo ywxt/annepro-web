@@ -11,6 +11,7 @@ Evidence labels:
 | `readDeviceType` | read | command/action `01/01`, report ID 0 | captured | R1 | implemented |
 | `readFirmwareVersion(MCU_MAIN)` | read | command/action `01/03`, report ID 0 | captured | R1 | implemented |
 | `readHardwareState(MCU_MAIN)` | read | command/action `01/09`, 6-byte legacy or 24-byte modern response | captured | R1 | implemented |
+| `readLedPowerMode(MCU_MAIN)` | read | command/action `20/1e`, one-byte mode (`1` low, `2` high) | captured | R1 | implemented |
 | `readIapMode(MCU_MAIN)` | read | command/action `02/02`, report ID 0 | captured | R1 | implemented; mode labels pending |
 | `readUDID` | read sensitive | captured startup query strongly correlates with `01/0d` | renderer + capture correlation | R1/private | not implemented |
 | `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | startup capture + native dispatch | R1 | offline assembler implemented; isolated layer capture pending |
@@ -20,7 +21,7 @@ Evidence labels:
 | `readMacroActiveList` | read | command/action `30/07` | static native dispatch | R1 | capture only when config is non-empty |
 | `readMacroMap` | read | command/action `30/08` | static native dispatch | R1 | capture only when config is non-empty |
 | `readMacro(index)` | indexed read | command/action `30/09`, one-byte index | static native dispatch | R1 | capture only for indices declared by map |
-| `previewOrDownloadLight` | read/preview | unresolved | static symbol | R1/W1 | pending |
+| `previewLight` / `downloadLight` | write | native `previewOrDownloadLight`; light slot/type plus RGB buffer | renderer + native dispatch | W1 | disabled; no device-to-host light read exists |
 | `writeSleepTimeout` | configuration write | unresolved | static symbol | W1 | disabled |
 | `writeAudioVisualize` | configuration write | unresolved | static symbol | W1 | disabled |
 | `writeMacro` | multi-packet write | unresolved | static symbol | W1 | disabled |
