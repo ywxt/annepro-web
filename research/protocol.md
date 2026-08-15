@@ -224,11 +224,13 @@ verifies `userLayout === 1` through `readHardwareState`. It does not interleave
 `uploadKbdLayout` reads between layer downloads: all eight write packets are
 acknowledged first, matching ObinsKit's staging transaction, and all four layers
 are read back only after activation.
-If a final packet's ACK is lost after WebHID successfully resolves the send,
-the transport preserves that uninterrupted transaction instead of blindly
-resending. It continues, activates User layout, and accepts the operation only
-when all four active layers match byte-for-byte on final readback. A first
-packet timeout remains fatal because its continuation cannot be treated as safe.
+The native `Liana` constructor also starts `checkWriteTimeout` with its cached
+data and active write-queue maps. Treating a missing ACK as success is therefore
+not equivalent to ObinsKit and was disproved by a physical write: the uncommitted
+second packets cleared data indices 53–60, exactly the bottom keyboard row. The
+web transport now mirrors timeout recovery in a stricter bounded form: it waits
+20 ms and resends the exact current packet at most once. It may advance only
+after the retry receives the expected ACK; final readback remains mandatory.
 
 #### ObinsKit 1.2.11 implementation comparison
 
