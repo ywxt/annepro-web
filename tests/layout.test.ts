@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createWriteKeyboardLayerRequests,
   createReadKeyboardLayerRequest,
   keyboardLayerRows,
   keycodeName,
   parseKeyboardLayerResponse,
+  parseWriteKeyboardLayerAck,
 } from '../src/protocol/layout.ts'
 
 function response(packet: number, payload: number[]): Uint8Array {
@@ -25,6 +27,28 @@ describe('keyboard layout read protocol', () => {
     expect(() => createReadKeyboardLayerRequest(-1)).toThrow(RangeError)
     expect(() => createReadKeyboardLayerRequest(4)).toThrow(RangeError)
     expect(() => createReadKeyboardLayerRequest(1.5)).toThrow(RangeError)
+  })
+
+  it('encodes a 61-byte layer as the confirmed 54 + 8 write payloads', () => {
+    const data = new Uint8Array(Array.from({ length: 61 }, (_, index) => index))
+    const requests = createWriteKeyboardLayerRequests(2, data)
+    expect(requests).toHaveLength(2)
+    expect(Array.from(requests[0].slice(0, 11))).toEqual([
+      0x7b, 0x12, 0x31, 0x80, 56, 0, 0, 0x7d, 0x10, 0x01, 2,
+    ])
+    expect(requests[0]).toHaveLength(64)
+    expect(Array.from(requests[1])).toEqual([
+      0x7b, 0x12, 0x31, 0x01, 10, 0, 0, 0x7d, 0x10, 0x01,
+      ...Array.from(data.slice(53)),
+    ])
+  })
+
+  it('validates per-packet layout write acknowledgements', () => {
+    const ack = new Uint8Array([
+      0x7b, 0x12, 0x13, 0, 3, 0, 0, 0x7d, 0x10, 0x01, 1,
+    ])
+    expect(parseWriteKeyboardLayerAck(1, ack)).toMatchObject({ packet: 1 })
+    expect(() => parseWriteKeyboardLayerAck(0, ack)).toThrow('does not match packet 0')
   })
 
   it('assembles and identifies a raw 61-byte layer', () => {

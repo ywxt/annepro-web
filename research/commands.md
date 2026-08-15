@@ -15,7 +15,7 @@ Evidence labels:
 | `readIapMode(MCU_MAIN)` | read | command/action `02/02`, report ID 0 | captured | R1 | implemented; mode labels pending |
 | `readUDID` | read sensitive | captured startup query strongly correlates with `01/0d` | renderer + capture correlation | R1/private | not implemented |
 | `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | startup capture + native dispatch | R1 | offline assembler implemented; isolated layer capture pending |
-| `downloadKbdLayout(layer, data)` | multi-packet write | native `multi_package_create(03, 10, 01, ...)` | renderer + static | W1 | disabled |
+| `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix + 61 bytes split 54 + 8 | captured no-op round trip | W1 | implemented with backup and byte-level readback |
 | ordinary setting writes | write + readback | `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native dispatch + brightness round trip | W1 | implemented with snapshot and verification |
 | `downloadMacro(offset, chunk)` | chunked write | command/action `30/05`; renderer sends serialized macro storage in 49-byte USB chunks | renderer + native dispatch | W1 | disabled |
 | `readMacroConfig` | read | command/action `30/06`, two-byte response | captured | R1 | implemented |

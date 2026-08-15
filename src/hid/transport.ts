@@ -16,7 +16,9 @@ import {
 } from '../protocol/iap-info.ts'
 import {
   createReadKeyboardLayerRequest,
+  createWriteKeyboardLayerRequests,
   parseKeyboardLayerResponse,
+  parseWriteKeyboardLayerAck,
   type KeyboardLayerResponse,
 } from '../protocol/layout.ts'
 import { tryParseLianaFrame } from '../protocol/liana.ts'
@@ -213,6 +215,26 @@ export class ReadonlyHidTransport {
 
   async readKeyboardLayer0(timeoutMs = 2000): Promise<KeyboardLayerResponse> {
     return this.readKeyboardLayer(0, timeoutMs)
+  }
+
+  async writeKeyboardLayer(
+    layer: number,
+    data: Uint8Array,
+    timeoutMs = 2000,
+  ): Promise<KeyboardLayerResponse> {
+    const requests = createWriteKeyboardLayerRequests(layer, data)
+    for (const [packet, request] of requests.entries()) {
+      await this.requestConfirmedRead(
+        request,
+        response => parseWriteKeyboardLayerAck(packet, response),
+        timeoutMs,
+      )
+    }
+    const readback = await this.readKeyboardLayer(layer, timeoutMs)
+    if (!readback.data.every((value, index) => value === data[index])) {
+      throw new Error(`Layer ${layer} readback does not match written data`)
+    }
+    return readback
   }
 
   private async requestConfirmedRead<T>(

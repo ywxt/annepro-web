@@ -37,9 +37,12 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .decoded { grid-column: 1 / -1; color: #62e5b4; font-family: ui-monospace, monospace; }
 .keyboard-layout { display: grid; gap: 7px; margin-top: 18px; overflow-x: auto; }
 .key-row { display: flex; gap: 7px; min-width: 850px; }
-.key { display: grid; place-items: center; width: 54px; min-width: 54px; height: 48px; border: 1px solid #354252; border-radius: 7px; background: #111923; font-family: ui-monospace, monospace; }
+.key { display: grid; place-items: center; width: 54px; min-width: 54px; height: 48px; padding: 0; color: #e8ecf2; border: 1px solid #354252; border-radius: 7px; background: #111923; font-family: ui-monospace, monospace; }
+.key.selected { border-color: #62e5b4; } .key.changed { background: #25372f; }
 .key strong { max-width: 50px; overflow: hidden; font-size: 10px; font-weight: 700; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .key small { color: #7e8998; font-size: 10px; }
+.key-editor { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px; border: 1px solid #39765f; border-radius: 8px; }
+.key-editor input { width: 100px; padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }
 .layout-raw { display: block; margin-top: 18px; overflow-wrap: anywhere; line-height: 1.6; }
 .macro-item { display: grid; gap: 5px; margin-top: 12px; padding: 12px; border: 1px solid #293340; border-radius: 8px; }
 .macro-item span { color: #929dac; font-size: 12px; }

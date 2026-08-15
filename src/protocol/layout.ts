@@ -1,4 +1,5 @@
 import { assembleLianaPayload } from './multipart.ts'
+import { parseLianaFrame } from './liana.ts'
 
 const LAYER_COUNT = 4
 const ROW_LENGTHS = [14, 14, 13, 12, 8] as const
@@ -38,6 +39,12 @@ export interface KeyboardLayerResponse {
   packetCount: number
 }
 
+export interface KeyboardLayerWriteAck {
+  packet: number
+  rawFrame: Uint8Array
+  trailingLength: number
+}
+
 /** Builds the read-only uploadKbdLayout request observed in ObinsKit 1.2.11. */
 export function createReadKeyboardLayerRequest(layer: number): Uint8Array {
   if (!Number.isInteger(layer) || layer < 0 || layer >= LAYER_COUNT) {
@@ -46,6 +53,41 @@ export function createReadKeyboardLayerRequest(layer: number): Uint8Array {
   return new Uint8Array([
     0x7b, 0x12, 0x31, 0x00, 0x03, 0x00, 0x00, 0x7d, 0x10, 0x02, layer,
   ])
+}
+
+export function createWriteKeyboardLayerRequests(layer: number, data: Uint8Array): Uint8Array[] {
+  createReadKeyboardLayerRequest(layer)
+  if (data.byteLength !== 61) {
+    throw new Error(`Keyboard layer payload must be 61 bytes, got ${data.byteLength}`)
+  }
+  const combined = new Uint8Array(62)
+  combined[0] = layer
+  combined.set(data, 1)
+  const requests: Uint8Array[] = []
+  for (let offset = 0, packet = 0; offset < combined.byteLength; offset += 54, packet += 1) {
+    const payload = combined.slice(offset, offset + 54)
+    const hasMore = offset + payload.byteLength < combined.byteLength
+    requests.push(new Uint8Array([
+      0x7b, 0x12, 0x31, packet | (hasMore ? 0x80 : 0),
+      payload.byteLength + 2, 0, 0, 0x7d, 0x10, 0x01, ...payload,
+    ]))
+  }
+  return requests
+}
+
+export function parseWriteKeyboardLayerAck(packet: number, data: Uint8Array): KeyboardLayerWriteAck {
+  const frame = parseLianaFrame(data)
+  if (frame.command !== 0x10 || frame.action !== 0x01) {
+    throw new Error('Response is not downloadKbdLayout (10/01)')
+  }
+  if (frame.payload.byteLength !== 1 || frame.payload[0] !== packet) {
+    throw new Error(`Layer write acknowledgement does not match packet ${packet}`)
+  }
+  return {
+    packet,
+    rawFrame: data.slice(0, 8 + frame.payloadLength),
+    trailingLength: frame.trailing.byteLength,
+  }
 }
 
 /** Parses captured reports only; this function performs no HID I/O. */

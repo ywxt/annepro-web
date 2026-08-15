@@ -1,0 +1,26 @@
+{
+  "source": "Authorized no-op multipart write/read round trip on /dev/hidraw10",
+  "capturedAt": "2026-08-16T02:08:00+08:00",
+  "device": "0x04d9:0xa293",
+  "layer": 0,
+  "writePackets": [
+    {
+      "packet": 0,
+      "continuation": true,
+      "payloadBytes": 54,
+      "ackDeclaredFrame": "7b 12 13 00 03 00 00 7d 10 01 00"
+    },
+    {
+      "packet": 1,
+      "continuation": false,
+      "payloadBytes": 8,
+      "ackDeclaredFrame": "7b 12 13 00 03 00 00 7d 10 01 01"
+    }
+  ],
+  "readback": {
+    "packetCount": 2,
+    "dataLength": 61,
+    "matchesOriginal": true
+  },
+  "notes": "The write stream is layer index followed by 61 keycode bytes, split into 54-byte Liana payloads. The original Layer 0 backup was written unchanged and read back byte-for-byte."
+}

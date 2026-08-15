@@ -1,14 +1,28 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { keyboardLayerRows, keycodeName, type KeyboardLayerResponse } from '../protocol/layout.ts'
 import { bytesToHex, formatHex } from '../protocol/packet.ts'
-const props = defineProps<{ layer: KeyboardLayerResponse }>()
-const rows = computed(() => keyboardLayerRows(props.layer.data))
+const props = defineProps<{ layer: KeyboardLayerResponse; busy: boolean; hasBackup: boolean }>()
+defineEmits<{ apply: [layer: number, data: Uint8Array]; restore: [layer: number] }>()
+const draft = ref(props.layer.data.slice())
+const selected = ref<number | null>(null)
+watch(() => props.layer.data, data => { draft.value = data.slice(); selected.value = null })
+const rows = computed(() => keyboardLayerRows(draft.value))
+const changed = computed(() => draft.value.reduce((count, value, index) => count + (value === props.layer.data[index] ? 0 : 1), 0))
+const rowOffsets = [0, 14, 28, 41, 53]
+function selectKey(row: number, column: number): void { selected.value = rowOffsets[row] + column }
+function setSelected(value: number): void {
+  if (selected.value === null || !Number.isInteger(value) || value < 0 || value > 255) return
+  const next = draft.value.slice()
+  next[selected.value] = value
+  draft.value = next
+}
 </script>
 
 <template>
-  <section class="card"><div class="section-heading"><h2>Layer {{ layer.layer }}</h2><span>{{ layer.data.byteLength }} keys · {{ layer.packetCount }} reports</span></div>
-    <div class="keyboard-layout"><div v-for="(row, rowIndex) in rows" :key="rowIndex" class="key-row"><div v-for="(keycode, keyIndex) in row" :key="keyIndex" class="key" :title="keycodeName(keycode)"><strong>{{ keycodeName(keycode) }}</strong><small>{{ formatHex(keycode, 2) }}</small></div></div></div>
+  <section class="card"><div class="section-heading"><h2>Layer {{ layer.layer }}</h2><div class="actions"><span>{{ layer.data.byteLength }} keys · {{ changed }} changes</span><button v-if="hasBackup" class="secondary" :disabled="busy" @click="$emit('restore', layer.layer)">復原原層</button><button :disabled="busy || changed === 0" @click="$emit('apply', layer.layer, draft)">套用 Layer</button></div></div>
+    <div class="keyboard-layout"><div v-for="(row, rowIndex) in rows" :key="rowIndex" class="key-row"><button v-for="(keycode, keyIndex) in row" :key="keyIndex" class="key" :class="{ selected: selected === rowOffsets[rowIndex] + keyIndex, changed: keycode !== layer.data[rowOffsets[rowIndex] + keyIndex] }" :title="keycodeName(keycode)" @click="selectKey(rowIndex, keyIndex)"><strong>{{ keycodeName(keycode) }}</strong><small>{{ formatHex(keycode, 2) }}</small></button></div></div>
+    <div v-if="selected !== null" class="key-editor"><span>Key {{ selected }} · {{ keycodeName(draft[selected]) }}</span><input :value="draft[selected]" type="number" min="0" max="255" @input="setSelected(Number(($event.target as HTMLInputElement).value))"><code>{{ formatHex(draft[selected], 2) }}</code></div>
     <code class="layout-raw">{{ bytesToHex(layer.data) }}</code>
   </section>
 </template>

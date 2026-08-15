@@ -37,6 +37,7 @@ const macroBackup = ref<MacroBackup | null>(null)
 const ledPowerMode = ref<LedPowerModeResponse | null>(null)
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
+const layerBackups = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
 const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
@@ -206,6 +207,44 @@ function exportMacros(): void {
     activeList: macroBackup.value.activeList,
   })
 }
+
+async function applyLayer(layer: number, data: Uint8Array): Promise<void> {
+  if (!transport.value || !layers.value[layer]) return
+  const original = layers.value[layer]!
+  const differences = data.reduce((count, value, index) => count + (value === original.data[index] ? 0 : 1), 0)
+  if (!window.confirm(`將修改 Layer ${layer} 的 ${differences} 個鍵位。\n\n寫入前會保留原層，完成後逐 byte 回讀驗證。`)) return
+  const backups = layerBackups.value.slice()
+  backups[layer] ??= original.data.slice()
+  layerBackups.value = backups
+  busy.value = `write Layer ${layer}`
+  try {
+    const readback = await transport.value.writeKeyboardLayer(layer, data)
+    const next = layers.value.slice()
+    next[layer] = readback
+    layers.value = next
+    message.value = `Layer ${layer} 已寫入並逐 byte 驗證。`
+  } catch (error) {
+    message.value = `Layer ${layer} 寫入失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
+async function restoreLayer(layer: number): Promise<void> {
+  const backup = layerBackups.value[layer]
+  if (!transport.value || !backup || !window.confirm(`寫回 Layer ${layer} 的原始備份？`)) return
+  busy.value = `restore Layer ${layer}`
+  try {
+    const readback = await transport.value.writeKeyboardLayer(layer, backup)
+    const next = layers.value.slice()
+    next[layer] = readback
+    layers.value = next
+    const backups = layerBackups.value.slice()
+    backups[layer] = null
+    layerBackups.value = backups
+    message.value = `Layer ${layer} 已復原並驗證。`
+  } catch (error) {
+    message.value = `Layer ${layer} 復原失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
 </script>
 
 <template>
@@ -214,7 +253,7 @@ function exportMacros(): void {
   <p id="message" role="status" aria-live="polite">{{ message }}</p>
   <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
-  <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" />
+  <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" :busy="busy !== null" :has-backup="layerBackups[layer.layer] !== null" @apply="applyLayer" @restore="restoreLayer" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" />
   <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @apply-setting="applySetting" @restore-settings="restoreSettings" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />

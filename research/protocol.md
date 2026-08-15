@@ -191,3 +191,13 @@ the effective value. A physical backlight test changed raw brightness 7 to 6,
 confirmed 6 by readback, restored 7, and confirmed 7. Write acknowledgement
 payloads are operation-specific (some echo values), so they are retained as raw
 data and are not interpreted as a universal status code.
+
+### Keyboard layout write (`downloadKbdLayout`, `10/01`)
+
+The write body is the one-byte layer index followed by the 61 C18 keycodes.
+ObinsKit's packet builder splits those 62 bytes into payloads of 54 and 8, with
+packet markers `80` and `01`. The keyboard acknowledges each packet with a
+single-byte zero-based packet index. A Layer 0 no-op write was followed by the
+existing `10/02` read and matched all 61 bytes. The editor therefore snapshots
+the original layer, shows changed keys, requires confirmation, writes exactly
+two bounded packets, and rejects any non-identical readback.
