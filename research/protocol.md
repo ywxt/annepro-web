@@ -224,6 +224,11 @@ verifies `userLayout === 1` through `readHardwareState`. It does not interleave
 `uploadKbdLayout` reads between layer downloads: all eight write packets are
 acknowledged first, matching ObinsKit's staging transaction, and all four layers
 are read back only after activation.
+If a final packet's ACK is lost after WebHID successfully resolves the send,
+the transport preserves that uninterrupted transaction instead of blindly
+resending. It continues, activates User layout, and accepts the operation only
+when all four active layers match byte-for-byte on final readback. A first
+packet timeout remains fatal because its continuation cannot be treated as safe.
 
 ### Lighting (`20/03` and `20/04`)
 

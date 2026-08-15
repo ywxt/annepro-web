@@ -73,6 +73,7 @@ class LedPowerHidDevice extends FakeHidDevice {
 
 class LayerWriteHidDevice extends FakeHidDevice {
   private staged = new Map<number, number[]>()
+  constructor(private readonly dropFinalAckForLayer: number | null = null) { super() }
 
   override async sendReport(reportId: number, data: BufferSource): Promise<void> {
     const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data as ArrayBuffer)
@@ -85,6 +86,7 @@ class LayerWriteHidDevice extends FakeHidDevice {
         const payload = Array.from(bytes.slice(10, 8 + bytes[4]))
         if (packet === 0) this.staged.set(payload[0], payload.slice(1))
         else this.staged.get(this.staged.size - 1)?.push(...payload)
+        if (packet === 1 && this.staged.size - 1 === this.dropFinalAckForLayer) return
         this.emitFrame(0x10, 0x01, [packet])
       } else if (command === 0x10 && action === 0x02) {
         const layer = bytes[10]
@@ -140,6 +142,7 @@ describe('typed Anne Pro HID transport', () => {
     const result = await transport.writeKeyboardLayers(layers, 100)
     expect(result.layers.map(layer => Array.from(layer.data))).toEqual(layers.map(layer => Array.from(layer)))
     expect(result.state.userLayout).toBe(1)
+    expect(result.recoveredAckTimeouts).toBe(0)
     expect(device.sent.map(({ data }) => [data[8], data[9]])).toEqual([
       [0x10, 0x01], [0x10, 0x01],
       [0x10, 0x01], [0x10, 0x01],
@@ -149,6 +152,15 @@ describe('typed Anne Pro HID transport', () => {
       [0x10, 0x02], [0x10, 0x02], [0x10, 0x02], [0x10, 0x02],
     ])
     await expect(transport.writeKeyboardLayers(layers.slice(0, 3), 100)).rejects.toThrow('Expected four')
+  })
+
+  it('continues after a lost final-packet ACK and trusts complete readback', async () => {
+    const device = new LayerWriteHidDevice(1)
+    const transport = new AnneProHidTransport(device as unknown as HIDDevice)
+    const layers = Array.from({ length: 4 }, (_, layer) => new Uint8Array(Array.from({ length: 61 }, (_, key) => layer * 61 + key & 0xff)))
+    const result = await transport.writeKeyboardLayers(layers, 5)
+    expect(result.recoveredAckTimeouts).toBe(1)
+    expect(result.layers.map(layer => Array.from(layer.data))).toEqual(layers.map(layer => Array.from(layer)))
   })
 
   it('identifies the exact layout stage when a confirmed read times out', async () => {

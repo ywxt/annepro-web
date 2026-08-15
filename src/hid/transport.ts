@@ -361,19 +361,29 @@ export class AnneProHidTransport {
   async writeKeyboardLayers(
     layers: readonly Uint8Array[],
     timeoutMs = 5000,
-  ): Promise<{ layers: KeyboardLayerResponse[]; state: HardwareState }> {
+  ): Promise<{ layers: KeyboardLayerResponse[]; state: HardwareState; recoveredAckTimeouts: number }> {
     if (layers.length !== 4) throw new Error(`Expected four keyboard layers, got ${layers.length}`)
     let stage = 'preparing layout'
+    const missedFinalAcks: string[] = []
     try {
       for (const [layer, data] of layers.entries()) {
         const requests = createWriteKeyboardLayerRequests(layer, data)
         for (const [packet, request] of requests.entries()) {
           stage = `downloading Layer ${layer}, packet ${packet + 1}/${requests.length}`
-          await this.requestConfirmedRead(
-            request,
-            response => parseWriteKeyboardLayerAck(packet, response),
-            timeoutMs,
-          )
+          try {
+            await this.requestConfirmedRead(
+              request,
+              response => parseWriteKeyboardLayerAck(packet, response),
+              timeoutMs,
+            )
+          } catch (error) {
+            // A resolved WebHID send can be accepted by the keyboard even when
+            // its final-packet ACK is lost. Do not resend or interrupt the
+            // four-layer staging transaction; final readback is authoritative.
+            const timedOut = error instanceof Error && error.message === `Confirmed read timed out after ${timeoutMs} ms`
+            if (!timedOut || packet !== requests.length - 1) throw error
+            missedFinalAcks.push(stage)
+          }
         }
       }
       stage = 'activating User layout'
@@ -387,11 +397,12 @@ export class AnneProHidTransport {
         stage = `verifying active Layer ${layer}`
         const active = await this.readKeyboardLayer(layer, timeoutMs)
         if (!active.data.every((value, index) => value === expected[index])) {
-          throw new Error('readback changed after User layout activation')
+          const ackContext = missedFinalAcks.length ? `; missed ACKs: ${missedFinalAcks.join(', ')}` : ''
+          throw new Error(`readback changed after User layout activation${ackContext}`)
         }
         activeReadbacks.push(active)
       }
-      return { layers: activeReadbacks, state }
+      return { layers: activeReadbacks, state, recoveredAckTimeouts: missedFinalAcks.length }
     } catch (error) {
       throw new Error(`${stage}: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
     }
