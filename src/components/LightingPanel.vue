@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { requiredLightColorCount, type LightEffect } from '../protocol/lighting.ts'
 
 const props = defineProps<{ effects: LightEffect[]; busy: boolean }>()
@@ -12,6 +12,9 @@ const typeNames: Record<number, string> = {
   23: 'Flame', 24: 'Firework', 25: 'Star fall',
 }
 const count = computed(() => props.effects.length)
+const expanded = ref<number | null>(null)
+const rowLengths = [14, 14, 13, 12, 8]
+const rowOffsets = [0, 14, 28, 41, 53]
 const rainbow = ['#ff0000', '#ff8000', '#ffff00', '#80ff00', '#00ff00', '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff', '#ff00ff', '#ff0080']
 
 function replace(index: number, patch: Partial<LightEffect>): void {
@@ -26,6 +29,11 @@ function changeType(index: number, type: number): void {
 function changePrimary(index: number, color: string): void {
   const effect = props.effects[index]
   replace(index, { colors: effect.colors.map(() => color) })
+}
+function changeColor(effectIndex: number, colorIndex: number, color: string): void {
+  const colors = props.effects[effectIndex].colors.slice()
+  colors[colorIndex] = color
+  replace(effectIndex, { colors })
 }
 function add(): void {
   if (props.effects.length >= 32) return
@@ -47,8 +55,20 @@ function pickFile(event: Event): void {
       <select :value="effect.type" @change="changeType(index, Number(($event.target as HTMLSelectElement).value))"><option v-for="(name, type) in typeNames" :key="type" :value="Number(type)">{{ name }} ({{ type }})</option></select>
       <input type="color" :value="effect.colors[0]" @input="changePrimary(index, ($event.target as HTMLInputElement).value)">
       <span>{{ effect.colors.length }} colors</span>
+      <button v-if="effect.colors.length > 1" class="secondary" :disabled="busy" @click="expanded = expanded === index ? null : index">{{ expanded === index ? '收合顏色' : (effect.type === 2 ? '逐鍵顏色' : '編輯色盤') }}</button>
       <button class="secondary" :disabled="busy" @click="$emit('preview', effect)">Preview</button>
       <button class="danger" :disabled="busy" @click="remove(index)">刪除</button>
+      <div v-if="expanded === index && effect.type === 2" class="light-color-editor per-key-colors">
+        <div v-for="(length, row) in rowLengths" :key="row" class="color-row">
+          <label v-for="column in length" :key="column" :title="`Key ${rowOffsets[row] + column - 1}: ${effect.colors[rowOffsets[row] + column - 1]}`">
+            <input type="color" :value="effect.colors[rowOffsets[row] + column - 1]" @input="changeColor(index, rowOffsets[row] + column - 1, ($event.target as HTMLInputElement).value)">
+            <small>{{ rowOffsets[row] + column - 1 }}</small>
+          </label>
+        </div>
+      </div>
+      <div v-else-if="expanded === index" class="light-color-editor palette-colors">
+        <label v-for="(color, colorIndex) in effect.colors" :key="colorIndex" :title="`Palette ${colorIndex + 1}: ${color}`"><input type="color" :value="color" @input="changeColor(index, colorIndex, ($event.target as HTMLInputElement).value)"><small>{{ colorIndex + 1 }}</small></label>
+      </div>
     </div>
   </section>
 </template>

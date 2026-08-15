@@ -62,9 +62,14 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .audio-controls label { display: flex; align-items: center; gap: 8px; }
 .audio-controls select { padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }
 .audio-controls input[type="color"] { width: 48px; height: 38px; padding: 3px; border: 1px solid #354252; border-radius: 6px; background: #111923; }
-.light-item { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr) 55px auto auto auto; align-items: center; gap: 9px; margin-top: 10px; padding: 10px; border: 1px solid #293340; border-radius: 8px; }
+.light-item { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr) 55px auto auto auto auto; align-items: center; gap: 9px; margin-top: 10px; padding: 10px; border: 1px solid #293340; border-radius: 8px; }
 .light-item input, .light-item select { min-width: 0; padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }
 .light-item input[type="color"] { width: 48px; height: 38px; padding: 3px; }
+.light-color-editor { grid-column: 1 / -1; padding: 12px; overflow-x: auto; border-top: 1px solid #293340; }
+.color-row { display: flex; gap: 5px; min-width: 830px; margin-top: 5px; }
+.light-color-editor label { display: grid; justify-items: center; gap: 2px; color: #7e8998; font: 10px ui-monospace, monospace; }
+.light-color-editor input[type="color"] { width: 54px; height: 38px; }
+.palette-colors { display: flex; flex-wrap: wrap; gap: 8px; }
 button.danger { padding: 8px 11px; color: #ffb5b5; border: 1px solid #713b42; background: transparent; }
 .file-button { display: inline-block; padding: 8px 11px; color: #d8e0ea; border: 1px solid #354252; border-radius: 8px; cursor: pointer; font-weight: 750; }
 .file-button input { display: none; }
