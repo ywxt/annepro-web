@@ -5,6 +5,7 @@ import DevicePanel from './components/DevicePanel.vue'
 import KeyboardLayout from './components/KeyboardLayout.vue'
 import MacroPanel from './components/MacroPanel.vue'
 import ReportsView from './components/ReportsView.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
 import { collectMetadata } from './hid/device.ts'
 import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
 import { ReadonlyHidTransport } from './hid/transport.ts'
@@ -12,6 +13,7 @@ import type { InputReportRecord } from './hid/types.ts'
 import type { DeviceTypeResponse } from './protocol/device-info.ts'
 import type { FirmwareVersions } from './protocol/firmware-info.ts'
 import type { IapModeResponse } from './protocol/iap-info.ts'
+import type { HardwareState } from './protocol/hardware-state.ts'
 import type { KeyboardLayerResponse } from './protocol/layout.ts'
 import type { MacroBackup } from './protocol/macro-info.ts'
 import { bytesToHex } from './protocol/packet.ts'
@@ -27,6 +29,7 @@ const records = ref<InputReportRecord[]>([])
 const deviceType = ref<DeviceTypeResponse | null>(null)
 const firmware = ref<FirmwareVersions | null>(null)
 const iap = ref<IapModeResponse | null>(null)
+const hardwareState = ref<HardwareState | null>(null)
 const macroBackup = ref<MacroBackup | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
@@ -92,6 +95,12 @@ const readMacroBackup = () => transport.value && confirmedRead(
   () => transport.value!.readMacroBackup(),
   value => { macroBackup.value = value },
 )
+const readHardwareState = () => transport.value && confirmedRead(
+  'readHardwareState',
+  '傳送一次 ObinsKit 的唯讀硬體狀態查詢：\n7b 12 31 00 02 00 00 7d 01 09',
+  () => transport.value!.readHardwareState(),
+  value => { hardwareState.value = value },
+)
 
 function exportMetadata(): void {
   if (!device.value) return
@@ -132,6 +141,7 @@ function exportMacros(): void {
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" />
+  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :busy="busy !== null" @read-state="readHardwareState" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
   <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>

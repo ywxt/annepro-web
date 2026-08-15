@@ -1,0 +1,24 @@
+{
+  "source": "Single authorized read-only request on /dev/hidraw10",
+  "capturedAt": "2026-08-15T17:43:00Z",
+  "device": "0x04d9:0xa293",
+  "target": "MCU_MAIN",
+  "reportId": 0,
+  "request": "7b 12 31 00 02 00 00 7d 01 09",
+  "responseDeclaredFrame": "7b 12 13 00 1a 00 00 7d 01 09 00 00 00 00 01 01 01 01 57 29 00 00 01 01 00 01 18 07 00 01 03 71 00 7c",
+  "decoded": {
+    "format": "modern",
+    "userLayout": 1,
+    "magicFn": 1,
+    "macroTrigger": 0,
+    "capslockLed": 1,
+    "indicatorBrightness": 24,
+    "backlightBrightness": 7,
+    "ledHold": 0,
+    "tapStatus": 1,
+    "tapActMode": 3,
+    "tapTimeoutValue": 113,
+    "sleepTimeoutRaw": 31744
+  },
+  "notes": "Exactly one request was written. The first 12 payload bytes are retained as reservedPrefix. sleepTimeoutRaw is not assigned a time unit because the observed value may be a sentinel or encoded setting."
+}

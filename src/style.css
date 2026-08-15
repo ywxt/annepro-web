@@ -17,6 +17,7 @@ button:hover { background: #8cf0ca; } button:disabled { opacity: .45; cursor: no
 button.secondary { padding: 8px 11px; margin-left: 8px; color: #d8e0ea; border: 1px solid #354252; background: transparent; }
 #message { min-height: 24px; color: #b5c2d0; }
 dl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 0; }
+.settings-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 12px; }
 dl div { min-width: 0; } dt { color: #7e8998; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; } dd { margin: 5px 0 0; overflow-wrap: anywhere; font: 600 15px ui-monospace, monospace; }
 .collection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin: 18px 0 30px; }
 .collection { padding: 18px; } .collection.vendor { border-color: #39765f; box-shadow: inset 3px 0 #62e5b4; }

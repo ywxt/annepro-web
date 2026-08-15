@@ -164,3 +164,10 @@ bytes, so no map, content, or active-list request was needed.
 
 The similarly named `downloadMacro` is not a read: the renderer uses it to send
 serialized macro storage in chunks with action `30/05`. It remains disabled.
+
+### Hardware state (`01/09`)
+
+The modern renderer reads a 24-byte payload and uses indices 12–23 for ordinary
+settings. Older firmware uses a separate 6-byte layout. Both formats are parsed.
+The first 12 modern bytes and the raw sleep-timeout value are preserved without
+inventing semantics not present in the renderer.

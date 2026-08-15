@@ -33,6 +33,11 @@ import {
   type MacroConfigResponse,
   type StoredMacro,
 } from '../protocol/macro-info.ts'
+import {
+  createReadHardwareStateRequest,
+  parseHardwareStateResponse,
+  type HardwareState,
+} from '../protocol/hardware-state.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -93,6 +98,14 @@ export class ReadonlyHidTransport {
     return this.requestConfirmedRead(
       createReadMacroConfigRequest(),
       parseMacroConfigResponse,
+      timeoutMs,
+    )
+  }
+
+  async readHardwareState(timeoutMs = 1500): Promise<HardwareState> {
+    return this.requestConfirmedRead(
+      createReadHardwareStateRequest(),
+      parseHardwareStateResponse,
       timeoutMs,
     )
   }

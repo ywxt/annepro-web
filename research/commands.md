@@ -10,6 +10,7 @@ Evidence labels:
 | --- | --- | --- | --- | --- | --- |
 | `readDeviceType` | read | command/action `01/01`, report ID 0 | captured | R1 | implemented |
 | `readFirmwareVersion(MCU_MAIN)` | read | command/action `01/03`, report ID 0 | captured | R1 | implemented |
+| `readHardwareState(MCU_MAIN)` | read | command/action `01/09`, 6-byte legacy or 24-byte modern response | captured | R1 | implemented |
 | `readIapMode(MCU_MAIN)` | read | command/action `02/02`, report ID 0 | captured | R1 | implemented; mode labels pending |
 | `readUDID` | read sensitive | captured startup query strongly correlates with `01/0d` | renderer + capture correlation | R1/private | not implemented |
 | `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | startup capture + native dispatch | R1 | offline assembler implemented; isolated layer capture pending |
