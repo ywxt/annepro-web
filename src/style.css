@@ -25,10 +25,6 @@ header { max-width: 720px; margin-bottom: 36px; }
 .platform-guide pre { padding: 14px; overflow-x: auto; border: 1px solid #293340; border-radius: 8px; background: #090d13; white-space: pre; }
 .platform-guide li { margin: 8px 0; color: #b5c2d0; }
 .code-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.warning { margin-top: 18px; padding: 14px; color: #e6c992; border: 1px solid #68562e; border-radius: 8px; background: #211d13; }
-.warning p { margin: 7px 0; }
-.source-note { margin-top: 16px; color: #7e8998; font-size: 12px; }
-a { color: #62e5b4; }
 .eyebrow { color: #62e5b4; font: 700 12px/1.4 ui-monospace, monospace; letter-spacing: .16em; }
 h1 { margin: 10px 0 14px; font-size: clamp(36px, 6vw, 66px); line-height: 1; letter-spacing: -.045em; }
 h2, h3, p { margin-top: 0; }
@@ -62,8 +58,8 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .report { display: grid; grid-template-columns: 210px 65px 80px 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid #293340; font-size: 13px; }
 .report time, .report span { color: #8995a4; } .report code { overflow-wrap: anywhere; }
 .decoded { grid-column: 1 / -1; color: #62e5b4; font-family: ui-monospace, monospace; }
-.keyboard-layout { display: grid; gap: 8px; margin-top: 18px; padding: 14px; overflow-x: auto; border-radius: 10px; background: #090d13; }
-.key-row { display: flex; gap: 8px; min-width: 924px; }
+.keyboard-layout { display: grid; justify-items: center; gap: 8px; margin-top: 18px; padding: 14px; overflow-x: auto; border-radius: 10px; background: #090d13; }
+.key-row { display: flex; gap: 8px; min-width: 924px; margin-inline: auto; }
 .key { display: grid; place-items: center; width: calc(52px * var(--key-width) + 8px * (var(--key-width) - 1)); min-width: calc(52px * var(--key-width) + 8px * (var(--key-width) - 1)); height: 52px; padding: 0; color: #e8ecf2; border: 1px solid #354252; border-radius: 7px; background: #111923; font-family: ui-monospace, monospace; }
 .key.selected { border-color: #62e5b4; } .key.changed { background: #25372f; }
 .key strong { max-width: 50px; overflow: hidden; font-size: 10px; font-weight: 700; text-align: center; text-overflow: ellipsis; white-space: nowrap; }

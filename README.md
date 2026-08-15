@@ -42,13 +42,8 @@ USB removal is detected; reconnect the keyboard and use **快速重連**.
 The landing page detects Linux, Windows, or macOS and shows the relevant setup
 guide. Windows and macOS need no extra driver; close ObinsKit before connecting
 so it does not hold the HID interface. Linux normally needs a narrow
-`TAG+="uaccess"` hidraw rule. The page provides one rule for every supported PID,
-reload instructions, and a warning to remove exact duplicate lines left in
-`/etc/udev/rules.d/obinskit-kdb.rules`. Duplicate rules are unnecessary; retain
-one matching rule for every PID in use. The 20–30 minute Linux disconnect is a
-known Anne Pro 2 issue and newer kernels include an always-poll HID quirk, so the
-duplicate-rule cleanup is presented as a community workaround rather than a
-universal fix.
+`TAG+="uaccess"` hidraw rule. The page provides one rule for every supported PID
+and the commands needed to reload the rules.
 
 ## Supported configuration
 

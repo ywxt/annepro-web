@@ -84,7 +84,7 @@ device trial, and only then product UI.
 - [x] Move raw HID collections, reports, frames, and key bytes into collapsed developer tools.
 - [x] Complete Traditional Chinese and English localization for every user-facing panel, destructive prompt, import validation, and runtime notice; enforce locale key parity with tests.
 - [x] Replace the long single page with capability-driven task navigation comparable to a desktop configurator; the key editor has dedicated Base/Fn1/Fn2/Tap layer tabs.
-- [x] Add a detected Linux/Windows/macOS landing-page guide, including narrow Linux udev rules and the duplicate ObinsKit-rule disconnect workaround.
+- [x] Add a detected Linux/Windows/macOS landing-page guide, including narrow Linux udev rules.
 - [x] Match the real ANSI 60% geometry and replace raw numeric keycode editing with categorized selection; render Transparent as a blank keycap.
 - [x] Remove the duplicated read-only Settings summary and keep current values in the editable controls.
 - [x] Force every component onto the reactive global i18n scope and test immediate locale switching.

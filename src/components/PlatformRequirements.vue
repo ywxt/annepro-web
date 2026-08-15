@@ -30,8 +30,6 @@ async function copyRule(): Promise<void> {
       <div class="code-heading"><strong>{{ t('requirements.udevTitle') }}</strong><button class="secondary" @click="copyRule">{{ copied ? t('requirements.copied') : t('requirements.copy') }}</button></div>
       <pre><code>{{ linuxRule }}</code></pre>
       <ol><li>{{ t('requirements.linuxStep1') }}</li><li>{{ t('requirements.linuxStep2') }}</li><li>{{ t('requirements.linuxStep3') }}</li></ol>
-      <aside class="warning"><strong>{{ t('requirements.duplicateTitle') }}</strong><p>{{ t('requirements.duplicateHelp') }}</p><code>sudoedit /etc/udev/rules.d/obinskit-kdb.rules</code></aside>
-      <p class="source-note">{{ t('requirements.linuxEvidence') }} <a href="https://www.spinics.net/lists/linux-input/msg67824.html" target="_blank" rel="noreferrer">Linux HID patch</a> · <a href="https://askubuntu.com/questions/1261721/keyboard-periodically-stops-working-in-ubuntu-20-04" target="_blank" rel="noreferrer">community report</a></p>
     </div>
     <div v-else-if="selected === 'windows'" class="platform-guide"><p>{{ t('requirements.windowsHelp') }}</p></div>
     <div v-else class="platform-guide"><p>{{ t('requirements.macosHelp') }}</p></div>
