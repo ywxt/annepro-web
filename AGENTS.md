@@ -6,17 +6,21 @@ implementation; clean-room separation is not required for protocol work.
 
 ## Current phase
 
-Only implement safe, read-only device exploration:
+Implement the complete configurator, including ordinary configuration writes:
 
-- Request and open supported Anne Pro 2 devices.
-- Display device, collection, and report metadata.
-- Record input reports.
+- Preserve a device backup whenever the protocol offers a read path.
+- Show semantic and byte-level differences before writes.
+- Keep writes bounded, typed, confirmed, and followed by readback verification.
 - Keep HID transport separate from Vue UI and protocol code.
-- Add tests for packet formatting and metadata extraction.
+- Add protocol fixtures and tests for packet encoding, parsing, and guards.
 
 ## Safety
 
-The user has explicitly authorized bounded discovery sends for commands that static analysis or captured behavior indicates are read-only. Such probes must be fixed, single-shot, low-frequency, response-bounded, recorded, and never automatically retried. Do not send commands that may mutate configuration, switch IAP mode, write firmware/memory, erase flash, or perform an unknown-direction operation without separate explicit approval. Do not implement firmware updates in early versions.
+The user has explicitly authorized ordinary configuration changes on the current
+keyboard, including layout, macro, lighting, and general-setting commands.
+Configuration writes must remain bounded and must not retry indefinitely.
+IAP mode switching, firmware/memory writes, and flash erase remain excluded and
+must not be implemented or sent.
 
 ## Engineering
 

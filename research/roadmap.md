@@ -43,19 +43,23 @@ device trial, and only then product UI.
 - [x] Render a confirmed, read-only Layer 0 keyboard view.
 - [x] Capture and enable Layers 1–3, then export all layers as a backup file.
 
-### M4 — Guarded layout writes
+### M4 — Guarded layout writes (complete)
 
-- Reverse `downloadKbdLayout` (host-to-device write) only after M3 backups round-trip losslessly.
-- Show semantic and byte-level diffs.
-- Require explicit confirmation for each apply operation.
-- Read back and verify after writing; offer restore from the pre-write backup.
-- Never retry writes indefinitely.
+- [x] Reverse `downloadKbdLayout` (host-to-device write) after M3 backups round-trip losslessly.
+- [x] Show semantic and byte-level diffs.
+- [x] Require explicit confirmation for each apply operation.
+- [x] Read back and verify after writing; offer restore from the pre-write backup.
+- [x] Never retry writes indefinitely.
 
 ### M5 — Lighting, macros, and ordinary settings
 
 - Work feature-by-feature: read/capture, model, offline round-trip tests, then guarded write.
 - Candidate order: sleep timeout, lighting download/preview, macro download, macro write, audio visualization.
 - Keep unsupported bytes opaque and preserve them on round trips.
+- [x] Ordinary settings editor with first-write snapshot and readback verification.
+- [x] LED power-mode read and guarded write.
+- [ ] Host-managed lighting list, preview, download, and local backup/import.
+- [ ] Macro editor, serialization, write, and conditional device readback.
 
 ### M6 — Compatibility and release
 
