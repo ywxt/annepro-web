@@ -18,6 +18,12 @@ button.secondary { padding: 8px 11px; margin-left: 8px; color: #d8e0ea; border: 
 #message { min-height: 24px; color: #b5c2d0; }
 dl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 0; }
 .settings-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 12px; }
+.settings-editor { margin-top: 24px; padding-top: 20px; border-top: 1px solid #293340; }
+.control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.control-grid label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; padding: 12px; color: #aab4c1; border: 1px solid #293340; border-radius: 8px; font-size: 13px; }
+.control-grid select, .control-grid input { min-width: 0; padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }
+.control-grid select, .control-grid input[type="range"] { grid-column: 1 / -1; width: 100%; }
+.control-grid button { padding: 7px 10px; }
 dl div { min-width: 0; } dt { color: #7e8998; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; } dd { margin: 5px 0 0; overflow-wrap: anywhere; font: 600 15px ui-monospace, monospace; }
 .collection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin: 18px 0 30px; }
 .collection { padding: 18px; } .collection.vendor { border-color: #39765f; box-shadow: inset 3px 0 #62e5b4; }

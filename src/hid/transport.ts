@@ -43,6 +43,12 @@ import {
   parseLedPowerModeResponse,
   type LedPowerModeResponse,
 } from '../protocol/led-power.ts'
+import {
+  createWriteHardwareSettingRequest,
+  parseWriteHardwareSettingResponse,
+  type HardwareSettingKey,
+  type SettingWriteResult,
+} from '../protocol/settings-write.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -119,6 +125,18 @@ export class ReadonlyHidTransport {
     return this.requestConfirmedRead(
       createReadLedPowerModeRequest(),
       parseLedPowerModeResponse,
+      timeoutMs,
+    )
+  }
+
+  async writeHardwareSetting(
+    key: HardwareSettingKey,
+    value: number,
+    timeoutMs = 1500,
+  ): Promise<SettingWriteResult> {
+    return this.requestConfirmedRead(
+      createWriteHardwareSettingRequest(key, value),
+      data => parseWriteHardwareSettingResponse(key, value, data),
       timeoutMs,
     )
   }

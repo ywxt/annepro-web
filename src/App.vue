@@ -18,6 +18,7 @@ import type { HardwareState } from './protocol/hardware-state.ts'
 import type { KeyboardLayerResponse } from './protocol/layout.ts'
 import type { MacroBackup } from './protocol/macro-info.ts'
 import type { LedPowerModeResponse } from './protocol/led-power.ts'
+import type { HardwareSettingKey } from './protocol/settings-write.ts'
 import { bytesToHex } from './protocol/packet.ts'
 
 const supported = isWebHidSupported()
@@ -34,6 +35,7 @@ const iap = ref<IapModeResponse | null>(null)
 const hardwareState = ref<HardwareState | null>(null)
 const macroBackup = ref<MacroBackup | null>(null)
 const ledPowerMode = ref<LedPowerModeResponse | null>(null)
+const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
@@ -112,6 +114,69 @@ const readLedPowerMode = () => transport.value && confirmedRead(
   value => { ledPowerMode.value = value },
 )
 
+const STATE_KEYS: readonly Exclude<HardwareSettingKey, 'ledPowerMode'>[] = [
+  'userLayout', 'magicFn', 'macroTrigger', 'capslockLed', 'backlightBrightness',
+  'ledHold', 'tapStatus', 'tapActMode', 'tapTimeoutValue', 'sleepTimeoutRaw',
+]
+
+async function applySetting(key: HardwareSettingKey, value: number): Promise<void> {
+  if (!transport.value || !hardwareState.value) return
+  const current = key === 'ledPowerMode' ? ledPowerMode.value?.mode : hardwareState.value[key]
+  if (!window.confirm(`修改 ${key}：${current ?? '未知'} → ${value}\n\n寫入後會立即回讀驗證。`)) return
+  settingsBackup.value ??= { state: hardwareState.value, ledPowerMode: ledPowerMode.value }
+  busy.value = `write ${key}`
+  try {
+    await transport.value.writeHardwareSetting(key, value)
+    if (key === 'ledPowerMode') {
+      const readback = await transport.value.readLedPowerMode()
+      if (readback.mode !== value) throw new Error(`回讀值 ${readback.mode} 不符合 ${value}`)
+      ledPowerMode.value = readback
+    } else {
+      const readback = await transport.value.readHardwareState()
+      if (readback[key] !== value) throw new Error(`回讀值 ${readback[key]} 不符合 ${value}`)
+      hardwareState.value = readback
+    }
+    message.value = `${key} 已寫入並回讀驗證。`
+  } catch (error) {
+    message.value = `${key} 寫入失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
+async function restoreSettings(): Promise<void> {
+  if (!transport.value || !settingsBackup.value) return
+  if (!window.confirm('將逐項寫回首次修改前的一般設定快照，然後完整回讀驗證。確定復原？')) return
+  busy.value = 'restore settings'
+  const backup = settingsBackup.value
+  try {
+    for (const key of STATE_KEYS) {
+      if (key === 'sleepTimeoutRaw' && (
+        !capabilities.value?.sleepTimeout
+        || backup.state.sleepTimeoutRaw < 10
+        || backup.state.sleepTimeoutRaw > 3600
+      )) continue
+      await transport.value.writeHardwareSetting(key, backup.state[key])
+    }
+    if (backup.ledPowerMode && capabilities.value?.ledPowerMode) {
+      await transport.value.writeHardwareSetting('ledPowerMode', backup.ledPowerMode.mode)
+    }
+    const readback = await transport.value.readHardwareState()
+    for (const key of STATE_KEYS) {
+      if (key === 'sleepTimeoutRaw' && (
+        !capabilities.value?.sleepTimeout
+        || backup.state.sleepTimeoutRaw < 10
+        || backup.state.sleepTimeoutRaw > 3600
+      )) continue
+      if (readback[key] !== backup.state[key]) throw new Error(`${key} 回讀不一致`)
+    }
+    hardwareState.value = readback
+    if (backup.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
+    settingsBackup.value = null
+    message.value = '一般設定已復原並完成回讀驗證。'
+  } catch (error) {
+    message.value = `設定復原失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
 function exportMetadata(): void {
   if (!device.value) return
   downloadJson(`annepro-hid-metadata-${Date.now()}.json`, { capturedAt: new Date().toISOString(), vendorId: device.value.vendorId, productId: device.value.productId, productName: device.value.productName, opened: device.value.opened, collections: collections.value })
@@ -151,7 +216,7 @@ function exportMacros(): void {
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" />
-  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" />
+  <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @apply-setting="applySetting" @restore-settings="restoreSettings" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
   <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>

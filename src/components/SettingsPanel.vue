@@ -4,10 +4,12 @@ import type { DeviceCapabilities } from '../protocol/capabilities.ts'
 import type { HardwareState } from '../protocol/hardware-state.ts'
 import { describeHardwareState } from '../protocol/hardware-state.ts'
 import type { LedPowerModeResponse } from '../protocol/led-power.ts'
+import type { HardwareSettingKey } from '../protocol/settings-write.ts'
+import SettingsEditor from './SettingsEditor.vue'
 import { bytesToHex } from '../protocol/packet.ts'
 
-const props = defineProps<{ state: HardwareState | null; ledPowerMode: LedPowerModeResponse | null; capabilities: DeviceCapabilities | null; busy: boolean }>()
-defineEmits<{ readState: []; readLedPowerMode: [] }>()
+const props = defineProps<{ state: HardwareState | null; ledPowerMode: LedPowerModeResponse | null; capabilities: DeviceCapabilities | null; busy: boolean; hasBackup: boolean }>()
+defineEmits<{ readState: []; readLedPowerMode: []; applySetting: [key: HardwareSettingKey, value: number]; restoreSettings: [] }>()
 const description = computed(() => props.state ? describeHardwareState(props.state, props.capabilities) : null)
 </script>
 
@@ -27,5 +29,6 @@ const description = computed(() => props.state ? describeHardwareState(props.sta
       <code class="layout-raw">{{ bytesToHex(state.rawFrame) }}</code>
     </template>
     <p v-if="ledPowerMode" class="decoded">LED 功率模式：{{ ledPowerMode.modeName }}（raw {{ ledPowerMode.mode }}）· Frame {{ bytesToHex(ledPowerMode.rawFrame) }} · Ignored {{ ledPowerMode.trailingLength }} trailing bytes</p>
+    <SettingsEditor v-if="state" :state="state" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy" :has-backup="hasBackup" @apply="(key, value) => $emit('applySetting', key, value)" @restore="$emit('restoreSettings')" />
   </section>
 </template>

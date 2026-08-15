@@ -180,3 +180,14 @@ the renderer's option list labels `High` (`01` is `Low`). The control is enabled
 for Anne Pro 2 key firmware newer than 2.35. The similarly named light preview
 and download operations are both writes; ObinsKit stores editable light effects
 on the host and exposes no device-to-host light-effect backup command.
+
+### Ordinary setting writes
+
+The native name dispatcher maps the renderer's individual setting operations to
+fixed command/action pairs. The web UI exposes these as typed, range-checked
+operations only. It snapshots the first read state, confirms each semantic diff,
+writes one field, then uses `readHardwareState` or `readLedPowerMode` to verify
+the effective value. A physical backlight test changed raw brightness 7 to 6,
+confirmed 6 by readback, restored 7, and confirmed 7. Write acknowledgement
+payloads are operation-specific (some echo values), so they are retained as raw
+data and are not interpreted as a universal status code.

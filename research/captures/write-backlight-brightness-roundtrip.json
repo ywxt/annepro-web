@@ -1,0 +1,17 @@
+{
+  "source": "Authorized reversible write/read round trip on /dev/hidraw10",
+  "capturedAt": "2026-08-16T02:05:00+08:00",
+  "device": "0x04d9:0xa293",
+  "operation": "backlightBrightness 7 -> 6 -> 7",
+  "writeTemporary": {
+    "request": "7b 12 31 00 03 00 00 7d 20 15 06",
+    "responseDeclaredFrame": "7b 12 13 00 03 00 00 7d 20 15 06",
+    "readbackValue": 6
+  },
+  "restore": {
+    "request": "7b 12 31 00 03 00 00 7d 20 15 07",
+    "responseDeclaredFrame": "7b 12 13 00 03 00 00 7d 20 15 07",
+    "readbackValue": 7
+  },
+  "notes": "Each write was followed by readHardwareState. The original value was restored. Acknowledgement payload semantics vary by operation, so product verification uses readback rather than treating the payload as a universal status byte."
+}
