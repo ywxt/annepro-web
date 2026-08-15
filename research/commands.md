@@ -12,7 +12,8 @@ Evidence labels:
 | `readFirmwareVersion(MCU_MAIN)` | read | command/action `01/03`, report ID 0 | captured | R1 | implemented |
 | `readIapMode(MCU_MAIN)` | read | command/action `02/02`, report ID 0 | captured | R1 | implemented; mode labels pending |
 | `readUDID` | read sensitive | captured startup query strongly correlates with `01/0d` | renderer + capture correlation | R1/private | not implemented |
-| `downloadKbdLayout` | multi-packet read | native `multi_package_create(03, 10, 01, ...)` | static | R1 | framing/payload research pending |
+| `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | startup capture + native dispatch | R1 | offline assembler implemented; isolated layer capture pending |
+| `downloadKbdLayout(layer, data)` | multi-packet write | native `multi_package_create(03, 10, 01, ...)` | renderer + static | W1 | disabled |
 | `downloadMacro` | multi-packet read | native `multi_package_create(03, 30, 05, ...)` | static | R1 | framing/payload research pending |
 | `previewOrDownloadLight` | read/preview | unresolved | static symbol | R1/W1 | pending |
 | `writeSleepTimeout` | configuration write | unresolved | static symbol | W1 | disabled |
@@ -25,3 +26,12 @@ Evidence labels:
 ## Captured startup traffic
 
 The 12-second ObinsKit trace issued 17 queries. Presence in that trace does not by itself authorize an implementation. Known pairs include `01/01` and `01/03`; remaining frames are retained only in temporary analysis data and must be individually correlated, redacted, and reviewed before becoming fixtures.
+
+## Layout direction and pagination
+
+ObinsKit's direction names are from the keyboard's perspective:
+
+- `uploadKbdLayout(layer)` reads one layer from the keyboard using `10/02`.
+- `downloadKbdLayout(layer, data)` writes one layer to the keyboard using `10/01`.
+
+Captured `10/02` responses use protocol `0x12` multipart byte 3 as a continuation/index field: `0x80` is packet index 0 with more data, and `0x01` is final packet index 1. Their 54-byte and 7-byte data payloads assemble into a 61-byte Anne Pro 2 layer.

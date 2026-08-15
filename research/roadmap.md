@@ -33,7 +33,7 @@ The goal is functional interoperability, not a copy of ObinsKit source code or U
 
 ### M3 — Keyboard layout download and model
 
-- Reverse `downloadKbdLayout` framing, addressing, pagination, and response assembly.
+- Reverse `uploadKbdLayout` framing, addressing, pagination, and response assembly. ObinsKit uses “upload” for device-to-host reads.
 - Capture one complete layout download without editing the keyboard.
 - Define an independent key matrix/layer/tap model.
 - Preserve unknown bytes and reject malformed or incomplete downloads.
@@ -41,7 +41,7 @@ The goal is functional interoperability, not a copy of ObinsKit source code or U
 
 ### M4 — Guarded layout writes
 
-- Reverse the matching layout write only after M3 backups round-trip losslessly.
+- Reverse `downloadKbdLayout` (host-to-device write) only after M3 backups round-trip losslessly.
 - Show semantic and byte-level diffs.
 - Require explicit confirmation for each apply operation.
 - Read back and verify after writing; offer restore from the pre-write backup.
@@ -75,4 +75,3 @@ The goal is functional interoperability, not a copy of ObinsKit source code or U
 5. Transport is single-flight, bounded by timeout, and accepts only the matching response.
 6. UI communicates direction, risk, and exact action.
 7. Physical-device result matches ObinsKit behavior.
-

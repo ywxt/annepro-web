@@ -77,6 +77,12 @@ decoded:   mode code 2
 
 The response contains one declared payload byte. The semantic name of value 2 is not present in the inspected renderer path and remains intentionally unmapped. This query does not call `writeIapMode` and cannot switch modes.
 
+## Keyboard layout direction
+
+Electron's `getKbdInsideLayers(true)` calls `uploadKbdLayout` once for each layer index 0–3. Native dispatch maps it to `hidWriteWithArg1(MCU_MAIN, 10, 02)`, so the layer index is the one-byte request payload. ObinsKit's inverse name `downloadKbdLayout(layer, Buffer)` is a host-to-keyboard write using `multi_package_create(03, 10, 01, ...)` and must not be confused with the read path.
+
+The startup trace already contains four `10/02` requests and two response packets per layer. Protocol `0x12` encodes continuation in the high bit of header byte 3 and a zero-based packet index in its low seven bits. The observed split is 54 + 7 data bytes, yielding a 61-byte layer. An offline assembler now validates contiguous indices, continuation flags, matching commands, and declared frame lengths. No web transport method sends this command yet.
+
 ## Physical metadata capture: `0x04d9:0xa293`
 
 The first browser capture (`annepro-hid-metadata-1786811850854.json`) contains one top-level collection:
