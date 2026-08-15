@@ -34,4 +34,6 @@ The transport opens the device, listens for input, and exposes narrowly scoped `
 
 ## Next protocol research
 
-Static analysis has identified the native command tuple and a legacy fallback packet, as documented in [`research/protocol.md`](research/protocol.md). The report ID, primary runtime fields, and response envelope still require a single controlled USB capture from ObinsKit. Only after the command is independently confirmed as read-only should it be added as a separately reviewed protocol function with fixture-based tests and a one-shot UI action.
+Static analysis and a controlled ObinsKit trace have confirmed `readDeviceType` and `readFirmwareVersion`, as documented in [`research/protocol.md`](research/protocol.md). Every additional command must be independently correlated and captured before it is added as a reviewed protocol function with fixture-based tests and a bounded UI action.
+
+Development is organized by the [`clean-room roadmap`](research/roadmap.md) and [`command matrix`](research/commands.md). Firmware/IAP/erase operations are explicitly deferred from the normal configurator.
