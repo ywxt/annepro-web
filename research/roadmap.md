@@ -84,3 +84,9 @@ device trial, and only then product UI.
 5. Transport is single-flight, bounded by timeout, and accepts only the matching response.
 6. UI communicates direction, risk, and exact action.
 7. Physical-device result matches ObinsKit behavior.
+# Latest progress
+
+- Device identity is available with a masked-by-default 16-byte UDID.
+- BLE MAC reading uses the confirmed MCU BLE route.
+- Clearing BLE host bindings is implemented with typed destructive confirmation; it is intentionally not exercised during automated or physical verification.
+- Model-only combination-mode and virtual-mouse commands are excluded from the Anne Pro 2 UI after C18 returned no response.

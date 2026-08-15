@@ -73,6 +73,16 @@ import {
   type PowerOnTimeResponse,
 } from '../protocol/runtime-info.ts'
 import { createAudioVisualizeRequests } from '../protocol/audio-visualize.ts'
+import {
+  createDeleteBleHostRequest,
+  createReadBleMacRequest,
+  createReadUdidRequest,
+  parseBleMacResponse,
+  parseDeleteBleHostAck,
+  parseUdidResponse,
+  type BleMacAddress,
+  type DeviceUdid,
+} from '../protocol/device-identity.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -159,6 +169,18 @@ export class ReadonlyHidTransport {
 
   async readPowerOnTime(timeoutMs = 1500): Promise<PowerOnTimeResponse> {
     return this.requestConfirmedRead(createReadPowerOnTimeRequest(), parsePowerOnTimeResponse, timeoutMs)
+  }
+
+  async readUdid(timeoutMs = 1500): Promise<DeviceUdid> {
+    return this.requestConfirmedRead(createReadUdidRequest(), parseUdidResponse, timeoutMs)
+  }
+
+  async readBleMac(timeoutMs = 1500): Promise<BleMacAddress> {
+    return this.requestConfirmedRead(createReadBleMacRequest(), parseBleMacResponse, timeoutMs)
+  }
+
+  async deleteBleHosts(timeoutMs = 1500): Promise<void> {
+    return this.requestConfirmedRead(createDeleteBleHostRequest(), parseDeleteBleHostAck, timeoutMs)
   }
 
   async writeHardwareSetting(

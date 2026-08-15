@@ -9,6 +9,7 @@ import ReportsView from './components/ReportsView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import RuntimeInfoPanel from './components/RuntimeInfoPanel.vue'
 import AudioVisualizePanel from './components/AudioVisualizePanel.vue'
+import IdentityPanel from './components/IdentityPanel.vue'
 import { collectMetadata } from './hid/device.ts'
 import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
 import { ReadonlyHidTransport } from './hid/transport.ts'
@@ -26,6 +27,7 @@ import { encodeLightRgb, type LightEffect } from './protocol/lighting.ts'
 import { bytesToHex } from './protocol/packet.ts'
 import type { BatteryResponse, PowerOnTimeResponse } from './protocol/runtime-info.ts'
 import { audioRgbFromFrequencyData, type AudioVisualizeMode } from './protocol/audio-visualize.ts'
+import type { BleMacAddress, DeviceUdid } from './protocol/device-identity.ts'
 
 const supported = isWebHidSupported()
 const connecting = ref(false)
@@ -44,6 +46,8 @@ const originalMacroBackup = ref<MacroBackup | null>(null)
 const ledPowerMode = ref<LedPowerModeResponse | null>(null)
 const battery = ref<BatteryResponse | null>(null)
 const powerOnTime = ref<PowerOnTimeResponse | null>(null)
+const udid = ref<DeviceUdid | null>(null)
+const bleMac = ref<BleMacAddress | null>(null)
 const audioRunning = ref(false)
 const audioMode = ref<AudioVisualizeMode>('pure')
 const audioColor = ref('#00ff80')
@@ -156,6 +160,31 @@ async function readRuntimeInfo(): Promise<void> {
     message.value = '電池與運行時間讀取完成。'
   } catch (error) {
     message.value = `執行期資訊讀取失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
+async function readIdentity(): Promise<void> {
+  if (!transport.value || !window.confirm('依序讀取裝置 UDID 與 BLE MAC。UDID 僅在目前頁面記憶體中保存，不會自動匯出。')) return
+  busy.value = 'identity info'
+  try {
+    udid.value = await transport.value.readUdid()
+    bleMac.value = await transport.value.readBleMac()
+    message.value = '裝置識別與 BLE MAC 讀取完成。'
+  } catch (error) {
+    message.value = `識別資訊讀取失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
+async function deleteBleHosts(): Promise<void> {
+  if (!transport.value) return
+  const confirmation = window.prompt('此操作會刪除鍵盤記住的所有藍牙主機，且無法由本工具復原。\n\n請輸入 DELETE BLE 繼續：')
+  if (confirmation !== 'DELETE BLE') return
+  busy.value = 'delete BLE hosts'
+  try {
+    await transport.value.deleteBleHosts()
+    message.value = '鍵盤已確認清除所有藍牙配對；請在作業系統中重新配對。'
+  } catch (error) {
+    message.value = `清除藍牙配對失敗：${error instanceof Error ? error.message : String(error)}`
   } finally { busy.value = null }
 }
 
@@ -432,6 +461,7 @@ onBeforeUnmount(() => { void stopAudioVisualize(false) })
   <LightingPanel v-if="device && protocolReady && capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" />
   <AudioVisualizePanel v-if="device && protocolReady && capabilities?.hasLed" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" />
   <RuntimeInfoPanel v-if="device && protocolReady" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" />
+  <IdentityPanel v-if="device && protocolReady" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @apply="applyMacros" @restore="restoreMacros" />
   <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @apply-setting="applySetting" @restore-settings="restoreSettings" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />

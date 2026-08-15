@@ -230,3 +230,9 @@ send completion. Persistent download uses action `03`, preceded by the one-byte
 `writeLightList` count on `20/04`, and retains packet acknowledgement checks.
 The keyboard has no light-list read command, so profiles are explicitly stored,
 imported, and exported by the browser rather than described as device backups.
+# Device identity and Bluetooth
+
+- `01/0d` (`readUDID`, MCU main route `0x3`) returns a 16-byte unique device ID on C18. Treat it as sensitive: mask by default and exclude it from automatic exports.
+- `40/30` (`readBleMac`, MCU BLE route `0x5`, request header byte `0x51`) returns the six-byte BLE address.
+- `40/05` (`deleteBleHost`, MCU BLE route `0x5`) clears remembered BLE hosts. It is exposed only behind typed destructive confirmation and was not sent during protocol verification.
+- C18 did not respond to the statically identified `01/04`, `01/11`, `01/f1`, or `60/05` requests. The latter two are used by other ObinsKit model families and are not exposed for Anne Pro 2.
