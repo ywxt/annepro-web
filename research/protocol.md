@@ -201,3 +201,15 @@ single-byte zero-based packet index. A Layer 0 no-op write was followed by the
 existing `10/02` read and matched all 61 bytes. The editor therefore snapshots
 the original layer, shows changed keys, requires confirmation, writes exactly
 two bounded packets, and rejects any non-identical readback.
+
+### Lighting (`20/03` and `20/04`)
+
+`previewLight` and `downloadLight` share the native packet builder. Their body
+starts with slot and effect type. Type 1 carries one RGB color, type 2 carries
+61 per-key colors plus the C18 profile's nine blank LED positions, and dynamic
+types carry ObinsKit's 12-color palette. Preview uses slot 255 and action `04`;
+a bounded physical preview produced no acknowledgement, so it only awaits USB
+send completion. Persistent download uses action `03`, preceded by the one-byte
+`writeLightList` count on `20/04`, and retains packet acknowledgement checks.
+The keyboard has no light-list read command, so profiles are explicitly stored,
+imported, and exported by the browser rather than described as device backups.

@@ -58,7 +58,7 @@ device trial, and only then product UI.
 - Keep unsupported bytes opaque and preserve them on round trips.
 - [x] Ordinary settings editor with first-write snapshot and readback verification.
 - [x] LED power-mode read and guarded write.
-- [ ] Host-managed lighting list, preview, download, and local backup/import.
+- [x] Host-managed lighting list, preview, download, and local backup/import.
 - [ ] Macro editor, serialization, write, and conditional device readback.
 
 ### M6 — Compatibility and release

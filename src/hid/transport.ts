@@ -51,6 +51,14 @@ import {
   type HardwareSettingKey,
   type SettingWriteResult,
 } from '../protocol/settings-write.ts'
+import {
+  createDownloadLightRequests,
+  createPreviewLightRequests,
+  createWriteLightListRequest,
+  parseLightWriteAck,
+  parseWriteLightListAck,
+  type LightEffect,
+} from '../protocol/lighting.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -235,6 +243,36 @@ export class ReadonlyHidTransport {
       throw new Error(`Layer ${layer} readback does not match written data`)
     }
     return readback
+  }
+
+  /** Preview is fire-and-forget in ObinsKit and produced no input acknowledgement on C18. */
+  async previewLight(effect: LightEffect): Promise<void> {
+    const requests = createPreviewLightRequests(effect)
+    if (this.confirmedReadPending) throw new Error('Another HID operation is already pending')
+    this.confirmedReadPending = true
+    try {
+      for (const request of requests) await this.device.sendReport(0, request)
+    } finally {
+      this.confirmedReadPending = false
+    }
+  }
+
+  async installLights(effects: readonly LightEffect[], timeoutMs = 2000): Promise<void> {
+    await this.requestConfirmedRead(
+      createWriteLightListRequest(effects.length),
+      parseWriteLightListAck,
+      timeoutMs,
+    )
+    for (const [slot, effect] of effects.entries()) {
+      const requests = createDownloadLightRequests(slot, effect)
+      for (const [packet, request] of requests.entries()) {
+        await this.requestConfirmedRead(
+          request,
+          response => parseLightWriteAck(0x03, packet, response),
+          timeoutMs,
+        )
+      }
+    }
   }
 
   private async requestConfirmedRead<T>(

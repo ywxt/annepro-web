@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import CollectionsView from './components/CollectionsView.vue'
 import DevicePanel from './components/DevicePanel.vue'
 import KeyboardLayout from './components/KeyboardLayout.vue'
+import LightingPanel from './components/LightingPanel.vue'
 import MacroPanel from './components/MacroPanel.vue'
 import ReportsView from './components/ReportsView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
@@ -19,6 +20,7 @@ import type { KeyboardLayerResponse } from './protocol/layout.ts'
 import type { MacroBackup } from './protocol/macro-info.ts'
 import type { LedPowerModeResponse } from './protocol/led-power.ts'
 import type { HardwareSettingKey } from './protocol/settings-write.ts'
+import { encodeLightRgb, type LightEffect } from './protocol/lighting.ts'
 import { bytesToHex } from './protocol/packet.ts'
 
 const supported = isWebHidSupported()
@@ -38,11 +40,27 @@ const ledPowerMode = ref<LedPowerModeResponse | null>(null)
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const layerBackups = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
+const LIGHT_STORAGE_KEY = 'annepro-web-light-effects-v1'
+const lightEffects = ref<LightEffect[]>(loadLightEffects())
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
 const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
 const capabilities = computed(() => deriveDeviceCapabilities(deviceType.value, firmware.value))
 let stopListening: (() => void) | null = null
+
+function loadLightEffects(): LightEffect[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(LIGHT_STORAGE_KEY) ?? 'null')
+    if (!Array.isArray(parsed)) throw new Error('not an array')
+    const effects = parsed as LightEffect[]
+    effects.forEach(encodeLightRgb)
+    return effects.slice(0, 32)
+  } catch {
+    return [{ name: 'Red', type: 1, colors: ['#ff0000'] }]
+  }
+}
+
+watch(lightEffects, effects => localStorage.setItem(LIGHT_STORAGE_KEY, JSON.stringify(effects)), { deep: true })
 
 function downloadJson(filename: string, value: unknown): void {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }))
@@ -245,6 +263,48 @@ async function restoreLayer(layer: number): Promise<void> {
     message.value = `Layer ${layer} 復原失敗：${error instanceof Error ? error.message : String(error)}`
   } finally { busy.value = null }
 }
+
+async function previewLight(effect: LightEffect): Promise<void> {
+  if (!transport.value) return
+  busy.value = 'preview light'
+  try {
+    await transport.value.previewLight(effect)
+    message.value = `已預覽燈效 ${effect.name}；此操作不改寫燈效清單。`
+  } catch (error) {
+    message.value = `燈效預覽失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
+async function installLights(): Promise<void> {
+  if (!transport.value || lightEffects.value.length === 0) return
+  if (!window.confirm(`將以本機設定檔覆寫鍵盤的 ${lightEffects.value.length} 個燈效。\n\n鍵盤不支援讀回既有燈效，因此無法自動備份目前清單。確定繼續？`)) return
+  busy.value = 'install lights'
+  try {
+    await transport.value.installLights(lightEffects.value)
+    message.value = `已安裝 ${lightEffects.value.length} 個燈效。`
+  } catch (error) {
+    message.value = `燈效安裝失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
+function exportLights(): void {
+  downloadJson(`annepro-light-profile-${Date.now()}.json`, {
+    format: 'annepro-web-light-profile', version: 1, effects: lightEffects.value,
+  })
+}
+
+async function importLights(file: File): Promise<void> {
+  try {
+    const parsed = JSON.parse(await file.text()) as { format?: string; effects?: LightEffect[] }
+    if (parsed.format !== 'annepro-web-light-profile' || !Array.isArray(parsed.effects)) throw new Error('檔案格式不符')
+    if (parsed.effects.length > 32) throw new Error('燈效不可超過 32 個')
+    parsed.effects.forEach(encodeLightRgb)
+    lightEffects.value = parsed.effects
+    message.value = `已匯入 ${parsed.effects.length} 個本機燈效；尚未寫入鍵盤。`
+  } catch (error) {
+    message.value = `燈效匯入失敗：${error instanceof Error ? error.message : String(error)}`
+  }
+}
 </script>
 
 <template>
@@ -254,6 +314,7 @@ async function restoreLayer(layer: number): Promise<void> {
   <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" :busy="busy !== null" :has-backup="layerBackups[layer.layer] !== null" @apply="applyLayer" @restore="restoreLayer" />
+  <LightingPanel v-if="device && protocolReady && capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" />
   <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @apply-setting="applySetting" @restore-settings="restoreSettings" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />

@@ -22,7 +22,9 @@ Evidence labels:
 | `readMacroActiveList` | read | command/action `30/07` | static native dispatch | R1 | capture only when config is non-empty |
 | `readMacroMap` | read | command/action `30/08` | static native dispatch | R1 | capture only when config is non-empty |
 | `readMacro(index)` | indexed read | command/action `30/09`, one-byte index | static native dispatch | R1 | capture only for indices declared by map |
-| `previewLight` / `downloadLight` | write | native `previewOrDownloadLight`; light slot/type plus RGB buffer | renderer + native dispatch | W1 | disabled; no device-to-host light read exists |
+| `previewLight` | transient write | `20/04`; slot `ff`, type, RGB data | static + bounded physical send | W1 | implemented fire-and-forget; device emitted no ack |
+| `downloadLight` | persistent multi-packet write | `20/03`; slot, type, RGB data | renderer + native dispatch | W1 | implemented as host-managed list; no device readback exists |
+| `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
 | `writeSleepTimeout` | configuration write | command/action `01/0f`, UInt16LE seconds | native dispatch | W1 | implemented with readback |
 | `writeAudioVisualize` | configuration write | unresolved | static symbol | W1 | disabled |
 | `writeMacro` | multi-packet write | unresolved | static symbol | W1 | disabled |
