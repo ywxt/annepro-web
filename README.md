@@ -39,12 +39,25 @@ variants. If Chrome exposes only the protected `0x0001 / 0x0006` keyboard
 collection, choose the newly filtered entry and inspect its exported metadata.
 USB removal is detected; reconnect the keyboard and use **快速重連**.
 
+The landing page detects Linux, Windows, or macOS and shows the relevant setup
+guide. Windows and macOS need no extra driver; close ObinsKit before connecting
+so it does not hold the HID interface. Linux normally needs a narrow
+`TAG+="uaccess"` hidraw rule. The page provides one rule for every supported PID,
+reload instructions, and a warning to remove exact duplicate lines left in
+`/etc/udev/rules.d/obinskit-kdb.rules`. Duplicate rules are unnecessary; retain
+one matching rule for every PID in use. The 20–30 minute Linux disconnect is a
+known Anne Pro 2 issue and newer kernels include an always-poll HID quirk, so the
+duplicate-rule cleanup is presented as a community workaround rather than a
+universal fix.
+
 ## Supported configuration
 
 - Device model, firmware versions, IAP state (read only), masked UDID, BLE MAC,
   battery voltage/estimate, cumulative runtime, HID collections, and raw reports.
 - Read, export, edit, verify, and restore all four 61-key layers with named HID
-  and Anne Pro keycodes, presented as Base, Fn1, Fn2, and Tap Layer.
+  and Anne Pro keycodes, presented as Base, Fn1, Fn2, and Tap Layer. The editor
+  follows real ANSI 60% key widths and uses categorized key selection rather
+  than requiring raw numeric keycodes; Transparent renders as a blank keycap.
 - Read and modify layout selection, Magic Fn, macro enable, CapsLock behavior and
   RGB, backlight brightness, auto-sleep, Tap mode/timeout, sleep timeout, and LED
   power mode.
@@ -73,9 +86,14 @@ browser storage and cannot back up a list already installed by another tool.
 Unknown models remain visible for metadata inspection but configuration controls
 requiring an Anne Pro 2 profile stay capability-gated.
 
-## Linux permissions
+## Platform permissions
 
-If Chrome can see the keyboard but cannot open it, install a narrowly scoped udev rule for vendor `04d9` and the relevant product IDs (`a293`, `a292`, `8008`, `8009`), then reload the rules and reconnect the keyboard. Distribution policies differ; prefer a `TAG+=\"uaccess\"` rule over globally writable device permissions. Chrome protects standard keyboard collections, so the app only identifies and uses the vendor-defined collection exposed by WebHID.
+Windows and macOS normally require only Chrome or Edge and permission through
+the browser chooser. Linux additionally needs a narrowly scoped udev rule for
+vendor `04d9` and the relevant product IDs (`a293`, `a292`, `8008`, `8009`).
+Distribution policies differ; prefer `TAG+="uaccess"` over globally writable
+device permissions. Chrome protects standard keyboard collections, so the app
+only identifies and uses the vendor-defined collection exposed by WebHID.
 
 ## Checks
 

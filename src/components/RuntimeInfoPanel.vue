@@ -4,7 +4,7 @@ import { bytesToHex } from '../protocol/packet.ts'
 import { useI18n } from 'vue-i18n'
 defineProps<{ battery: BatteryResponse | null; powerOnTime: PowerOnTimeResponse | null; busy: boolean }>()
 defineEmits<{ read: [] }>()
-const { t } = useI18n()
+const { t } = useI18n({ useScope: 'global' })
 </script>
 
 <template>

@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 defineProps<{ udid: DeviceUdid | null; bleMac: BleMacAddress | null; busy: boolean }>()
 defineEmits<{ read: []; deleteBleHosts: [] }>()
 const revealUdid = ref(false)
-const { t } = useI18n()
+const { t } = useI18n({ useScope: 'global' })
 const compactHex = (bytes: Uint8Array): string => Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('')
 </script>
 

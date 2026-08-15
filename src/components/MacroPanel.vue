@@ -9,7 +9,7 @@ const props = defineProps<{ backup: MacroBackup | null; busy: boolean; hasBackup
 const emit = defineEmits<{ readBackup: []; exportBackup: []; importBackup: [file: File]; apply: [macros: StoredMacro[], bindings: ActiveMacroBinding[]]; restore: [] }>()
 const macros = ref<StoredMacro[]>([])
 const bindings = ref<ActiveMacroBinding[]>([])
-const { t } = useI18n()
+const { t } = useI18n({ useScope: 'global' })
 watch(() => props.backup, (backup) => {
   if (!backup) return
   macros.value = backup.macros.map(macro => ({ ...macro, events: macro.events.slice(), separator: macro.separator.slice() }))

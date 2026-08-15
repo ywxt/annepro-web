@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null; capabilities: DeviceCapabilities | null; busy: boolean; hasBackup: boolean }>()
 const emit = defineEmits<{ apply: [key: HardwareSettingKey, value: number]; restore: [] }>()
-const { t } = useI18n()
+const { t } = useI18n({ useScope: 'global' })
 const form = reactive<Record<HardwareSettingKey, number>>({
   userLayout: 0, magicFn: 0, macroTrigger: 0, capslockLed: 0,
   backlightBrightness: 10, ledHold: 0, tapStatus: 1, tapActMode: 2,

@@ -2,8 +2,12 @@
 import { useI18n } from 'vue-i18n'
 import { setAppLocale, type AppLocale } from '../i18n.ts'
 
-const { locale, t } = useI18n()
-function change(event: Event): void { setAppLocale((event.target as HTMLSelectElement).value as AppLocale) }
+const { locale, t } = useI18n({ useScope: 'global' })
+function change(event: Event): void {
+  const next = (event.target as HTMLSelectElement).value as AppLocale
+  locale.value = next
+  setAppLocale(next)
+}
 </script>
 
 <template>

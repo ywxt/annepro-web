@@ -14,7 +14,7 @@ const typeNames: Record<number, string> = {
 }
 const count = computed(() => props.effects.length)
 const expanded = ref<number | null>(null)
-const { t } = useI18n()
+const { t } = useI18n({ useScope: 'global' })
 const rowLengths = [14, 14, 13, 12, 8]
 const rowOffsets = [0, 14, 28, 41, 53]
 const rainbow = ['#ff0000', '#ff8000', '#ffff00', '#80ff00', '#00ff00', '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff', '#ff00ff', '#ff0080']

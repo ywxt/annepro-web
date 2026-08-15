@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   createWriteKeyboardLayerRequests,
+  KEY_WIDTHS,
   createReadKeyboardLayerRequest,
   keyboardLayerRows,
   keycodeName,
+  keycapLabel,
+  keycodeOptions,
   parseKeyboardLayerResponse,
   parseWriteKeyboardLayerAck,
 } from '../src/protocol/layout.ts'
@@ -101,6 +104,24 @@ describe('keyboard layout read protocol', () => {
     const rows = keyboardLayerRows(new Uint8Array(61))
     expect(rows.map((row) => row.byteLength)).toEqual([14, 14, 13, 12, 8])
     expect(() => keyboardLayerRows(new Uint8Array(60))).toThrow('must be 61 bytes')
+  })
+
+  it('models the physical ANSI 60% key widths without changing matrix order', () => {
+    expect(KEY_WIDTHS.map(row => row.length)).toEqual([14, 14, 13, 12, 8])
+    expect(KEY_WIDTHS.map(row => row.reduce((sum, width) => sum + width, 0))).toEqual([15, 15, 15, 15, 15])
+    expect(KEY_WIDTHS[0][13]).toBe(2)
+    expect(KEY_WIDTHS[2][12]).toBe(2.25)
+    expect(KEY_WIDTHS[4][3]).toBe(6.25)
+  })
+
+  it('offers known keycodes as choices and renders Transparent as a blank keycap', () => {
+    expect(keycapLabel(0x01)).toBe('')
+    expect(keycapLabel(0x04)).toBe('A')
+    expect(keycodeOptions()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ value: 0x01, name: 'Transparent', group: 'Basic' }),
+      expect.objectContaining({ value: 0xc0, name: 'Fn1', group: 'Anne Pro' }),
+      expect.objectContaining({ value: 0xe1, name: 'LShift', group: 'Modifiers' }),
+    ]))
   })
 
   it('labels standard HID and observed Anne Pro keycodes', () => {

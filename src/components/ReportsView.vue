@@ -5,7 +5,7 @@ import { bytesToHex, formatHex } from '../protocol/packet.ts'
 import { useI18n } from 'vue-i18n'
 defineProps<{ records: InputReportRecord[] }>()
 defineEmits<{ clear: []; exportReports: [] }>()
-const { t } = useI18n()
+const { t } = useI18n({ useScope: 'global' })
 function parsed(bytes: Uint8Array): string | null {
   const frame = tryParseLianaFrame(bytes)
   return frame ? `Liana ${formatHex(frame.protocol, 2)} · route ${frame.route} · sequence ${frame.sequence} · command ${formatHex(frame.command, 2)}/${formatHex(frame.action, 2)} · payload ${frame.payload.byteLength} bytes` : null

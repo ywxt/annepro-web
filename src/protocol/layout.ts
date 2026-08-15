@@ -4,6 +4,15 @@ import { parseLianaFrame } from './liana.ts'
 const LAYER_COUNT = 4
 const ROW_LENGTHS = [14, 14, 13, 12, 8] as const
 
+/** ANSI 60% physical key widths in the same matrix order as the 61-byte C18 layout. */
+export const KEY_WIDTHS: readonly (readonly number[])[] = [
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2],
+  [1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.5],
+  [1.75, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2.25],
+  [2.25, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2.75],
+  [1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25],
+] as const
+
 const KEY_NAMES: Readonly<Record<number, string>> = {
   0x00: 'Disabled', 0x01: 'Transparent',
   0x28: 'Enter', 0x29: 'Esc', 0x2a: 'Backspace', 0x2b: 'Tab', 0x2c: 'Space',
@@ -43,6 +52,12 @@ export interface KeyboardLayerWriteAck {
   packet: number
   rawFrame: Uint8Array
   trailingLength: number
+}
+
+export interface KeycodeOption {
+  value: number
+  name: string
+  group: 'Basic' | 'Function' | 'Media' | 'Anne Pro' | 'Modifiers'
 }
 
 /** Builds the read-only uploadKbdLayout request observed in ObinsKit 1.2.11. */
@@ -129,4 +144,23 @@ export function keycodeName(keycode: number): string {
   if (keycode >= 0x3a && keycode <= 0x45) return `F${keycode - 0x39}`
   if (keycode >= 0x68 && keycode <= 0x73) return `F${keycode - 0x5b}`
   return KEY_NAMES[keycode] ?? `0x${keycode.toString(16).padStart(2, '0')}`
+}
+
+/** Label rendered on a physical keycap. Transparent intentionally appears blank. */
+export function keycapLabel(keycode: number): string {
+  return keycode === 0x01 ? '' : keycodeName(keycode)
+}
+
+export function keycodeOptions(): KeycodeOption[] {
+  const values = new Set<number>(Object.keys(KEY_NAMES).map(Number))
+  for (let value = 0x04; value <= 0x73; value += 1) values.add(value)
+  const group = (value: number): KeycodeOption['group'] => {
+    if (value >= 0xe0 && value <= 0xe7) return 'Modifiers'
+    if (value >= 0xa5 && value <= 0xaf) return 'Media'
+    if (value >= 0xc0 || value >= 0xee) return 'Anne Pro'
+    if ((value >= 0x3a && value <= 0x73) || value === 0x46 || value === 0x47 || value === 0x48) return 'Function'
+    return 'Basic'
+  }
+  return Array.from(values, value => ({ value, name: keycodeName(value), group: group(value) }))
+    .sort((left, right) => left.group.localeCompare(right.group) || left.value - right.value)
 }

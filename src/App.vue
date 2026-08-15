@@ -13,6 +13,7 @@ import AudioVisualizePanel from './components/AudioVisualizePanel.vue'
 import IdentityPanel from './components/IdentityPanel.vue'
 import FactoryResetPanel from './components/FactoryResetPanel.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
+import PlatformRequirements from './components/PlatformRequirements.vue'
 import { collectMetadata } from './hid/device.ts'
 import { getPreferredGrantedAnneProDevice, isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
 import type { DeviceSelection } from './hid/types.ts'
@@ -37,7 +38,7 @@ import { annePro2FactoryLights, ANNE_PRO_2_FACTORY_SETTINGS } from './protocol/f
 import { parseFullBackup } from './protocol/full-backup.ts'
 
 const supported = isWebHidSupported()
-const { t, locale } = useI18n()
+const { t, locale } = useI18n({ useScope: 'global' })
 const connecting = ref(false)
 const message = ref(supported ? '' : t('app.unsupported'))
 watch(locale, () => { message.value = supported ? '' : t('app.unsupported') })
@@ -735,6 +736,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="topbar"><header><p class="eyebrow">WEBHID CONFIGURATOR</p><h1>{{ t('app.title') }}</h1><p class="lede">{{ t('app.subtitle') }}</p></header><LanguageSwitcher /></div>
+  <PlatformRequirements v-if="!device" />
   <section class="card status"><div><span class="dot"></span>{{ supported ? t('app.available') : t('app.unsupported') }}</div><div class="actions"><button class="secondary" :disabled="!supported || connecting" @click="reconnectGranted">{{ t('app.reconnect') }}</button><button :disabled="!supported || connecting" @click="connect">{{ t('app.connect') }}</button></div></section>
   <p id="message" role="status" aria-live="polite">{{ message }}</p>
   <nav v-if="device && protocolReady" class="workspace-nav" :aria-label="t('app.title')"><button v-for="item in navigation" :key="item.id" class="nav-button" :class="{ active: activeSection === item.id }" @click="activeSection = item.id">{{ item.label }}</button></nav>

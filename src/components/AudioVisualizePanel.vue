@@ -3,7 +3,7 @@ import type { AudioVisualizeMode } from '../protocol/audio-visualize.ts'
 import { useI18n } from 'vue-i18n'
 defineProps<{ running: boolean; mode: AudioVisualizeMode; color: string; busy: boolean; frames: number }>()
 defineEmits<{ start: []; stop: []; updateMode: [mode: AudioVisualizeMode]; updateColor: [color: string] }>()
-const { t } = useI18n()
+const { t } = useI18n({ useScope: 'global' })
 </script>
 
 <template>
