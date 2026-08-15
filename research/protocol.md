@@ -153,3 +153,14 @@ Isolated reads of Layers 1, 2, and 3 subsequently confirmed the same request
 shape and `54 + 7 = 61` response split for layer indices `01`, `02`, and `03`.
 Layer 2 contains firmware-specific usages that remain opaque until independently
 mapped. All four C18 layers are therefore confirmed safe for bounded reads.
+
+### Macro reads (`30/06` through `30/09`)
+
+Native dispatch and renderer control flow identify four read operations on
+`MCU_MAIN`: config (`30/06`), active list (`30/07`), map (`30/08`), and indexed
+macro content (`30/09`). The renderer reads config first and stops immediately
+when payload byte 0 is zero. The isolated device response to config was two zero
+bytes, so no map, content, or active-list request was needed.
+
+The similarly named `downloadMacro` is not a read: the renderer uses it to send
+serialized macro storage in chunks with action `30/05`. It remains disabled.

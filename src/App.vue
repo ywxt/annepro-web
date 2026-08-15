@@ -3,6 +3,7 @@ import { computed, ref, shallowRef } from 'vue'
 import CollectionsView from './components/CollectionsView.vue'
 import DevicePanel from './components/DevicePanel.vue'
 import KeyboardLayout from './components/KeyboardLayout.vue'
+import MacroPanel from './components/MacroPanel.vue'
 import ReportsView from './components/ReportsView.vue'
 import { collectMetadata } from './hid/device.ts'
 import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
@@ -12,6 +13,7 @@ import type { DeviceTypeResponse } from './protocol/device-info.ts'
 import type { FirmwareVersions } from './protocol/firmware-info.ts'
 import type { IapModeResponse } from './protocol/iap-info.ts'
 import type { KeyboardLayerResponse } from './protocol/layout.ts'
+import type { MacroConfigResponse } from './protocol/macro-info.ts'
 import { bytesToHex } from './protocol/packet.ts'
 
 const supported = isWebHidSupported()
@@ -25,6 +27,7 @@ const records = ref<InputReportRecord[]>([])
 const deviceType = ref<DeviceTypeResponse | null>(null)
 const firmware = ref<FirmwareVersions | null>(null)
 const iap = ref<IapModeResponse | null>(null)
+const macroConfig = ref<MacroConfigResponse | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
@@ -83,6 +86,12 @@ const readLayer = (layer: number) => transport.value && confirmedRead(
     layers.value = next
   },
 )
+const readMacroConfig = () => transport.value && confirmedRead(
+  'readMacroConfig',
+  '傳送一次已由靜態分析與實機 capture 確認的唯讀巨集狀態查詢：\n7b 12 31 00 02 00 00 7d 30 06',
+  () => transport.value!.readMacroConfig(),
+  value => { macroConfig.value = value },
+)
 
 function exportMetadata(): void {
   if (!device.value) return
@@ -110,6 +119,7 @@ function exportLayers(): void {
   <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" />
+  <MacroPanel v-if="device && protocolReady" :config="macroConfig" :busy="busy !== null" @read-config="readMacroConfig" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
   <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>

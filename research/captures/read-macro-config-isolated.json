@@ -1,0 +1,15 @@
+{
+  "source": "Single authorized read-only request on /dev/hidraw10",
+  "capturedAt": "2026-08-15T17:34:00Z",
+  "device": "0x04d9:0xa293",
+  "target": "MCU_MAIN",
+  "reportId": 0,
+  "request": "7b 12 31 00 02 00 00 7d 30 06",
+  "responseDeclaredFrame": "7b 12 13 00 04 00 00 7d 30 06 00 00",
+  "decoded": {
+    "storedMacroCount": 0,
+    "unknownByte": 0,
+    "hasMacros": false
+  },
+  "notes": "Exactly one request was written. Electron short-circuits macro loading when the first payload byte is zero. The second payload byte remains semantically unknown. Stale HID trailing bytes were discarded."
+}

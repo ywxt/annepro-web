@@ -20,6 +20,11 @@ import {
   type KeyboardLayerResponse,
 } from '../protocol/layout.ts'
 import { tryParseLianaFrame } from '../protocol/liana.ts'
+import {
+  createReadMacroConfigRequest,
+  parseMacroConfigResponse,
+  type MacroConfigResponse,
+} from '../protocol/macro-info.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -72,6 +77,14 @@ export class ReadonlyHidTransport {
     return this.requestConfirmedRead(
       createReadIapModeRequest(),
       parseIapModeResponse,
+      timeoutMs,
+    )
+  }
+
+  async readMacroConfig(timeoutMs = 1500): Promise<MacroConfigResponse> {
+    return this.requestConfirmedRead(
+      createReadMacroConfigRequest(),
+      parseMacroConfigResponse,
       timeoutMs,
     )
   }

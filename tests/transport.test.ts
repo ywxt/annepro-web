@@ -11,7 +11,7 @@ function frame(packet: number, payload: number[]): Uint8Array {
 class FakeHidDevice {
   opened = true
   sent: Array<{ reportId: number, data: Uint8Array }> = []
-  private listeners = new Set<(event: HIDInputReportEvent) => void>()
+  protected listeners = new Set<(event: HIDInputReportEvent) => void>()
 
   addEventListener(_type: string, listener: (event: HIDInputReportEvent) => void): void {
     this.listeners.add(listener)
@@ -34,6 +34,23 @@ class FakeHidDevice {
   private emit(bytes: Uint8Array): void {
     const event = { reportId: 0, data: new DataView(bytes.buffer) } as HIDInputReportEvent
     for (const listener of this.listeners) listener(event)
+  }
+}
+
+class MacroConfigHidDevice extends FakeHidDevice {
+  override async sendReport(reportId: number, data: BufferSource): Promise<void> {
+    const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data as ArrayBuffer)
+    this.sent.push({ reportId, data: bytes })
+    const responseBytes = new Uint8Array([
+      0x7b, 0x12, 0x13, 0x00, 0x04, 0x00, 0x00, 0x7d, 0x30, 0x06, 0x00, 0x00,
+    ])
+    queueMicrotask(() => {
+      const event = {
+        reportId: 0,
+        data: new DataView(responseBytes.buffer),
+      } as HIDInputReportEvent
+      for (const listener of this.listeners) listener(event)
+    })
   }
 }
 
@@ -60,5 +77,15 @@ describe('read-only HID transport', () => {
     expect(result.layer).toBe(3)
     await expect(transport.readKeyboardLayer(4, 100)).rejects.toThrow(RangeError)
     expect(device.sent).toHaveLength(1)
+  })
+
+  it('sends only the fixed macro-config query', async () => {
+    const device = new MacroConfigHidDevice()
+    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const result = await transport.readMacroConfig(100)
+    expect(Array.from(device.sent[0].data)).toEqual([
+      0x7b, 0x12, 0x31, 0x00, 0x02, 0x00, 0x00, 0x7d, 0x30, 0x06,
+    ])
+    expect(result.hasMacros).toBe(false)
   })
 })
