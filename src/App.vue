@@ -69,6 +69,7 @@ type WorkspaceSection = 'device' | 'keys' | 'lighting' | 'macros'
 const activeSection = ref<WorkspaceSection>('device')
 const activeLayer = ref(0)
 const layoutNotice = ref('')
+const writeError = ref<{ title: string; detail: string } | null>(null)
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const layerDrafts = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
@@ -118,6 +119,14 @@ watch(lightEffects, effects => localStorage.setItem(LIGHT_STORAGE_KEY, JSON.stri
 watch(navigation, items => {
   if (!items.some(item => item.id === activeSection.value)) activeSection.value = 'device'
 })
+
+function showWriteError(name: string, error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error)
+  const failure = t('notice.failed', { name, error: detail })
+  message.value = failure
+  writeError.value = { title: t('error.writeTitle', { name }), detail }
+  return failure
+}
 
 function downloadJson(filename: string, value: unknown): void {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }))
@@ -255,14 +264,14 @@ async function applyIndicatorColor(hex: string): Promise<void> {
   indicatorColorBackup.value ??= indicatorColor.value.hex
   busy.value = 'write indicator color'
   try { indicatorColor.value = await transport.value.writeIndicatorColor(hex); message.value = t('notice.settingSaved', { name: t('settings.capsColor') }) }
-  catch (error) { message.value = t('notice.failed', { name: t('settings.capsColor'), error: error instanceof Error ? error.message : String(error) }) }
+  catch (error) { showWriteError(t('settings.capsColor'), error) }
   finally { busy.value = null }
 }
 async function restoreIndicatorColor(): Promise<void> {
   if (!transport.value || !indicatorColorBackup.value) return
   busy.value = 'restore indicator color'
   try { indicatorColor.value = await transport.value.writeIndicatorColor(indicatorColorBackup.value); indicatorColorBackup.value = null; message.value = t('notice.layerRestored', { name: t('settings.capsColor') }) }
-  catch (error) { message.value = t('notice.failed', { name: t('settings.restoreColor'), error: error instanceof Error ? error.message : String(error) }) }
+  catch (error) { showWriteError(t('settings.restoreColor'), error) }
   finally { busy.value = null }
 }
 async function readRuntimeInfo(): Promise<void> {
@@ -298,7 +307,7 @@ async function deleteBleHosts(): Promise<void> {
     await transport.value.deleteBleHosts()
     message.value = t('notice.done', { name: t('identity.clear') })
   } catch (error) {
-    message.value = t('notice.failed', { name: t('identity.clear'), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('identity.clear'), error)
   } finally { busy.value = null }
 }
 
@@ -337,7 +346,7 @@ async function factoryReset(): Promise<void> {
     }
     message.value = t('notice.done', { name: t('factory.title') })
   } catch (error) {
-    message.value = t('notice.failed', { name: t('factory.title'), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('factory.title'), error)
   } finally { busy.value = null }
 }
 
@@ -378,7 +387,7 @@ async function applySettings(changes: Array<{ key: HardwareSettingKey; value: nu
     }
     message.value = t('notice.settingsSaved', { count: changes.length })
   } catch (error) {
-    message.value = t('notice.failed', { name: t('settings.edit'), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('settings.edit'), error)
   } finally { busy.value = null }
 }
 
@@ -412,7 +421,7 @@ async function restoreSettings(): Promise<void> {
     settingsBackup.value = null
     message.value = t('notice.settingsRestored')
   } catch (error) {
-    message.value = t('notice.failed', { name: t('settings.restore'), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('settings.restore'), error)
   } finally { busy.value = null }
 }
 
@@ -530,7 +539,9 @@ async function importFullBackup(file: File): Promise<void> {
     }
     message.value = t('backup.restored', { file: file.name, macros: backup.macros.length, lights: backup.lights.length })
   } catch (error) {
-    message.value = t('backup.failed', { stage, error: error instanceof Error ? error.message : String(error) })
+    const detail = error instanceof Error ? error.message : String(error)
+    message.value = t('backup.failed', { stage, error: detail })
+    writeError.value = { title: t('error.writeTitle', { name: stage }), detail }
   } finally { busy.value = null }
 }
 
@@ -552,7 +563,7 @@ async function applyMacros(macros: StoredMacro[], bindings: ActiveMacroBinding[]
     hardwareState.value = await transport.value.readHardwareState()
     message.value = t('notice.macroSaved')
   } catch (error) {
-    message.value = t('notice.failed', { name: t('macro.apply'), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('macro.apply'), error)
   } finally { busy.value = null }
 }
 
@@ -566,7 +577,7 @@ async function restoreMacros(): Promise<void> {
     originalMacroBackup.value = null
     message.value = t('notice.macroRestored')
   } catch (error) {
-    message.value = t('notice.failed', { name: t('macro.restore'), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('macro.restore'), error)
   } finally { busy.value = null }
 }
 
@@ -634,9 +645,7 @@ async function applyLayers(): Promise<void> {
     message.value = t('notice.layersSaved')
     layoutNotice.value = t('notice.layersSaved')
   } catch (error) {
-    const failure = t('notice.failed', { name: t('app.keyboardLayers'), error: error instanceof Error ? error.message : String(error) })
-    message.value = failure
-    layoutNotice.value = failure
+    layoutNotice.value = showWriteError(t('app.keyboardLayers'), error)
   } finally { busy.value = null }
 }
 
@@ -652,7 +661,7 @@ async function restoreLayers(): Promise<void> {
     message.value = t('notice.layersRestored')
     layoutNotice.value = t('notice.layersRestored')
   } catch (error) {
-    message.value = t('notice.failed', { name: t('layer.restoreAll'), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('layer.restoreAll'), error)
   } finally { busy.value = null }
 }
 
@@ -663,7 +672,7 @@ async function previewLight(effect: LightEffect): Promise<void> {
     await transport.value.previewLight(effect)
     message.value = t('notice.previewed', { name: effect.name })
   } catch (error) {
-    message.value = t('notice.failed', { name: t('lighting.preview'), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('lighting.preview'), error)
   } finally { busy.value = null }
 }
 
@@ -675,7 +684,7 @@ async function installLights(): Promise<void> {
     await transport.value.installLights(lightEffects.value)
     message.value = t('notice.lightsInstalled', { count: lightEffects.value.length })
   } catch (error) {
-    message.value = t('notice.failed', { name: t('lighting.install', { count: lightEffects.value.length }), error: error instanceof Error ? error.message : String(error) })
+    showWriteError(t('lighting.install', { count: lightEffects.value.length }), error)
   } finally { busy.value = null }
 }
 
@@ -723,7 +732,7 @@ async function startAudioVisualize(): Promise<void> {
       audioSending = true
       transport.value.sendAudioVisualizeFrame(rgb)
         .then(() => { audioFrames.value += 1 })
-        .catch((error: unknown) => { message.value = t('notice.failed', { name: t('audio.title'), error: error instanceof Error ? error.message : String(error) }); void stopAudioVisualize(false) })
+        .catch((error: unknown) => { showWriteError(t('audio.title'), error); void stopAudioVisualize(false) })
         .finally(() => { audioSending = false })
     }, 50)
     message.value = t('notice.audioStarted')
@@ -743,7 +752,7 @@ async function stopAudioVisualize(restore = true): Promise<void> {
   audioContext = null
   if (restore && transport.value && lightEffects.value[0]) {
     try { await transport.value.previewLight(lightEffects.value[0]); message.value = t('notice.audioStopped') }
-    catch (error) { message.value = t('notice.failed', { name: t('audio.stop'), error: error instanceof Error ? error.message : String(error) }) }
+    catch (error) { showWriteError(t('audio.stop'), error) }
   }
 }
 
@@ -770,6 +779,13 @@ onBeforeUnmount(() => {
     <template v-if="device && protocolReady && activeSection === 'lighting'"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" /></template>
     <template v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></template>
     <details v-if="device" class="developer-tools"><summary><strong>{{ t('app.developerTools') }}</strong> · {{ t('app.developerHint') }}</summary><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></details>
+    <div v-if="writeError" class="modal-backdrop" @click.self="writeError = null">
+      <section class="error-modal" role="alertdialog" aria-modal="true" :aria-label="writeError.title">
+        <p class="eyebrow">{{ t('error.writeEyebrow') }}</p><h2>{{ writeError.title }}</h2>
+        <p class="error-detail">{{ writeError.detail }}</p><p>{{ t('error.writeHelp') }}</p>
+        <div class="actions"><button @click="writeError = null">{{ t('common.close') }}</button></div>
+      </section>
+    </div>
     <footer>{{ t('app.footer') }}</footer>
   </div>
 </template>

@@ -360,33 +360,41 @@ export class AnneProHidTransport {
   /** Mirrors ObinsKit: download all four layers, then activate/reload User layout. */
   async writeKeyboardLayers(
     layers: readonly Uint8Array[],
-    timeoutMs = 2000,
+    timeoutMs = 5000,
   ): Promise<{ layers: KeyboardLayerResponse[]; state: HardwareState }> {
     if (layers.length !== 4) throw new Error(`Expected four keyboard layers, got ${layers.length}`)
-    for (const [layer, data] of layers.entries()) {
-      const requests = createWriteKeyboardLayerRequests(layer, data)
-      for (const [packet, request] of requests.entries()) {
-        await this.requestConfirmedRead(
-          request,
-          response => parseWriteKeyboardLayerAck(packet, response),
-          timeoutMs,
-        )
+    let stage = 'preparing layout'
+    try {
+      for (const [layer, data] of layers.entries()) {
+        const requests = createWriteKeyboardLayerRequests(layer, data)
+        for (const [packet, request] of requests.entries()) {
+          stage = `downloading Layer ${layer}, packet ${packet + 1}/${requests.length}`
+          await this.requestConfirmedRead(
+            request,
+            response => parseWriteKeyboardLayerAck(packet, response),
+            timeoutMs,
+          )
+        }
       }
-    }
-    // ObinsKit always sends writeKbdLayout(1) after downloadKbdLayout, even if
-    // User layout was already selected. Re-sending it reloads the runtime map.
-    await this.writeHardwareSetting('userLayout', 1, timeoutMs)
-    const state = await this.readHardwareState(timeoutMs)
-    if (state.userLayout !== 1) throw new Error(`User layout readback is ${state.userLayout}, expected 1`)
-    const activeReadbacks: KeyboardLayerResponse[] = []
-    for (const [layer, expected] of layers.entries()) {
-      const active = await this.readKeyboardLayer(layer, timeoutMs)
-      if (!active.data.every((value, index) => value === expected[index])) {
-        throw new Error(`Layer ${layer} changed after User layout activation`)
+      stage = 'activating User layout'
+      await this.writeHardwareSetting('userLayout', 1, timeoutMs)
+      await new Promise(resolve => globalThis.setTimeout(resolve, 150))
+      stage = 'verifying User layout state'
+      const state = await this.readHardwareState(timeoutMs)
+      if (state.userLayout !== 1) throw new Error(`readback is ${state.userLayout}, expected 1`)
+      const activeReadbacks: KeyboardLayerResponse[] = []
+      for (const [layer, expected] of layers.entries()) {
+        stage = `verifying active Layer ${layer}`
+        const active = await this.readKeyboardLayer(layer, timeoutMs)
+        if (!active.data.every((value, index) => value === expected[index])) {
+          throw new Error('readback changed after User layout activation')
+        }
+        activeReadbacks.push(active)
       }
-      activeReadbacks.push(active)
+      return { layers: activeReadbacks, state }
+    } catch (error) {
+      throw new Error(`${stage}: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
     }
-    return { layers: activeReadbacks, state }
   }
 
   /** Preview is fire-and-forget in ObinsKit and produced no input acknowledgement on C18. */

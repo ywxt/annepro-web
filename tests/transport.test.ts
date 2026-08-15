@@ -151,6 +151,20 @@ describe('typed Anne Pro HID transport', () => {
     await expect(transport.writeKeyboardLayers(layers.slice(0, 3), 100)).rejects.toThrow('Expected four')
   })
 
+  it('identifies the exact layout stage when a confirmed read times out', async () => {
+    class SilentHidDevice extends FakeHidDevice {
+      override async sendReport(reportId: number, data: BufferSource): Promise<void> {
+        const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data as ArrayBuffer)
+        this.sent.push({ reportId, data: bytes })
+      }
+    }
+    const transport = new AnneProHidTransport(new SilentHidDevice() as unknown as HIDDevice)
+    const layers = Array.from({ length: 4 }, () => new Uint8Array(61))
+    await expect(transport.writeKeyboardLayers(layers, 5)).rejects.toThrow(
+      'downloading Layer 0, packet 1/2: Confirmed read timed out after 5 ms',
+    )
+  })
+
   it('sends only the fixed macro-config query', async () => {
     const device = new MacroConfigHidDevice()
     const transport = new AnneProHidTransport(device as unknown as HIDDevice)
