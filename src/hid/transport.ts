@@ -72,6 +72,7 @@ import {
   type BatteryResponse,
   type PowerOnTimeResponse,
 } from '../protocol/runtime-info.ts'
+import { createAudioVisualizeRequests } from '../protocol/audio-visualize.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -314,6 +315,18 @@ export class ReadonlyHidTransport {
   /** Preview is fire-and-forget in ObinsKit and produced no input acknowledgement on C18. */
   async previewLight(effect: LightEffect): Promise<void> {
     const requests = createPreviewLightRequests(effect)
+    if (this.confirmedReadPending) throw new Error('Another HID operation is already pending')
+    this.confirmedReadPending = true
+    try {
+      for (const request of requests) await this.device.sendReport(0, request)
+    } finally {
+      this.confirmedReadPending = false
+    }
+  }
+
+  /** Bounded fire-and-forget frame; callers must rate-limit and await each frame. */
+  async sendAudioVisualizeFrame(rgb: Uint8Array): Promise<void> {
+    const requests = createAudioVisualizeRequests(rgb)
     if (this.confirmedReadPending) throw new Error('Another HID operation is already pending')
     this.confirmedReadPending = true
     try {

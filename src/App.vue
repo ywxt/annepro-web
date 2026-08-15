@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import CollectionsView from './components/CollectionsView.vue'
 import DevicePanel from './components/DevicePanel.vue'
 import KeyboardLayout from './components/KeyboardLayout.vue'
@@ -8,6 +8,7 @@ import MacroPanel from './components/MacroPanel.vue'
 import ReportsView from './components/ReportsView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import RuntimeInfoPanel from './components/RuntimeInfoPanel.vue'
+import AudioVisualizePanel from './components/AudioVisualizePanel.vue'
 import { collectMetadata } from './hid/device.ts'
 import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
 import { ReadonlyHidTransport } from './hid/transport.ts'
@@ -24,6 +25,7 @@ import type { HardwareSettingKey } from './protocol/settings-write.ts'
 import { encodeLightRgb, type LightEffect } from './protocol/lighting.ts'
 import { bytesToHex } from './protocol/packet.ts'
 import type { BatteryResponse, PowerOnTimeResponse } from './protocol/runtime-info.ts'
+import { audioRgbFromFrequencyData, type AudioVisualizeMode } from './protocol/audio-visualize.ts'
 
 const supported = isWebHidSupported()
 const connecting = ref(false)
@@ -42,6 +44,10 @@ const originalMacroBackup = ref<MacroBackup | null>(null)
 const ledPowerMode = ref<LedPowerModeResponse | null>(null)
 const battery = ref<BatteryResponse | null>(null)
 const powerOnTime = ref<PowerOnTimeResponse | null>(null)
+const audioRunning = ref(false)
+const audioMode = ref<AudioVisualizeMode>('pure')
+const audioColor = ref('#00ff80')
+const audioFrames = ref(0)
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const layerBackups = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
@@ -52,6 +58,10 @@ const loadedLayers = computed(() => layers.value.filter((layer): layer is Keyboa
 const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
 const capabilities = computed(() => deriveDeviceCapabilities(deviceType.value, firmware.value))
 let stopListening: (() => void) | null = null
+let audioStream: MediaStream | null = null
+let audioContext: AudioContext | null = null
+let audioTimer: number | null = null
+let audioSending = false
 
 function loadLightEffects(): LightEffect[] {
   try {
@@ -358,6 +368,58 @@ async function importLights(file: File): Promise<void> {
     message.value = `燈效匯入失敗：${error instanceof Error ? error.message : String(error)}`
   }
 }
+
+function selectedAudioColor(): [number, number, number] {
+  return [1, 3, 5].map(offset => Number.parseInt(audioColor.value.slice(offset, offset + 2), 16)) as [number, number, number]
+}
+
+async function startAudioVisualize(): Promise<void> {
+  if (!transport.value || audioRunning.value) return
+  if (!window.confirm('開始後會取得麥克風音訊並以最多 20 FPS 向鍵盤傳送暫態燈效。音訊不會儲存或上傳。')) return
+  busy.value = 'start audio visualize'
+  try {
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    audioContext = new AudioContext()
+    const source = audioContext.createMediaStreamSource(audioStream)
+    const analyser = audioContext.createAnalyser()
+    analyser.fftSize = 256
+    analyser.smoothingTimeConstant = 0.8
+    source.connect(analyser)
+    const frequencies = new Uint8Array(analyser.frequencyBinCount)
+    audioFrames.value = 0
+    audioRunning.value = true
+    audioTimer = window.setInterval(() => {
+      if (!audioRunning.value || audioSending || !transport.value) return
+      analyser.getByteFrequencyData(frequencies)
+      const rgb = audioRgbFromFrequencyData(audioMode.value, frequencies, selectedAudioColor())
+      audioSending = true
+      transport.value.sendAudioVisualizeFrame(rgb)
+        .then(() => { audioFrames.value += 1 })
+        .catch((error: unknown) => { message.value = `Audio Visualize 傳送失敗：${error instanceof Error ? error.message : String(error)}`; void stopAudioVisualize(false) })
+        .finally(() => { audioSending = false })
+    }, 50)
+    message.value = 'Audio Visualize 已開始（最多 20 FPS）。'
+  } catch (error) {
+    message.value = `無法開始 Audio Visualize：${error instanceof Error ? error.message : String(error)}`
+    await stopAudioVisualize(false)
+  } finally { busy.value = null }
+}
+
+async function stopAudioVisualize(restore = true): Promise<void> {
+  audioRunning.value = false
+  if (audioTimer !== null) window.clearInterval(audioTimer)
+  audioTimer = null
+  audioStream?.getTracks().forEach(track => track.stop())
+  audioStream = null
+  if (audioContext) await audioContext.close().catch(() => undefined)
+  audioContext = null
+  if (restore && transport.value && lightEffects.value[0]) {
+    try { await transport.value.previewLight(lightEffects.value[0]); message.value = 'Audio Visualize 已停止，並恢復第一個本機燈效。' }
+    catch (error) { message.value = `Audio Visualize 已停止，但恢復燈效失敗：${error instanceof Error ? error.message : String(error)}` }
+  }
+}
+
+onBeforeUnmount(() => { void stopAudioVisualize(false) })
 </script>
 
 <template>
@@ -368,6 +430,7 @@ async function importLights(file: File): Promise<void> {
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" :busy="busy !== null" :has-backup="layerBackups[layer.layer] !== null" @apply="applyLayer" @restore="restoreLayer" />
   <LightingPanel v-if="device && protocolReady && capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" />
+  <AudioVisualizePanel v-if="device && protocolReady && capabilities?.hasLed" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" />
   <RuntimeInfoPanel v-if="device && protocolReady" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @apply="applyMacros" @restore="restoreMacros" />
   <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @apply-setting="applySetting" @restore-settings="restoreSettings" />

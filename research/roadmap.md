@@ -60,6 +60,7 @@ device trial, and only then product UI.
 - [x] LED power-mode read and guarded write.
 - [x] Host-managed lighting list, preview, download, and local backup/import.
 - [x] Macro event/binding editor, full-image serialization, CRC-32, staged 49-byte download, commit, backup/restore, and semantic device readback.
+- [x] Audio Visualize pure/colorful transient stream with explicit microphone consent, stop/restore, 20 FPS cap, and awaited single-flight reports.
 
 ### M6 — Compatibility and release
 

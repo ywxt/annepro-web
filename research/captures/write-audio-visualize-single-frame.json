@@ -1,0 +1,10 @@
+{
+  "source": "Static native mapping plus authorized single-frame /dev/hidraw10 trial",
+  "capturedAt": "2026-08-16T02:32:00+08:00",
+  "device": "0x04d9:0xa293",
+  "request": "7b 12 31 00 07 00 00 7d 20 11 ff 01 ff 00 00",
+  "mode": "pure RGB",
+  "response": null,
+  "restoreRequest": "7b 12 31 00 07 00 00 7d 20 04 ff 01 ff 00 00",
+  "notes": "Both Audio Visualize and light preview are transient fire-and-forget operations and emitted no input acknowledgement."
+}
