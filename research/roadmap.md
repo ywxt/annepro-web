@@ -33,11 +33,12 @@ The goal is functional interoperability, not a copy of ObinsKit source code or U
 
 ### M3 — Keyboard layout download and model
 
-- Reverse `uploadKbdLayout` framing, addressing, pagination, and response assembly. ObinsKit uses “upload” for device-to-host reads.
-- Capture one complete layout download without editing the keyboard.
-- Define an independent key matrix/layer/tap model.
-- Preserve unknown bytes and reject malformed or incomplete downloads.
-- Render a read-only keyboard view and export a backup file.
+- [x] Reverse `uploadKbdLayout` framing, addressing, pagination, and response assembly. ObinsKit uses “upload” for device-to-host reads.
+- [x] Capture one complete Layer 0 download without editing the keyboard.
+- [x] Define the C18 physical row model (`14/14/13/12/8`) while retaining raw keycodes.
+- [x] Preserve unknown keycodes and reject malformed or incomplete downloads.
+- [x] Render a confirmed, read-only Layer 0 keyboard view.
+- [ ] Capture and enable Layers 1–3, then export all layers as a backup file.
 
 ### M4 — Guarded layout writes
 

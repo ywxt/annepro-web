@@ -5,20 +5,22 @@ import { ReadonlyHidTransport } from './hid/transport.ts'
 import type { InputReportRecord } from './hid/types.ts'
 import { bytesToHex, formatHex } from './protocol/packet.ts'
 import { tryParseLianaFrame } from './protocol/liana.ts'
+import { keyboardLayerRows, keycodeName } from './protocol/layout.ts'
 
 const app = document.querySelector<HTMLElement>('#app')
 if (!app) throw new Error('Missing #app element')
 
 app.innerHTML = `
   <header><p class="eyebrow">READ-ONLY WEBHID EXPLORER</p><h1>Anne Pro Web Configurator</h1>
-  <p class="lede">檢視 Anne Pro 2 的 HID collections 與輸入報告。此版本不會向鍵盤傳送資料。</p></header>
+  <p class="lede">檢視 Anne Pro 2 的 HID collections、裝置資訊與唯讀鍵位層。所有查詢都固定、可核對並需要逐次確認。</p></header>
   <section class="card status"><div><span class="dot"></span><span id="support"></span></div>
     <button id="connect" type="button">連接 Anne Pro 2</button></section>
   <p id="message" role="status" aria-live="polite"></p>
-  <section id="device-section" class="card hidden"><div class="section-heading"><h2>裝置</h2><div><button id="read-device-type" class="secondary hidden" type="button">讀取裝置類型</button><button id="read-firmware-version" class="secondary hidden" type="button">讀取韌體版本</button><button id="read-iap-mode" class="secondary hidden" type="button">讀取 IAP 狀態</button></div></div><div id="device"></div><p id="device-type-result" class="decoded"></p><p id="firmware-version-result" class="decoded"></p><p id="iap-mode-result" class="decoded"></p></section>
+  <section id="device-section" class="card hidden"><div class="section-heading"><h2>裝置</h2><div><button id="read-device-type" class="secondary hidden" type="button">讀取裝置類型</button><button id="read-firmware-version" class="secondary hidden" type="button">讀取韌體版本</button><button id="read-iap-mode" class="secondary hidden" type="button">讀取 IAP 狀態</button><button id="read-layer-0" class="secondary hidden" type="button">讀取 Layer 0</button></div></div><div id="device"></div><p id="device-type-result" class="decoded"></p><p id="firmware-version-result" class="decoded"></p><p id="iap-mode-result" class="decoded"></p></section>
+  <section id="layout-section" class="card hidden"><div class="section-heading"><h2>Layer 0</h2><span id="layout-summary"></span></div><div id="keyboard-layout" class="keyboard-layout"></div><code id="layout-raw" class="layout-raw"></code></section>
   <section id="collections-section" class="hidden"><div class="section-heading"><h2>Collections</h2><div><span id="collection-count"></span><button id="export-metadata" class="secondary" type="button">匯出 metadata</button></div></div><div id="collections" class="collection-grid"></div></section>
   <section id="reports-section" class="card hidden"><div class="section-heading"><h2>Input reports</h2><div><button id="export" class="secondary" type="button">匯出 JSON</button><button id="clear" class="secondary" type="button">清除</button></div></div><div id="reports" class="reports"><p class="empty">等待輸入報告…</p></div></section>
-  <footer>安全模式：只開啟裝置並監聽 inputreport</footer>`
+  <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>`
 
 const connectButton = document.querySelector<HTMLButtonElement>('#connect')!
 const support = document.querySelector<HTMLElement>('#support')!
@@ -98,6 +100,7 @@ connectButton.addEventListener('click', async () => {
       show('#read-device-type')
       show('#read-firmware-version')
       show('#read-iap-mode')
+      show('#read-layer-0')
     }
     message.textContent = selection.hasProtocolCollection
       ? `已從 ${selection.candidates.length} 個候選介面中連接協議候選 collection；正在唯讀監聽 input reports。`
@@ -180,6 +183,34 @@ document.querySelector('#read-iap-mode')?.addEventListener('click', async () => 
     result.textContent = `IAP state code ${response.mode} · Frame ${bytesToHex(response.rawFrame)} · Ignored ${response.trailingLength} trailing bytes`
   } catch (error) {
     result.textContent = `readIapMode 失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally {
+    button.disabled = false
+  }
+})
+
+document.querySelector('#read-layer-0')?.addEventListener('click', async () => {
+  if (!connectedTransport) return
+  const approved = window.confirm(
+    '這會向鍵盤傳送一次已由兩次實機 capture 確認的唯讀 Layer 0 查詢。回應預期為兩個 report。\n\nReport ID 0\n7b 12 31 00 03 00 00 7d 10 02 00\n\n確定繼續？',
+  )
+  if (!approved) return
+  const button = document.querySelector<HTMLButtonElement>('#read-layer-0')!
+  button.disabled = true
+  message.textContent = '等待 Layer 0 multipart 回應…'
+  try {
+    const response = await connectedTransport.readKeyboardLayer0()
+    const rows = keyboardLayerRows(response.data)
+    document.querySelector<HTMLElement>('#keyboard-layout')!.innerHTML = rows.map((row) =>
+      `<div class="key-row">${Array.from(row, (keycode) =>
+        `<div class="key"><strong>${keycodeName(keycode)}</strong><small>${formatHex(keycode, 2)}</small></div>`,
+      ).join('')}</div>`,
+    ).join('')
+    document.querySelector<HTMLElement>('#layout-summary')!.textContent = `${response.data.byteLength} keys · ${response.packetCount} reports`
+    document.querySelector<HTMLElement>('#layout-raw')!.textContent = bytesToHex(response.data)
+    show('#layout-section')
+    message.textContent = 'Layer 0 唯讀資料已載入。'
+  } catch (error) {
+    message.textContent = `Layer 0 讀取失敗：${error instanceof Error ? error.message : String(error)}`
   } finally {
     button.disabled = false
   }

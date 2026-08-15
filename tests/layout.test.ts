@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   createReadKeyboardLayerRequest,
+  keyboardLayerRows,
+  keycodeName,
   parseKeyboardLayerResponse,
 } from '../src/protocol/layout.ts'
 
@@ -69,5 +71,16 @@ describe('keyboard layout read protocol', () => {
   it('rejects a truncated layer payload', () => {
     expect(() => parseKeyboardLayerResponse(0, [response(0x00, [1, 2])]))
       .toThrow('must be 61 bytes')
+  })
+
+  it('splits the C18 payload into its five physical rows', () => {
+    const rows = keyboardLayerRows(new Uint8Array(61))
+    expect(rows.map((row) => row.byteLength)).toEqual([14, 14, 13, 12, 8])
+    expect(() => keyboardLayerRows(new Uint8Array(60))).toThrow('must be 61 bytes')
+  })
+
+  it('labels standard HID and confirmed Fn keycodes', () => {
+    expect([0x04, 0x1d, 0x1e, 0x27, 0x28, 0xc0, 0xff].map(keycodeName))
+      .toEqual(['A', 'Z', '1', '0', 'Enter', 'Fn1', '0xff'])
   })
 })

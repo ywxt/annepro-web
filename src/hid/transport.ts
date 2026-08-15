@@ -14,10 +14,16 @@ import {
   parseIapModeResponse,
   type IapModeResponse,
 } from '../protocol/iap-info.ts'
+import {
+  createReadKeyboardLayerRequest,
+  parseKeyboardLayerResponse,
+  type KeyboardLayerResponse,
+} from '../protocol/layout.ts'
+import { tryParseLianaFrame } from '../protocol/liana.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
-/** Read-only operations only; the sole output path is the confirmed readDeviceType query. */
+/** Fixed, captured read-only operations only; no arbitrary report API is exposed. */
 export class ReadonlyHidTransport {
   private listener: ((event: HIDInputReportEvent) => void) | null = null
   private confirmedReadPending = false
@@ -70,6 +76,47 @@ export class ReadonlyHidTransport {
     )
   }
 
+  /** Layer 0 is the only layout request independently confirmed on physical hardware. */
+  async readKeyboardLayer0(timeoutMs = 2000): Promise<KeyboardLayerResponse> {
+    if (this.confirmedReadPending) throw new Error('Another confirmed read is already pending')
+    this.confirmedReadPending = true
+    const reports: Uint8Array[] = []
+
+    return new Promise<KeyboardLayerResponse>((resolve, reject) => {
+      const finish = (): void => {
+        clearTimeout(timeout)
+        this.device.removeEventListener('inputreport', onInput)
+        this.confirmedReadPending = false
+      }
+      const onInput = (event: HIDInputReportEvent): void => {
+        if (event.reportId !== 0) return
+        const bytes = new Uint8Array(
+          event.data.buffer.slice(event.data.byteOffset, event.data.byteOffset + event.data.byteLength),
+        )
+        const frame = tryParseLianaFrame(bytes)
+        if (!frame || frame.command !== 0x10 || frame.action !== 0x02) return
+        reports.push(bytes)
+        try {
+          const result = parseKeyboardLayerResponse(0, reports)
+          finish()
+          resolve(result)
+        } catch {
+          // The first confirmed response has its continuation bit set; await packet 01.
+        }
+      }
+      const timeout = globalThis.setTimeout(() => {
+        finish()
+        reject(new Error(`Confirmed Layer 0 read timed out after ${timeoutMs} ms`))
+      }, timeoutMs)
+
+      this.device.addEventListener('inputreport', onInput)
+      this.device.sendReport(0, createReadKeyboardLayerRequest(0)).catch((error: unknown) => {
+        finish()
+        reject(error)
+      })
+    })
+  }
+
   private async requestConfirmedRead<T>(
     request: Uint8Array,
     parseResponse: (data: Uint8Array) => T,
@@ -97,7 +144,7 @@ export class ReadonlyHidTransport {
           // Ignore unrelated input reports while the bounded request is pending.
         }
       }
-      const timeout = window.setTimeout(() => {
+      const timeout = globalThis.setTimeout(() => {
         finish()
         reject(new Error(`Confirmed read timed out after ${timeoutMs} ms`))
       }, timeoutMs)
