@@ -31,7 +31,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .keyboard-layout { display: grid; gap: 7px; margin-top: 18px; overflow-x: auto; }
 .key-row { display: flex; gap: 7px; min-width: 850px; }
 .key { display: grid; place-items: center; width: 54px; min-width: 54px; height: 48px; border: 1px solid #354252; border-radius: 7px; background: #111923; font-family: ui-monospace, monospace; }
-.key strong { font-size: 12px; font-weight: 700; }
+.key strong { max-width: 50px; overflow: hidden; font-size: 10px; font-weight: 700; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .key small { color: #7e8998; font-size: 10px; }
 .layout-raw { display: block; margin-top: 18px; overflow-wrap: anywhere; line-height: 1.6; }
 .hidden { display: none; } footer { margin-top: 44px; font-size: 13px; text-align: center; }

@@ -8,7 +8,7 @@ const rows = computed(() => keyboardLayerRows(props.layer.data))
 
 <template>
   <section class="card"><div class="section-heading"><h2>Layer {{ layer.layer }}</h2><span>{{ layer.data.byteLength }} keys · {{ layer.packetCount }} reports</span></div>
-    <div class="keyboard-layout"><div v-for="(row, rowIndex) in rows" :key="rowIndex" class="key-row"><div v-for="(keycode, keyIndex) in row" :key="keyIndex" class="key"><strong>{{ keycodeName(keycode) }}</strong><small>{{ formatHex(keycode, 2) }}</small></div></div></div>
+    <div class="keyboard-layout"><div v-for="(row, rowIndex) in rows" :key="rowIndex" class="key-row"><div v-for="(keycode, keyIndex) in row" :key="keyIndex" class="key" :title="keycodeName(keycode)"><strong>{{ keycodeName(keycode) }}</strong><small>{{ formatHex(keycode, 2) }}</small></div></div></div>
     <code class="layout-raw">{{ bytesToHex(layer.data) }}</code>
   </section>
 </template>

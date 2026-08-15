@@ -79,8 +79,14 @@ describe('keyboard layout read protocol', () => {
     expect(() => keyboardLayerRows(new Uint8Array(60))).toThrow('must be 61 bytes')
   })
 
-  it('labels standard HID and confirmed Fn keycodes', () => {
-    expect([0x04, 0x1d, 0x1e, 0x27, 0x28, 0xc0, 0xff].map(keycodeName))
-      .toEqual(['A', 'Z', '1', '0', 'Enter', 'Fn1', '0xff'])
+  it('labels standard HID and observed Anne Pro keycodes', () => {
+    expect([
+      0x01, 0x04, 0x1d, 0x1e, 0x27, 0x28, 0x3a, 0x45, 0x52,
+      0xa8, 0xc0, 0xc8, 0xcf, 0xf0, 0xf6, 0xfb, 0xfe, 0xff,
+    ].map(keycodeName)).toEqual([
+      'Transparent', 'A', 'Z', '1', '0', 'Enter', 'F1', 'F12', 'Up',
+      'Mute', 'Fn1', 'Bluetooth 1', 'Fn Wheel', 'Backlight Toggle',
+      'Backlight Battery', 'Mouse Up', 'Mouse Right', '0xff',
+    ])
   })
 })
