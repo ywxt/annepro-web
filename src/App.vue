@@ -70,12 +70,18 @@ const activeSection = ref<WorkspaceSection>('device')
 const activeLayer = ref(0)
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
+const layerDrafts = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
 const layerBackups = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
 const LIGHT_STORAGE_KEY = 'annepro-web-light-effects-v1'
 const lightEffects = ref<LightEffect[]>(loadLightEffects())
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
 const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
+const layerChangeCount = computed(() => layerDrafts.value.reduce((total, draft, layer) => {
+  const saved = layers.value[layer]?.data
+  if (!draft || !saved) return total
+  return total + draft.reduce((count, value, index) => count + (value === saved[index] ? 0 : 1), 0)
+}, 0))
 const capabilities = computed(() => deriveDeviceCapabilities(deviceType.value, firmware.value))
 const navigation = computed<Array<{ id: WorkspaceSection; label: string }>>(() => {
   const items: Array<{ id: WorkspaceSection; label: string }> = [{ id: 'device', label: t('nav.device') }]
@@ -203,6 +209,7 @@ async function readAll(): Promise<void> {
       const nextLayers: KeyboardLayerResponse[] = []
       for (let layer = 0; layer < 4; layer += 1) nextLayers.push(await transport.value.readKeyboardLayer(layer))
       layers.value = nextLayers
+      layerDrafts.value = nextLayers.map(layer => layer.data.slice())
     }
     if (capabilities.value?.macros) macroBackup.value = await transport.value.readMacroBackup()
     message.value = t('notice.loaded')
@@ -217,6 +224,9 @@ const readLayer = (layer: number) => transport.value && confirmedRead(
     const next = layers.value.slice()
     next[layer] = value
     layers.value = next
+    const drafts = layerDrafts.value.slice()
+    drafts[layer] = value.data.slice()
+    layerDrafts.value = drafts
   },
 )
 const readMacroBackup = () => transport.value && confirmedRead(
@@ -314,8 +324,16 @@ async function factoryReset(): Promise<void> {
     await transport.value.installLights(defaults)
     lightEffects.value = defaults
     await transport.value.deleteBleHosts()
-    hardwareState.value = await transport.value.readHardwareState()
-    if (capabilities.value.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
+    const stateReadback = await transport.value.readHardwareState()
+    for (const key of STATE_KEYS) {
+      if (key === 'sleepTimeoutRaw' && !capabilities.value.sleepTimeout) continue
+      if (stateReadback[key] !== ANNE_PRO_2_FACTORY_SETTINGS[key]) throw new Error(t('validation.readback', { name: settingName(key), actual: stateReadback[key], expected: ANNE_PRO_2_FACTORY_SETTINGS[key] }))
+    }
+    hardwareState.value = stateReadback
+    if (capabilities.value.ledPowerMode) {
+      ledPowerMode.value = await transport.value.readLedPowerMode()
+      if (ledPowerMode.value.mode !== ANNE_PRO_2_FACTORY_SETTINGS.ledPowerMode) throw new Error(t('validation.readback', { name: t('settings.ledPower'), actual: ledPowerMode.value.mode, expected: ANNE_PRO_2_FACTORY_SETTINGS.ledPowerMode }))
+    }
     message.value = t('notice.done', { name: t('factory.title') })
   } catch (error) {
     message.value = t('notice.failed', { name: t('factory.title'), error: error instanceof Error ? error.message : String(error) })
@@ -405,13 +423,13 @@ function exportReports(): void {
   downloadJson(`annepro-input-reports-${Date.now()}.json`, records.value.map(record => ({ ...record, bytes: bytesToHex(record.bytes), length: record.bytes.byteLength })))
 }
 function exportLayers(): void {
-  if (!allLayersLoaded.value) return
+  if (!allLayersLoaded.value || layerDrafts.value.some(layer => !layer)) return
   downloadJson(`annepro-layout-backup-${Date.now()}.json`, {
     format: 'annepro-web-layout-backup',
     version: 1,
     capturedAt: new Date().toISOString(),
     device: device.value ? { vendorId: device.value.vendorId, productId: device.value.productId, productName: device.value.productName } : null,
-    layers: loadedLayers.value.map(layer => ({ index: layer.layer, keycodes: Array.from(layer.data), rawHex: bytesToHex(layer.data) })),
+    layers: layerDrafts.value.map((data, index) => ({ index, keycodes: Array.from(data!), rawHex: bytesToHex(data!) })),
   })
 }
 function exportMacros(): void {
@@ -472,12 +490,10 @@ async function importFullBackup(file: File): Promise<void> {
     busy.value = 'restore full backup'
 
     stage = t('backup.layers')
-    for (let index = 0; index < 4; index += 1) {
-      const current = layers.value[index]!.data
-      if (current.every((value, offset) => value === backup.layers[index][offset])) continue
-      const readback = await transport.value.writeKeyboardLayer(index, backup.layers[index])
-      const next = layers.value.slice(); next[index] = readback; layers.value = next
-    }
+    const layoutResult = await transport.value.writeKeyboardLayers(backup.layers)
+    layers.value = layoutResult.layers
+    layerDrafts.value = layoutResult.layers.map(layer => layer.data.slice())
+    hardwareState.value = layoutResult.state
 
     stage = t('backup.macros')
     macroBackup.value = await transport.value.writeMacros(backup.macros, backup.bindings)
@@ -578,7 +594,7 @@ async function importMacros(file: File): Promise<void> {
 }
 
 async function importLayout(file: File): Promise<void> {
-  if (!transport.value || !allLayersLoaded.value) return
+  if (!allLayersLoaded.value) return
   try {
     const parsed = JSON.parse(await file.text()) as { format?: string; layers?: Array<{ index?: number; keycodes?: number[] }> }
     if (parsed.format !== 'annepro-web-layout-backup' || !Array.isArray(parsed.layers) || parsed.layers.length !== 4) throw new Error(t('validation.layout'))
@@ -587,54 +603,48 @@ async function importLayout(file: File): Promise<void> {
       if (!layer || !Array.isArray(layer.keycodes) || layer.keycodes.length !== 61 || !layer.keycodes.every(value => Number.isInteger(value) && value >= 0 && value <= 255)) throw new Error(t('validation.layer', { name: t(`layer.${index}`) }))
       return new Uint8Array(layer.keycodes)
     })
-    busy.value = 'import layout'
-    for (let index = 0; index < 4; index += 1) {
-      const backups = layerBackups.value.slice()
-      backups[index] ??= layers.value[index]!.data.slice()
-      layerBackups.value = backups
-      const readback = await transport.value.writeKeyboardLayer(index, imported[index])
-      const next = layers.value.slice(); next[index] = readback; layers.value = next
-    }
-    message.value = t('notice.done', { name: t('app.importLayers') })
+    layerDrafts.value = imported
+    message.value = t('notice.layersImported')
   } catch (error) { message.value = t('notice.failed', { name: t('app.importLayers'), error: error instanceof Error ? error.message : String(error) }) }
   finally { busy.value = null }
 }
 
 function pickLayoutFile(event: Event): void { const file = (event.target as HTMLInputElement).files?.[0]; if (file) void importLayout(file) }
 
-async function applyLayer(layer: number, data: Uint8Array): Promise<void> {
-  if (!transport.value || !layers.value[layer]) return
-  const original = layers.value[layer]!
-  const backups = layerBackups.value.slice()
-  backups[layer] ??= original.data.slice()
-  layerBackups.value = backups
-  busy.value = `write Layer ${layer}`
+function updateLayerDraft(layer: number, data: Uint8Array): void {
+  const drafts = layerDrafts.value.slice()
+  drafts[layer] = data
+  layerDrafts.value = drafts
+}
+
+async function applyLayers(): Promise<void> {
+  if (!transport.value || !allLayersLoaded.value || layerDrafts.value.some(layer => !layer)) return
+  const drafts = layerDrafts.value as Uint8Array[]
+  layerBackups.value = layers.value.map((layer, index) => layerBackups.value[index] ?? layer!.data.slice())
+  busy.value = 'write all layers'
   try {
-    const readback = await transport.value.writeKeyboardLayer(layer, data)
-    const next = layers.value.slice()
-    next[layer] = readback
-    layers.value = next
-    message.value = t('notice.layerSaved', { name: t(`layer.${layer}`) })
+    const result = await transport.value.writeKeyboardLayers(drafts)
+    layers.value = result.layers
+    layerDrafts.value = result.layers.map(layer => layer.data.slice())
+    hardwareState.value = result.state
+    message.value = t('notice.layersSaved')
   } catch (error) {
-    message.value = t('notice.failed', { name: t(`layer.${layer}`), error: error instanceof Error ? error.message : String(error) })
+    message.value = t('notice.failed', { name: t('app.keyboardLayers'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
-async function restoreLayer(layer: number): Promise<void> {
-  const backup = layerBackups.value[layer]
-  if (!transport.value || !backup) return
-  busy.value = `restore Layer ${layer}`
+async function restoreLayers(): Promise<void> {
+  if (!transport.value || layerBackups.value.some(layer => !layer)) return
+  busy.value = 'restore all layers'
   try {
-    const readback = await transport.value.writeKeyboardLayer(layer, backup)
-    const next = layers.value.slice()
-    next[layer] = readback
-    layers.value = next
-    const backups = layerBackups.value.slice()
-    backups[layer] = null
-    layerBackups.value = backups
-    message.value = t('notice.layerRestored', { name: t(`layer.${layer}`) })
+    const result = await transport.value.writeKeyboardLayers(layerBackups.value as Uint8Array[])
+    layers.value = result.layers
+    layerDrafts.value = result.layers.map(layer => layer.data.slice())
+    hardwareState.value = result.state
+    layerBackups.value = [null, null, null, null]
+    message.value = t('notice.layersRestored')
   } catch (error) {
-    message.value = t('notice.failed', { name: t(`layer.${layer}`), error: error instanceof Error ? error.message : String(error) })
+    message.value = t('notice.failed', { name: t('layer.restoreAll'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -748,7 +758,7 @@ onBeforeUnmount(() => {
     <p id="message" role="status" aria-live="polite">{{ message }}</p>
     <nav v-if="device && protocolReady" class="workspace-nav" :aria-label="t('app.title')"><button v-for="item in navigation" :key="item.id" class="nav-button" :class="{ active: activeSection === item.id }" @click="activeSection = item.id">{{ item.label }}</button></nav>
     <template v-if="device && activeSection === 'device'"><DevicePanel :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></template>
-    <template v-if="activeSection === 'keys'"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><section v-if="loadedLayers.length" class="card layer-toolbar"><div class="section-heading"><div><h2>{{ t('app.keyboardLayers') }}</h2><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div></div><div class="actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="!allLayersLoaded || busy !== null" @change="pickLayoutFile"></label><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">{{ t('app.exportLayers') }}</button></div></div></section><KeyboardLayout v-if="layers[activeLayer]" :key="activeLayer" :layer="layers[activeLayer]!" :busy="busy !== null" :has-backup="layerBackups[activeLayer] !== null" @apply="applyLayer" @restore="restoreLayer" /></template>
+    <template v-if="activeSection === 'keys'"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><section v-if="allLayersLoaded" class="card layer-workspace"><div class="section-heading"><div><h2>{{ t('app.keyboardLayers') }}</h2><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div></div><div class="actions"><span>{{ t('layer.totalChanges', { count: layerChangeCount }) }}</span><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="busy !== null" @change="pickLayoutFile"></label><button class="secondary" @click="exportLayers">{{ t('app.exportLayers') }}</button><button v-if="layerBackups.every(layer => layer !== null)" class="secondary" :disabled="busy !== null" @click="restoreLayers">{{ t('layer.restoreAll') }}</button><button :disabled="busy !== null || layerChangeCount === 0" @click="applyLayers">{{ t('layer.applyAll') }}</button></div></div><KeyboardLayout v-if="layers[activeLayer] && layerDrafts[activeLayer]" :layer="layers[activeLayer]!" :draft="layerDrafts[activeLayer]!" :busy="busy !== null" @update="updateLayerDraft" /></section></template>
     <template v-if="device && protocolReady && activeSection === 'lighting'"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" /></template>
     <template v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></template>
     <details v-if="device" class="developer-tools"><summary><strong>{{ t('app.developerTools') }}</strong> · {{ t('app.developerHint') }}</summary><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></details>

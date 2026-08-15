@@ -216,8 +216,11 @@ ObinsKit's packet builder splits those 62 bytes into payloads of 54 and 8, with
 packet markers `80` and `01`. The keyboard acknowledges each packet with a
 single-byte zero-based packet index. A Layer 0 no-op write was followed by the
 existing `10/02` read and matched all 61 bytes. The editor therefore snapshots
-the original layer, shows changed keys, requires confirmation, writes exactly
-two bounded packets, and rejects any non-identical readback.
+the original four layers, preserves drafts while switching tabs, writes all four
+layers as one user action, and rejects any non-identical readback. The unpacked
+renderer then calls `writeKbdLayout(1)` after all `downloadKbdLayout` calls; the
+web transport mirrors this mandatory User-layout activation/reload step and
+verifies `userLayout === 1` through `readHardwareState`.
 
 ### Lighting (`20/03` and `20/04`)
 

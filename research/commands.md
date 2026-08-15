@@ -19,7 +19,7 @@ Evidence labels:
 | `readBleMac` | read | BLE route, command/action `40/30`, 6-byte address | captured | R1 | implemented |
 | `deleteBleHost` | destructive config | BLE route, command/action `40/05`, status `00` | captured | W2 | implemented behind typed confirmation |
 | `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | captured for layers 0–3 | R1 | implemented |
-| `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix + 61 bytes split 54 + 8 | captured no-op round trip | W1 | implemented with backup and byte-level readback |
+| `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix + 61 bytes split 54 + 8, followed by `writeKbdLayout(1)` | captured no-op round trip + renderer sequence | W1 | four-layer transaction; ACK per packet, byte-level readback, User-layout readback |
 | ordinary setting writes | write + readback | `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native dispatch + brightness round trip | W1 | implemented with snapshot and verification |
 | `prepare/clearMacro(length)` | write | command/action `30/0a`; UInt32LE complete image length | renderer + staged physical round trip | W1 | implemented |
 | `downloadMacro(offset, chunk)` | chunked write | command/action `30/05`; UInt32LE offset + up to 49 image bytes | renderer + native dispatch + staged physical round trip | W1 | implemented with backup and semantic readback |
@@ -68,3 +68,13 @@ ObinsKit's direction names are from the keyboard's perspective:
 - `downloadKbdLayout(layer, data)` writes one layer to the keyboard using `10/01`.
 
 Captured `10/02` responses use protocol `0x12` multipart byte 3 as a continuation/index field: `0x80` is packet index 0 with more data, and `0x01` is final packet index 1. Their 54-byte and 7-byte data payloads assemble into a 61-byte Anne Pro 2 layer.
+
+## Write verification audit
+
+Every exposed write is bounded and verified at the strongest level the device supports:
+
+- Keyboard layers, ordinary settings, LED power, indicator color, and macros receive typed acknowledgements and semantic readback. Layout writes cover all four layers and finish with ObinsKit's `writeKbdLayout(1)` reload step.
+- Persistent lighting receives a typed acknowledgement for the list header and every multipart packet. Firmware exposes no lighting read command, so the UI explicitly treats the list as host-managed and does not claim semantic readback.
+- BLE-host deletion validates its returned zero status. There is no safe command that enumerates paired hosts afterward.
+- Lighting preview and audio visualization are transient operations for which the captured C18 firmware emits no acknowledgement. They are single-flight, size/rate bounded, and only treat `sendReport()` completion as transport success.
+- Factory restore composes the operations above and compares every readable setting, LED power, indicator color, and macro state after writing; lighting and deleted BLE pairings retain their documented device limitations.

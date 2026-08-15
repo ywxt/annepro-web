@@ -357,6 +357,24 @@ export class AnneProHidTransport {
     return readback
   }
 
+  /** Mirrors ObinsKit: download all four layers, then activate/reload User layout. */
+  async writeKeyboardLayers(
+    layers: readonly Uint8Array[],
+    timeoutMs = 2000,
+  ): Promise<{ layers: KeyboardLayerResponse[]; state: HardwareState }> {
+    if (layers.length !== 4) throw new Error(`Expected four keyboard layers, got ${layers.length}`)
+    const readbacks: KeyboardLayerResponse[] = []
+    for (const [layer, data] of layers.entries()) {
+      readbacks.push(await this.writeKeyboardLayer(layer, data, timeoutMs))
+    }
+    // ObinsKit always sends writeKbdLayout(1) after downloadKbdLayout, even if
+    // User layout was already selected. Re-sending it reloads the runtime map.
+    await this.writeHardwareSetting('userLayout', 1, timeoutMs)
+    const state = await this.readHardwareState(timeoutMs)
+    if (state.userLayout !== 1) throw new Error(`User layout readback is ${state.userLayout}, expected 1`)
+    return { layers: readbacks, state }
+  }
+
   /** Preview is fire-and-forget in ObinsKit and produced no input acknowledgement on C18. */
   async previewLight(effect: LightEffect): Promise<void> {
     const requests = createPreviewLightRequests(effect)
