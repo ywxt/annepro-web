@@ -9,16 +9,17 @@ Only implement safe, read-only device exploration:
 - Request and open supported Anne Pro 2 devices.
 - Display device, collection, and report metadata.
 - Record input reports.
-- Keep HID transport separate from UI and protocol code.
+- Keep HID transport separate from Vue UI and protocol code.
 - Add tests for packet formatting and metadata extraction.
 
 ## Safety
 
-Do not send output reports, feature reports, firmware data, IAP commands, flash erase commands, or unconfirmed HID packets without explicit user approval. Do not implement firmware updates in early versions.
+The user has explicitly authorized bounded discovery sends for commands that static analysis or captured behavior indicates are read-only. Such probes must be fixed, single-shot, low-frequency, response-bounded, recorded, and never automatically retried. Do not send commands that may mutate configuration, switch IAP mode, write firmware/memory, erase flash, or perform an unknown-direction operation without separate explicit approval. Do not implement firmware updates in early versions.
 
 ## Engineering
 
-- Use TypeScript, Vite, native WebHID, and Vitest.
+- Use TypeScript, Vue 3, Vite, native WebHID, and Vitest. Do not construct the application UI as HTML strings in `main.ts`.
+- Use the checked-in `flake.nix` as the Node.js/pnpm development environment (`nix develop`). Let pnpm manage `node_modules`; do not Nix-package JavaScript dependencies.
 - Run on localhost or HTTPS.
 - Keep packet encoding and decoding independently testable.
 - Display and export raw packets as hexadecimal.
