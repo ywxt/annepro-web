@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { requiredLightColorCount, type LightEffect } from '../protocol/lighting.ts'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ effects: LightEffect[]; busy: boolean }>()
 const emit = defineEmits<{ update: [effects: LightEffect[]]; preview: [effect: LightEffect]; install: []; export: []; import: [file: File] }>()
@@ -13,6 +14,7 @@ const typeNames: Record<number, string> = {
 }
 const count = computed(() => props.effects.length)
 const expanded = ref<number | null>(null)
+const { t } = useI18n()
 const rowLengths = [14, 14, 13, 12, 8]
 const rowOffsets = [0, 14, 28, 41, 53]
 const rainbow = ['#ff0000', '#ff8000', '#ffff00', '#80ff00', '#00ff00', '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff', '#ff00ff', '#ff0080']
@@ -37,7 +39,7 @@ function changeColor(effectIndex: number, colorIndex: number, color: string): vo
 }
 function add(): void {
   if (props.effects.length >= 32) return
-  emit('update', [...props.effects, { name: `Effect ${props.effects.length + 1}`, type: 1, colors: ['#ff0000'] }])
+  emit('update', [...props.effects, { name: t('lighting.effectName', { count: props.effects.length + 1 }), type: 1, colors: ['#ff0000'] }])
 }
 function remove(index: number): void { emit('update', props.effects.filter((_, current) => current !== index)) }
 function pickFile(event: Event): void {
@@ -48,16 +50,16 @@ function pickFile(event: Event): void {
 
 <template>
   <section class="card">
-    <div class="section-heading"><div><p class="eyebrow">HOST-MANAGED · WRITE</p><h2>燈效</h2></div><div class="actions"><label class="file-button">匯入<input type="file" accept="application/json" @change="pickFile"></label><button class="secondary" @click="$emit('export')">匯出</button><button class="secondary" :disabled="busy || count >= 32" @click="add">新增</button><button :disabled="busy || count === 0" @click="$emit('install')">安裝全部（{{ count }}）</button></div></div>
-    <p class="empty">Anne Pro 2 不提供燈效讀回；這裡是瀏覽器本機設定檔。Preview 不持久化，安裝會覆寫鍵盤的燈效清單。</p>
+    <div class="section-heading"><div><p class="eyebrow">HOST-MANAGED · WRITE</p><h2>{{ t('lighting.title') }}</h2></div><div class="actions"><label class="file-button">{{ t('lighting.import') }}<input type="file" accept="application/json" @change="pickFile"></label><button class="secondary" @click="$emit('export')">{{ t('lighting.export') }}</button><button class="secondary" :disabled="busy || count >= 32" @click="add">{{ t('lighting.add') }}</button><button :disabled="busy || count === 0" @click="$emit('install')">{{ t('lighting.install', { count }) }}</button></div></div>
+    <p class="empty">{{ t('lighting.help') }}</p>
     <div v-for="(effect, index) in effects" :key="index" class="light-item">
       <input :value="effect.name" maxlength="40" @change="replace(index, { name: ($event.target as HTMLInputElement).value })">
       <select :value="effect.type" @change="changeType(index, Number(($event.target as HTMLSelectElement).value))"><option v-for="(name, type) in typeNames" :key="type" :value="Number(type)">{{ name }} ({{ type }})</option></select>
       <input type="color" :value="effect.colors[0]" @input="changePrimary(index, ($event.target as HTMLInputElement).value)">
-      <span>{{ effect.colors.length }} colors</span>
-      <button v-if="effect.colors.length > 1" class="secondary" :disabled="busy" @click="expanded = expanded === index ? null : index">{{ expanded === index ? '收合顏色' : (effect.type === 2 ? '逐鍵顏色' : '編輯色盤') }}</button>
-      <button class="secondary" :disabled="busy" @click="$emit('preview', effect)">Preview</button>
-      <button class="danger" :disabled="busy" @click="remove(index)">刪除</button>
+      <span>{{ t('lighting.colors', { count: effect.colors.length }) }}</span>
+      <button v-if="effect.colors.length > 1" class="secondary" :disabled="busy" @click="expanded = expanded === index ? null : index">{{ expanded === index ? t('lighting.collapse') : (effect.type === 2 ? t('lighting.perKey') : t('lighting.palette')) }}</button>
+      <button class="secondary" :disabled="busy" @click="$emit('preview', effect)">{{ t('lighting.preview') }}</button>
+      <button class="danger" :disabled="busy" @click="remove(index)">{{ t('lighting.remove') }}</button>
       <div v-if="expanded === index && effect.type === 2" class="light-color-editor per-key-colors">
         <div v-for="(length, row) in rowLengths" :key="row" class="color-row">
           <label v-for="column in length" :key="column" :title="`Key ${rowOffsets[row] + column - 1}: ${effect.colors[rowOffsets[row] + column - 1]}`">

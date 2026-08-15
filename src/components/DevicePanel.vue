@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 defineProps<{ device: HIDDevice; deviceType: DeviceTypeResponse | null; firmware: FirmwareVersions | null; iap: IapModeResponse | null; capabilities: DeviceCapabilities | null; busy: string | null; protocolReady: boolean; fullBackupReady: boolean }>()
 const emit = defineEmits<{ readAll: []; exportFullBackup: []; importFullBackup: [file: File]; readDeviceType: []; readFirmware: []; readIap: []; readLayer: [layer: number] }>()
 const { t } = useI18n()
+function support(value: boolean | null): string { return value === null ? t('device.waiting') : value ? t('device.supported') : t('device.unsupported') }
 function pickFullBackup(event: Event): void { const file = (event.target as HTMLInputElement).files?.[0]; if (file) emit('importFullBackup', file) }
 </script>
 
@@ -21,12 +22,12 @@ function pickFullBackup(event: Event): void { const file = (event.target as HTML
       <p v-if="deviceType" class="decoded">Model {{ deviceType.model }} ({{ deviceType.modelName }}) · Type {{ deviceType.type }} ({{ deviceType.typeName }}) · Frame {{ bytesToHex(deviceType.rawFrame) }} · Ignored {{ deviceType.trailingLength }} trailing bytes</p><p v-if="firmware" class="decoded">Firmware · Key {{ firmware.key }} · LED {{ firmware.led }} · BLE {{ firmware.ble }} · Frame {{ bytesToHex(firmware.rawFrame) }} · Ignored {{ firmware.trailingLength }} trailing bytes</p><p v-if="iap" class="decoded">IAP state code {{ iap.mode }} · Frame {{ bytesToHex(iap.rawFrame) }} · Ignored {{ iap.trailingLength }} trailing bytes</p></details>
     <div v-if="capabilities" class="capability-summary">
       <strong>{{ t('device.capabilities') }}</strong> ·
-      RGB {{ capabilities.hasLed ? '支援' : '不支援' }} ·
-      獨立指示燈 {{ capabilities.hasIndicatorLed ? '支援' : '不支援' }} ·
-      電池／休眠 {{ capabilities.hasBattery ? '支援' : '不支援' }} ·
-      音訊燈效 {{ capabilities.audioVisualization ? '支援' : '不支援' }} ·
-      Tap 進階設定 {{ capabilities.modernTapSettings === null ? '等待韌體版本' : capabilities.modernTapSettings ? '支援' : '不支援' }} ·
-      LED 功率模式 {{ capabilities.ledPowerMode === null ? '等待韌體版本' : capabilities.ledPowerMode ? '支援' : '不支援' }}
+      {{ t('device.rgb') }} {{ support(capabilities.hasLed) }} ·
+      {{ t('device.indicator') }} {{ support(capabilities.hasIndicatorLed) }} ·
+      {{ t('device.battery') }} {{ support(capabilities.hasBattery) }} ·
+      {{ t('device.audio') }} {{ support(capabilities.audioVisualization) }} ·
+      {{ t('device.tap') }} {{ support(capabilities.modernTapSettings) }} ·
+      {{ t('device.ledPower') }} {{ support(capabilities.ledPowerMode) }}
     </div>
   </section>
 </template>

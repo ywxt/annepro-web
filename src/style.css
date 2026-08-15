@@ -11,6 +11,13 @@ header { max-width: 720px; margin-bottom: 36px; }
 .raw-details { margin-top: 16px; }
 .protocol-actions { margin-top: 12px; }
 .capability-summary { margin-top: 16px; color: #929dac; font-size: 13px; }
+.workspace-nav { position: sticky; top: 10px; z-index: 5; display: flex; gap: 6px; margin: 20px 0 28px; padding: 6px; overflow-x: auto; border: 1px solid #293340; border-radius: 12px; background: rgba(12, 16, 23, .94); backdrop-filter: blur(12px); }
+.nav-button { flex: 1; min-width: 92px; color: #929dac; background: transparent; }
+.nav-button:hover { color: #e8ecf2; background: #18222e; }
+.nav-button.active { color: #07120e; background: #62e5b4; }
+.layer-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.layer-tabs button.secondary { margin-left: 0; }
+.layer-tabs button.active { color: #07120e; border-color: #62e5b4; background: #62e5b4; }
 .eyebrow { color: #62e5b4; font: 700 12px/1.4 ui-monospace, monospace; letter-spacing: .16em; }
 h1 { margin: 10px 0 14px; font-size: clamp(36px, 6vw, 66px); line-height: 1; letter-spacing: -.045em; }
 h2, h3, p { margin-top: 0; }

@@ -39,7 +39,7 @@ import { parseFullBackup } from './protocol/full-backup.ts'
 const supported = isWebHidSupported()
 const { t } = useI18n()
 const connecting = ref(false)
-const message = ref(supported ? '' : '此瀏覽器不支援 WebHID')
+const message = ref(supported ? '' : t('app.unsupported'))
 const device = shallowRef<HIDDevice | null>(null)
 const transport = shallowRef<AnneProHidTransport | null>(null)
 const protocolReady = ref(false)
@@ -62,6 +62,9 @@ const audioRunning = ref(false)
 const audioMode = ref<AudioVisualizeMode>('pure')
 const audioColor = ref('#00ff80')
 const audioFrames = ref(0)
+type WorkspaceSection = 'device' | 'keys' | 'lighting' | 'macros' | 'settings'
+const activeSection = ref<WorkspaceSection>('device')
+const activeLayer = ref(0)
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const layerBackups = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
@@ -71,6 +74,14 @@ const collections = computed(() => device.value ? collectMetadata(device.value.c
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
 const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
 const capabilities = computed(() => deriveDeviceCapabilities(deviceType.value, firmware.value))
+const navigation = computed<Array<{ id: WorkspaceSection; label: string }>>(() => {
+  const items: Array<{ id: WorkspaceSection; label: string }> = [{ id: 'device', label: t('nav.device') }]
+  if (capabilities.value?.keyboardLayers) items.push({ id: 'keys', label: t('nav.keys') })
+  if (capabilities.value?.hasLed) items.push({ id: 'lighting', label: t('nav.lighting') })
+  if (capabilities.value?.macros) items.push({ id: 'macros', label: t('nav.macros') })
+  if (capabilities.value?.generalSettings) items.push({ id: 'settings', label: t('nav.settings') })
+  return items
+})
 const fullBackupReady = computed(() => Boolean(
   deviceType.value && firmware.value && hardwareState.value && macroBackup.value && allLayersLoaded.value
   && (!capabilities.value?.ledPowerMode || ledPowerMode.value)
@@ -95,6 +106,9 @@ function loadLightEffects(): LightEffect[] {
 }
 
 watch(lightEffects, effects => localStorage.setItem(LIGHT_STORAGE_KEY, JSON.stringify(effects)), { deep: true })
+watch(navigation, items => {
+  if (!items.some(item => item.id === activeSection.value)) activeSection.value = 'device'
+})
 
 function downloadJson(filename: string, value: unknown): void {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }))
@@ -107,16 +121,16 @@ function downloadJson(filename: string, value: unknown): void {
 
 async function connect(): Promise<void> {
   connecting.value = true
-  message.value = '等待選擇裝置…'
+  message.value = t('notice.selecting')
   try {
     await useSelection(await requestAnneProDevice())
   } catch (error) {
-    message.value = `連接失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('app.connect'), error: error instanceof Error ? error.message : String(error) })
   } finally { connecting.value = false }
 }
 
 async function useSelection(selection: DeviceSelection): Promise<void> {
-  if (!selection.device) { message.value = '沒有可用的 Anne Pro 2 協議介面。'; return }
+  if (!selection.device) { message.value = t('notice.noDevice'); return }
   const previous = transport.value
   const nextTransport = new AnneProHidTransport(selection.device)
   await nextTransport.open()
@@ -126,17 +140,15 @@ async function useSelection(selection: DeviceSelection): Promise<void> {
   transport.value = nextTransport
   protocolReady.value = selection.hasProtocolCollection
   stopListening = nextTransport.listen((record) => records.value.unshift(record))
-  message.value = selection.hasProtocolCollection
-    ? `已從 ${selection.candidates.length} 個候選介面中連接協議 collection。`
-    : `找到 ${selection.candidates.length} 個候選，但未選到 64-byte 協議介面。`
+  message.value = selection.hasProtocolCollection ? t('notice.connected') : t('notice.noProtocol')
   if (selection.hasProtocolCollection) await readAll()
 }
 
 async function reconnectGranted(): Promise<void> {
   connecting.value = true
-  message.value = '正在尋找已授權的 Anne Pro 2…'
+  message.value = t('notice.connecting')
   try { await useSelection(await getPreferredGrantedAnneProDevice()) }
-  catch (error) { message.value = `快速重連失敗：${error instanceof Error ? error.message : String(error)}` }
+  catch (error) { message.value = t('notice.failed', { name: t('app.reconnect'), error: error instanceof Error ? error.message : String(error) }) }
   finally { connecting.value = false }
 }
 
@@ -147,11 +159,11 @@ function onHidDisconnect(event: HIDConnectionEvent): void {
   stopListening = null
   transport.value = null
   protocolReady.value = false
-  message.value = 'Anne Pro 2 已斷線。重新插入後可使用「快速重連」。'
+  message.value = t('notice.disconnected')
 }
 
 function onHidConnect(event: HIDConnectionEvent): void {
-  if (event.device.vendorId === 0x04d9) message.value = '偵測到 HID 裝置重新接入；可使用「快速重連」。'
+  if (event.device.vendorId === 0x04d9) message.value = t('notice.reinserted')
 }
 
 onMounted(() => {
@@ -163,9 +175,9 @@ onMounted(() => {
 async function confirmedRead<T>(name: string, prompt: string, read: () => Promise<T>, assign: (value: T) => void): Promise<void> {
   void prompt
   busy.value = name
-  message.value = `等待 ${name} 回應…`
-  try { assign(await read()); message.value = `${name} 完成。` }
-  catch (error) { message.value = `${name} 失敗：${error instanceof Error ? error.message : String(error)}` }
+  message.value = t('notice.waiting', { name })
+  try { assign(await read()); message.value = t('notice.done', { name }) }
+  catch (error) { message.value = t('notice.failed', { name, error: error instanceof Error ? error.message : String(error) }) }
   finally { busy.value = null }
 }
 
@@ -192,7 +204,7 @@ async function readAll(): Promise<void> {
       layers.value = nextLayers
     }
     if (capabilities.value?.macros) macroBackup.value = await transport.value.readMacroBackup()
-    message.value = '所有可讀資訊與配置已完成讀取；鍵位與巨集現在可匯出備份。'
+    message.value = t('notice.loaded')
   } catch (error) {
     message.value = `完整讀取在 ${busy.value} 階段失敗：${error instanceof Error ? error.message : String(error)}；先前已完成的資料仍保留。`
   } finally { busy.value = null }
@@ -272,7 +284,7 @@ async function readIdentity(): Promise<void> {
 
 async function deleteBleHosts(): Promise<void> {
   if (!transport.value) return
-  const confirmation = window.prompt('此操作會刪除鍵盤記住的所有藍牙主機，且無法由本工具復原。\n\n請輸入 DELETE BLE 繼續：')
+  const confirmation = window.prompt(t('danger.clearBle'))
   if (confirmation !== 'DELETE BLE') return
   busy.value = 'delete BLE hosts'
   try {
@@ -285,7 +297,7 @@ async function deleteBleHosts(): Promise<void> {
 
 async function factoryReset(): Promise<void> {
   if (!transport.value || !hardwareState.value || !capabilities.value?.profileKnown) return
-  const confirmation = window.prompt('這會覆寫一般設定與燈效、清空所有巨集及 BLE 配對。燈效與 BLE 配對無法自動復原。\n\n請輸入 FACTORY RESET 繼續：')
+  const confirmation = window.prompt(t('danger.factory'))
   if (confirmation !== 'FACTORY RESET') return
   busy.value = 'factory reset'
   try {
@@ -318,6 +330,15 @@ const STATE_KEYS: readonly Exclude<HardwareSettingKey, 'ledPowerMode'>[] = [
   'userLayout', 'magicFn', 'macroTrigger', 'capslockLed', 'backlightBrightness',
   'ledHold', 'tapStatus', 'tapActMode', 'tapTimeoutValue', 'sleepTimeoutRaw',
 ]
+function settingName(key: HardwareSettingKey): string {
+  const names: Record<HardwareSettingKey, string> = {
+    userLayout: t('settings.layout'), magicFn: 'Magic Fn', macroTrigger: t('settings.macroTrigger'),
+    capslockLed: t('settings.capsLed'), backlightBrightness: t('settings.backlight'), ledHold: t('settings.autoSleep'),
+    tapStatus: 'Tap', tapActMode: t('settings.tapMode'), tapTimeoutValue: t('settings.tapTime'),
+    sleepTimeoutRaw: t('settings.sleepTime'), ledPowerMode: t('settings.ledPower'),
+  }
+  return names[key]
+}
 
 async function applySetting(key: HardwareSettingKey, value: number): Promise<void> {
   if (!transport.value || !hardwareState.value) return
@@ -334,9 +355,9 @@ async function applySetting(key: HardwareSettingKey, value: number): Promise<voi
       if (readback[key] !== value) throw new Error(`回讀值 ${readback[key]} 不符合 ${value}`)
       hardwareState.value = readback
     }
-    message.value = `${key} 已寫入並回讀驗證。`
+    message.value = t('notice.settingSaved', { name: settingName(key) })
   } catch (error) {
-    message.value = `${key} 寫入失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: settingName(key), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -368,9 +389,9 @@ async function restoreSettings(): Promise<void> {
     hardwareState.value = readback
     if (backup.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
     settingsBackup.value = null
-    message.value = '一般設定已復原並完成回讀驗證。'
+    message.value = t('notice.settingsRestored')
   } catch (error) {
-    message.value = `設定復原失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('settings.restore'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -510,9 +531,9 @@ async function applyMacros(macros: StoredMacro[], bindings: ActiveMacroBinding[]
   try {
     macroBackup.value = await transport.value.writeMacros(macros, bindings)
     hardwareState.value = await transport.value.readHardwareState()
-    message.value = '巨集映像已寫入並完成逐項回讀驗證。'
+    message.value = t('notice.macroSaved')
   } catch (error) {
-    message.value = `巨集寫入失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('macro.apply'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -524,9 +545,9 @@ async function restoreMacros(): Promise<void> {
     macroBackup.value = await transport.value.writeMacros(backup.macros, backup.activeList)
     hardwareState.value = await transport.value.readHardwareState()
     originalMacroBackup.value = null
-    message.value = '巨集已復原並完成回讀驗證。'
+    message.value = t('notice.macroRestored')
   } catch (error) {
-    message.value = `巨集復原失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('macro.restore'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -591,9 +612,9 @@ async function applyLayer(layer: number, data: Uint8Array): Promise<void> {
     const next = layers.value.slice()
     next[layer] = readback
     layers.value = next
-    message.value = `Layer ${layer} 已寫入並逐 byte 驗證。`
+    message.value = t('notice.layerSaved', { name: t(`layer.${layer}`) })
   } catch (error) {
-    message.value = `Layer ${layer} 寫入失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t(`layer.${layer}`), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -609,9 +630,9 @@ async function restoreLayer(layer: number): Promise<void> {
     const backups = layerBackups.value.slice()
     backups[layer] = null
     layerBackups.value = backups
-    message.value = `Layer ${layer} 已復原並驗證。`
+    message.value = t('notice.layerRestored', { name: t(`layer.${layer}`) })
   } catch (error) {
-    message.value = `Layer ${layer} 復原失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t(`layer.${layer}`), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -620,21 +641,21 @@ async function previewLight(effect: LightEffect): Promise<void> {
   busy.value = 'preview light'
   try {
     await transport.value.previewLight(effect)
-    message.value = `已預覽燈效 ${effect.name}；此操作不改寫燈效清單。`
+    message.value = t('notice.previewed', { name: effect.name })
   } catch (error) {
-    message.value = `燈效預覽失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('lighting.preview'), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
 async function installLights(): Promise<void> {
   if (!transport.value || lightEffects.value.length === 0) return
-  if (!window.confirm(`將以本機設定檔覆寫鍵盤的 ${lightEffects.value.length} 個燈效。\n\n鍵盤不支援讀回既有燈效，因此無法自動備份目前清單。確定繼續？`)) return
+  if (!window.confirm(t('danger.lights', { count: lightEffects.value.length }))) return
   busy.value = 'install lights'
   try {
     await transport.value.installLights(lightEffects.value)
-    message.value = `已安裝 ${lightEffects.value.length} 個燈效。`
+    message.value = t('notice.lightsInstalled', { count: lightEffects.value.length })
   } catch (error) {
-    message.value = `燈效安裝失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('lighting.install', { count: lightEffects.value.length }), error: error instanceof Error ? error.message : String(error) })
   } finally { busy.value = null }
 }
 
@@ -651,9 +672,9 @@ async function importLights(file: File): Promise<void> {
     if (parsed.effects.length > 32) throw new Error('燈效不可超過 32 個')
     parsed.effects.forEach(encodeLightRgb)
     lightEffects.value = parsed.effects
-    message.value = `已匯入 ${parsed.effects.length} 個本機燈效；尚未寫入鍵盤。`
+    message.value = t('notice.lightsImported', { count: parsed.effects.length })
   } catch (error) {
-    message.value = `燈效匯入失敗：${error instanceof Error ? error.message : String(error)}`
+    message.value = t('notice.failed', { name: t('lighting.import'), error: error instanceof Error ? error.message : String(error) })
   }
 }
 
@@ -685,7 +706,7 @@ async function startAudioVisualize(): Promise<void> {
         .catch((error: unknown) => { message.value = `Audio Visualize 傳送失敗：${error instanceof Error ? error.message : String(error)}`; void stopAudioVisualize(false) })
         .finally(() => { audioSending = false })
     }, 50)
-    message.value = 'Audio Visualize 已開始（最多 20 FPS）。'
+    message.value = t('notice.audioStarted')
   } catch (error) {
     message.value = `無法開始 Audio Visualize：${error instanceof Error ? error.message : String(error)}`
     await stopAudioVisualize(false)
@@ -701,7 +722,7 @@ async function stopAudioVisualize(restore = true): Promise<void> {
   if (audioContext) await audioContext.close().catch(() => undefined)
   audioContext = null
   if (restore && transport.value && lightEffects.value[0]) {
-    try { await transport.value.previewLight(lightEffects.value[0]); message.value = 'Audio Visualize 已停止，並恢復第一個本機燈效。' }
+    try { await transport.value.previewLight(lightEffects.value[0]); message.value = t('notice.audioStopped') }
     catch (error) { message.value = `Audio Visualize 已停止，但恢復燈效失敗：${error instanceof Error ? error.message : String(error)}` }
   }
 }
@@ -721,16 +742,12 @@ onBeforeUnmount(() => {
   <div class="topbar"><header><p class="eyebrow">WEBHID CONFIGURATOR</p><h1>{{ t('app.title') }}</h1><p class="lede">{{ t('app.subtitle') }}</p></header><LanguageSwitcher /></div>
   <section class="card status"><div><span class="dot"></span>{{ supported ? t('app.available') : t('app.unsupported') }}</div><div class="actions"><button class="secondary" :disabled="!supported || connecting" @click="reconnectGranted">{{ t('app.reconnect') }}</button><button :disabled="!supported || connecting" @click="connect">{{ t('app.connect') }}</button></div></section>
   <p id="message" role="status" aria-live="polite">{{ message }}</p>
-  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
-  <section v-if="capabilities?.keyboardLayers && loadedLayers.length" class="section-heading"><h2>{{ t('app.keyboardLayers') }}</h2><div class="actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="!allLayersLoaded || busy !== null" @change="pickLayoutFile"></label><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">{{ t('app.exportLayers') }}</button></div></section>
-  <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" :busy="busy !== null" :has-backup="layerBackups[layer.layer] !== null" @apply="applyLayer" @restore="restoreLayer" />
-  <LightingPanel v-if="device && protocolReady && capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" />
-  <AudioVisualizePanel v-if="device && protocolReady && capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" />
-  <RuntimeInfoPanel v-if="device && protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" />
-  <IdentityPanel v-if="device && protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" />
-  <FactoryResetPanel v-if="device && protocolReady && capabilities?.factoryReset" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" />
-  <MacroPanel v-if="device && protocolReady && capabilities?.macros" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" />
-  <SettingsPanel v-if="device && protocolReady && capabilities?.generalSettings" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-setting="applySetting" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" />
+  <nav v-if="device && protocolReady" class="workspace-nav" :aria-label="t('app.title')"><button v-for="item in navigation" :key="item.id" class="nav-button" :class="{ active: activeSection === item.id }" @click="activeSection = item.id">{{ item.label }}</button></nav>
+  <template v-if="device && activeSection === 'device'"><DevicePanel :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></template>
+  <template v-if="activeSection === 'keys'"><section v-if="loadedLayers.length" class="section-heading"><div><h2>{{ t('app.keyboardLayers') }}</h2><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div></div><div class="actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="!allLayersLoaded || busy !== null" @change="pickLayoutFile"></label><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">{{ t('app.exportLayers') }}</button></div></section><KeyboardLayout v-if="layers[activeLayer]" :key="activeLayer" :layer="layers[activeLayer]!" :busy="busy !== null" :has-backup="layerBackups[activeLayer] !== null" @apply="applyLayer" @restore="restoreLayer" /></template>
+  <template v-if="device && protocolReady && activeSection === 'lighting'"><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" /></template>
+  <MacroPanel v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" />
+  <SettingsPanel v-if="device && protocolReady && activeSection === 'settings' && capabilities?.generalSettings" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-setting="applySetting" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" />
   <details v-if="device" class="developer-tools"><summary><strong>{{ t('app.developerTools') }}</strong> · {{ t('app.developerHint') }}</summary><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></details>
   <footer>{{ t('app.footer') }}</footer>
 </template>
