@@ -93,8 +93,8 @@ import {
 
 export type InputReportListener = (report: InputReportRecord) => void
 
-/** Fixed, captured read-only operations only; no arbitrary report API is exposed. */
-export class ReadonlyHidTransport {
+/** Typed, bounded Anne Pro operations only; no arbitrary report API is exposed. */
+export class AnneProHidTransport {
   private listener: ((event: HIDInputReportEvent) => void) | null = null
   private confirmedReadPending = false
 
@@ -102,6 +102,11 @@ export class ReadonlyHidTransport {
 
   async open(): Promise<void> {
     if (!this.device.opened) await this.device.open()
+  }
+
+  async close(): Promise<void> {
+    this.stopListening()
+    if (this.device.opened) await this.device.close()
   }
 
   listen(onReport: InputReportListener): () => void {
@@ -121,7 +126,7 @@ export class ReadonlyHidTransport {
     this.listener = null
   }
 
-  /** The only allowed output: one captured and independently verified read-only query. */
+  /** Captured, independently verified read-only query. */
   async readDeviceType(timeoutMs = 1500): Promise<DeviceTypeResponse> {
     return this.requestConfirmedRead(
       createReadDeviceTypeRequest(),

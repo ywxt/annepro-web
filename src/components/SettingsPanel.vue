@@ -16,7 +16,7 @@ const description = computed(() => props.state ? describeHardwareState(props.sta
 
 <template>
   <section class="card">
-    <div class="section-heading"><div><p class="eyebrow">READ-ONLY</p><h2>一般設定</h2></div><div class="actions"><button class="secondary" :disabled="busy" @click="$emit('readState')">讀取硬體狀態</button><button v-if="capabilities?.ledPowerMode" class="secondary" :disabled="busy" @click="$emit('readLedPowerMode')">讀取 LED 功率模式</button></div></div>
+    <div class="section-heading"><div><p class="eyebrow">READ · WRITE · VERIFIED</p><h2>一般設定</h2></div><div class="actions"><button class="secondary" :disabled="busy" @click="$emit('readState')">讀取硬體狀態</button><button v-if="capabilities?.ledPowerMode" class="secondary" :disabled="busy" @click="$emit('readLedPowerMode')">讀取 LED 功率模式</button></div></div>
     <p v-if="!state" class="empty">尚未讀取鍵盤設定快照。</p>
     <template v-else>
       <dl v-if="description" class="settings-grid">

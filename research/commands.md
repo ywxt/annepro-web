@@ -14,9 +14,11 @@ Evidence labels:
 | `readBattery` | read | command/action `01/05`, UInt16LE ADC + two reserved bytes | captured | R1 | implemented with ObinsKit voltage/percent curve |
 | `readHardwareState(MCU_MAIN)` | read | command/action `01/09`, 6-byte legacy or 24-byte modern response | captured | R1 | implemented |
 | `readLedPowerMode(MCU_MAIN)` | read | command/action `20/1e`, one-byte mode (`1` low, `2` high) | captured | R1 | implemented |
-| `readIapMode(MCU_MAIN)` | read | command/action `02/02`, report ID 0 | captured | R1 | implemented; mode labels pending |
-| `readUDID` | read sensitive | captured startup query strongly correlates with `01/0d` | renderer + capture correlation | R1/private | not implemented |
-| `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | startup capture + native dispatch | R1 | offline assembler implemented; isolated layer capture pending |
+| `readIapMode(MCU_MAIN)` | read | command/action `02/02`, report ID 0 | captured | R1 | implemented; no mode switch |
+| `readUDID` | read sensitive | command/action `01/0d`, 16 bytes | captured/redacted | R1/private | implemented, masked and excluded from export |
+| `readBleMac` | read | BLE route, command/action `40/30`, 6-byte address | captured | R1 | implemented |
+| `deleteBleHost` | destructive config | BLE route, command/action `40/05`, status `00` | captured | W2 | implemented behind typed confirmation |
+| `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | captured for layers 0–3 | R1 | implemented |
 | `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix + 61 bytes split 54 + 8 | captured no-op round trip | W1 | implemented with backup and byte-level readback |
 | ordinary setting writes | write + readback | `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native dispatch + brightness round trip | W1 | implemented with snapshot and verification |
 | `prepare/clearMacro(length)` | write | command/action `30/0a`; UInt32LE complete image length | renderer + staged physical round trip | W1 | implemented |
@@ -30,7 +32,11 @@ Evidence labels:
 | `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
 | `writeSleepTimeout` | configuration write | command/action `01/0f`, UInt16LE seconds | native dispatch | W1 | implemented with readback |
 | `writeAudioVisualize` | transient stream | `20/11`; `ff 01 + RGB` or `ff 02 + 64 RGB`, multipart when needed | native dispatch + bounded physical frame | W1 | implemented at max 20 FPS, awaited single-flight |
+| indicator color | read/write/readback | `20/1a` read RGB, `20/1b` write RGB | captured same-value round trip | W1 | implemented with backup/restore |
+| factory reset | composed write | ObinsKit defaults + empty macro + 11 lights + BLE clear | renderer/SQL defaults | W2 | implemented behind typed confirmation |
 | `writeMacro` (legacy) | multi-packet write | `30/01`; index, trigger, event records + separator | native + renderer | W1 | not used; full image path supersedes it |
+| virtual mouse config | other-model read/write | command `60`, actions `01/02/03/05` | native dispatch; C18 no response | N/A | intentionally capability-excluded |
+| combination/OLED/indicator location | other-model operations | model-specific | renderer capability gates | N/A | intentionally capability-excluded |
 | `writeIapMode` | mode switch | unresolved | static symbol | X | forbidden/deferred |
 | `writeIapMemory` | firmware write | unresolved | observed name | X | forbidden/deferred |
 | `writeEraseMemory` | flash erase | unresolved | static symbol | X | forbidden/deferred |

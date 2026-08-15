@@ -1,11 +1,11 @@
 # Anne Pro Web Configurator
 
-An open-source WebHID configurator for Anne Pro 2. Protocol compatibility
-is implemented with direct reference to the unpacked ObinsKit application, while
-the web UI and safety model are independently maintained. The MVP opens a
-supported device, exports HID metadata, records input reports, reads confirmed
-device information, and renders keyboard layers. It intentionally has no
-arbitrary HID or configuration-write API.
+An open-source WebHID configurator for Anne Pro 2. Protocol compatibility is
+implemented with direct reference to ObinsKit 1.2.11. It connects directly from
+the browser without a backend and supports device information, all four keyboard
+layers, ordinary settings, CapsLock color, lighting profiles, macros, audio
+visualization, battery/runtime information, BLE management, and guarded factory
+reset. IAP and firmware modification are deliberately excluded.
 
 ## Run locally
 
@@ -19,9 +19,48 @@ pnpm dev
 
 With nix-direnv enabled, run `direnv allow` once; the checked-in `.envrc` then loads the same flake automatically whenever the directory is entered.
 
-Open the localhost URL printed by Vite, click **連接 Anne Pro 2**, and choose the vendor-defined HID interface. WebHID is available only in a secure context: HTTPS or localhost. It is not supported by Firefox or Safari.
+Open the localhost URL printed by Vite, click **選擇 Anne Pro 2**, and choose the
+protocol interface. Once permission has been granted, **快速重連** opens the
+preferred interface without showing the chooser. WebHID is available only in a
+secure context: HTTPS or localhost. It is not supported by Firefox or Safari.
 
-The chooser narrows all four supported VID/PID pairs to the descriptor observed on Anne Pro 2 `0xa293`: usage page `0x0001`, usage `0x0000`, with 64-byte input and output reports using report ID 0. The app also examines every previously granted candidate and accepts a vendor-defined collection for other firmware variants. If an older permission still yields only `0x0001 / 0x0006` with no reports, Chrome has exposed the protected standard keyboard collection; choose the newly filtered entry and export its metadata. Output reports are sent only after per-action confirmation for the fixed read-only queries described below.
+The chooser narrows all four supported VID/PID pairs to the descriptor observed
+on Anne Pro 2 `0xa293`: usage page `0x0001`, usage `0x0000`, with 64-byte input
+and output reports using report ID 0. The app also examines every previously
+granted candidate and accepts a vendor-defined collection for other firmware
+variants. If Chrome exposes only the protected `0x0001 / 0x0006` keyboard
+collection, choose the newly filtered entry and inspect its exported metadata.
+USB removal is detected; reconnect the keyboard and use **快速重連**.
+
+## Supported configuration
+
+- Device model, firmware versions, IAP state (read only), masked UDID, BLE MAC,
+  battery voltage/estimate, cumulative runtime, HID collections, and raw reports.
+- Read, export, edit, verify, and restore all four 61-key layers with named HID
+  and Anne Pro keycodes.
+- Read and modify layout selection, Magic Fn, macro enable, CapsLock behavior and
+  RGB, backlight brightness, auto-sleep, Tap mode/timeout, sleep timeout, and LED
+  power mode.
+- Read/export/edit/install/restore macro images with CRC and active bindings.
+- Create, import, export, preview, and install static, per-key, and dynamic light
+  profiles; stream microphone visualization at a bounded 20 FPS.
+- Clear BLE host bindings and perform ObinsKit-equivalent non-firmware factory
+  reset behind typed destructive confirmation.
+
+Lighting firmware has no list-read command, so the app manages light profiles in
+browser storage and cannot back up a list already installed by another tool.
+
+## Compatibility
+
+| VID:PID | Expected mode | Status |
+| --- | --- | --- |
+| `04d9:a293` | Anne Pro 2 C18 normal USB | Physically verified, key `2.36`, LED `2.33`, BLE `2.05` |
+| `04d9:a292` | Anne Pro 2 variant | Filtered and capability-detected; physical verification pending |
+| `04d9:8008` | Alternate Anne Pro mode | Filtered; physical verification pending |
+| `04d9:8009` | Alternate Anne Pro mode | Filtered; physical verification pending |
+
+Unknown models remain visible for metadata inspection but configuration controls
+requiring an Anne Pro 2 profile stay capability-gated.
 
 ## Linux permissions
 
@@ -38,10 +77,18 @@ pnpm build
 
 ## Safety boundary
 
-The transport opens the device, listens for input, and exposes narrowly scoped device information plus guarded layout, lighting, macro, and ordinary-setting operations. Persistent readable data is backed up before its first edit and verified by device readback. Macro images use ObinsKit's full map/content/CRC format and 49-byte USB chunks. `readIapMode` only reports the state code and cannot switch modes. No arbitrary packet API, firmware write, IAP switch, flash erase, or firmware-memory operation is exposed.
+The transport exposes typed and bounded operations rather than an arbitrary
+packet API. Persistent readable data is backed up before its first edit and
+verified by device readback. Macro images use ObinsKit's complete
+map/content/CRC format and 49-byte USB chunks. Lighting previews and audio frames
+are bounded fire-and-forget operations because C18 provides no acknowledgement.
+`readIapMode` only reports state: no firmware write, IAP switch, flash erase, or
+firmware-memory operation is implemented.
 
-## Next protocol research
+## Protocol evidence
 
-Static analysis and controlled captures have confirmed the current identity, firmware, IAP-state, and Layer 0 reads, as documented in [`research/protocol.md`](research/protocol.md). Every additional command must be independently correlated and captured before it is added as a reviewed protocol function with fixture-based tests and a bounded UI action.
-
-Development is organized by the [`implementation roadmap`](research/roadmap.md) and [`command matrix`](research/commands.md). Firmware/IAP/erase operations are explicitly deferred from the normal configurator.
+Static analysis, controlled `/dev/hidraw10` captures, and same-value physical
+round trips are documented in [`research/protocol.md`](research/protocol.md).
+Development status and command evidence live in the
+[`implementation roadmap`](research/roadmap.md) and
+[`command matrix`](research/commands.md).

@@ -21,10 +21,12 @@ export const ANNE_PRO_2_FACTORY_SETTINGS: Readonly<Record<HardwareSettingKey, nu
 export function annePro2FactoryLights(): LightEffect[] {
   const staticColors = [
     ['Red', '#ff0000'], ['Yellow', '#ffff00'], ['Green', '#00ff00'],
-    ['Cyan', '#00ffff'], ['Blue', '#0000ff'], ['Purple', '#ff00ff'],
+    ['Cyan', '#00ffff'],
   ] as const
   return [
     ...staticColors.map(([name, color]) => ({ name, type: 1, colors: [color] })),
+    { name: 'Blue', type: 2, colors: Array<string>(61).fill('#0000ff') },
+    { name: 'Purple', type: 1, colors: ['#ff00ff'] },
     {
       name: 'Static multi', type: 2,
       colors: [
@@ -37,5 +39,8 @@ export function annePro2FactoryLights(): LightEffect[] {
     { name: 'Gradient breath', type: 4, colors: [...RAINBOW] },
     { name: 'Rainbow', type: 6, colors: [...RAINBOW] },
     { name: 'Single breath', type: 7, colors: [...RAINBOW] },
+    { name: 'Poptang', type: 5, colors: [...RAINBOW] },
+    { name: 'Trigger breath', type: 10, colors: [...RAINBOW] },
+    { name: 'Trigger rainbow', type: 11, colors: [...RAINBOW] },
   ]
 }

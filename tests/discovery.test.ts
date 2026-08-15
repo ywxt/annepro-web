@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ANNE_PRO_PROTOCOL_FILTERS,
+  getPreferredGrantedAnneProDevice,
   isAnneProDevice,
   selectPreferredDevice,
 } from '../src/hid/discovery.ts'
@@ -60,5 +61,12 @@ describe('Anne Pro discovery', () => {
     const keyboard = device(0x0001)
     expect(selectPreferredDevice([keyboard])).toBe(keyboard)
     expect(selectPreferredDevice([])).toBeNull()
+  })
+
+  it('selects the preferred interface from previously granted devices', async () => {
+    const keyboard = device(0x0001)
+    const protocol = protocolDevice()
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { hid: { getDevices: async () => [keyboard, protocol] } } })
+    await expect(getPreferredGrantedAnneProDevice()).resolves.toMatchObject({ device: protocol, candidates: [keyboard, protocol], hasProtocolCollection: true })
   })
 })

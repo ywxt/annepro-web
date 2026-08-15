@@ -5,7 +5,7 @@ import { keycodeName } from '../protocol/layout.ts'
 import { bytesToHex } from '../protocol/packet.ts'
 
 const props = defineProps<{ backup: MacroBackup | null; busy: boolean; hasBackup: boolean }>()
-const emit = defineEmits<{ readBackup: []; exportBackup: []; apply: [macros: StoredMacro[], bindings: ActiveMacroBinding[]]; restore: [] }>()
+const emit = defineEmits<{ readBackup: []; exportBackup: []; importBackup: [file: File]; apply: [macros: StoredMacro[], bindings: ActiveMacroBinding[]]; restore: [] }>()
 const macros = ref<StoredMacro[]>([])
 const bindings = ref<ActiveMacroBinding[]>([])
 watch(() => props.backup, (backup) => {
@@ -29,11 +29,12 @@ function addMacro(): void { if (macros.value.length >= 16) return; const id = ma
 function removeMacro(index: number): void { macros.value.splice(index, 1); bindings.value = bindings.value.filter(binding => binding.macroIndex !== index).map(binding => ({ ...binding, macroIndex: binding.macroIndex > index ? binding.macroIndex - 1 : binding.macroIndex })) }
 function addBinding(): void { if (bindings.value.length < 64 && macros.value.length) bindings.value.push({ layer: 0, matrixPosition: 0, macroIndex: 0 }) }
 function eventLabel(event: MacroEvent): string { if (event.type === 3) return `${event.value} ms`; const action = event.type === 1 ? 'Key up' : event.type === 2 ? 'Key down' : event.type === 4 ? 'Mouse up' : 'Mouse down'; return `${action}: ${keycodeName(event.value)}` }
+function pickFile(event: Event): void { const file = (event.target as HTMLInputElement).files?.[0]; if (file) emit('importBackup', file) }
 </script>
 
 <template>
   <section class="card">
-    <div class="section-heading"><div><p class="eyebrow">BACKUP · EDIT · VERIFY</p><h2>巨集</h2></div><div class="actions"><button v-if="backup" class="secondary" @click="emit('exportBackup')">匯出備份</button><button class="secondary" :disabled="busy" @click="emit('readBackup')">讀取鍵盤</button><button v-if="hasBackup" class="secondary" :disabled="busy" @click="emit('restore')">復原首次備份</button><button :disabled="busy || !backup || !changed || !validImage" @click="emit('apply', macros, bindings)">套用並回讀驗證</button></div></div>
+    <div class="section-heading"><div><p class="eyebrow">BACKUP · EDIT · VERIFY</p><h2>巨集</h2></div><div class="actions"><label class="file-button">匯入備份<input type="file" accept="application/json" :disabled="busy" @change="pickFile"></label><button v-if="backup" class="secondary" @click="emit('exportBackup')">匯出備份</button><button class="secondary" :disabled="busy" @click="emit('readBackup')">讀取鍵盤</button><button v-if="hasBackup" class="secondary" :disabled="busy" @click="emit('restore')">復原首次備份</button><button :disabled="busy || !backup || !changed || !validImage" @click="emit('apply', macros, bindings)">套用並回讀驗證</button></div></div>
     <p v-if="!backup" class="empty">請先讀取鍵盤；寫入前會保留完整巨集備份。</p>
     <template v-else>
       <p class="decoded">{{ macros.length }} / 16 個巨集 · {{ bindings.length }} / 64 個綁定 · {{ changed ? '有未套用變更' : '與鍵盤一致' }}</p>

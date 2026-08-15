@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ReadonlyHidTransport } from '../src/hid/transport.ts'
+import { AnneProHidTransport } from '../src/hid/transport.ts'
 
 function frame(packet: number, payload: number[]): Uint8Array {
   return new Uint8Array([
@@ -71,10 +71,10 @@ class LedPowerHidDevice extends FakeHidDevice {
   }
 }
 
-describe('read-only HID transport', () => {
+describe('typed Anne Pro HID transport', () => {
   it('sends the fixed Layer 0 request once and assembles exactly two reports', async () => {
     const device = new FakeHidDevice()
-    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const transport = new AnneProHidTransport(device as unknown as HIDDevice)
     const result = await transport.readKeyboardLayer0(100)
 
     expect(device.sent).toHaveLength(1)
@@ -88,7 +88,7 @@ describe('read-only HID transport', () => {
 
   it('uses only a validated layer index in the fixed request', async () => {
     const device = new FakeHidDevice()
-    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const transport = new AnneProHidTransport(device as unknown as HIDDevice)
     const result = await transport.readKeyboardLayer(3, 100)
     expect(device.sent[0].data.at(-1)).toBe(3)
     expect(result.layer).toBe(3)
@@ -98,7 +98,7 @@ describe('read-only HID transport', () => {
 
   it('sends only the fixed macro-config query', async () => {
     const device = new MacroConfigHidDevice()
-    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const transport = new AnneProHidTransport(device as unknown as HIDDevice)
     const result = await transport.readMacroConfig(100)
     expect(Array.from(device.sent[0].data)).toEqual([
       0x7b, 0x12, 0x31, 0x00, 0x02, 0x00, 0x00, 0x7d, 0x30, 0x06,
@@ -108,7 +108,7 @@ describe('read-only HID transport', () => {
 
   it('short-circuits a complete macro backup when config reports empty', async () => {
     const device = new MacroConfigHidDevice()
-    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const transport = new AnneProHidTransport(device as unknown as HIDDevice)
     const backup = await transport.readMacroBackup(100)
     expect(device.sent).toHaveLength(1)
     expect(backup).toMatchObject({ map: [], macros: [], activeList: [] })
@@ -116,12 +116,32 @@ describe('read-only HID transport', () => {
 
   it('sends only the captured LED power-mode read', async () => {
     const device = new LedPowerHidDevice()
-    const transport = new ReadonlyHidTransport(device as unknown as HIDDevice)
+    const transport = new AnneProHidTransport(device as unknown as HIDDevice)
     const result = await transport.readLedPowerMode(100)
     expect(device.sent).toHaveLength(1)
     expect(Array.from(device.sent[0].data)).toEqual([
       0x7b, 0x12, 0x31, 0, 2, 0, 0, 0x7d, 0x20, 0x1e,
     ])
     expect(result).toMatchObject({ mode: 2, modeName: 'High' })
+  })
+
+  it('times out after ignoring mismatched replies and releases the single-flight guard', async () => {
+    class MismatchDevice extends FakeHidDevice {
+      override async sendReport(reportId: number, data: BufferSource): Promise<void> {
+        const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data as ArrayBuffer)
+        this.sent.push({ reportId, data: bytes })
+        queueMicrotask(() => this.emitMismatch())
+      }
+      private emitMismatch(): void {
+        const bytes = new Uint8Array([0x7b,0x12,0x13,0,4,0,0,0x7d,1,1,5,1])
+        const event = { reportId: 0, data: new DataView(bytes.buffer) } as HIDInputReportEvent
+        for (const listener of this.listeners) listener(event)
+      }
+    }
+    const transport = new AnneProHidTransport(new MismatchDevice() as unknown as HIDDevice)
+    const pending = transport.readFirmwareVersion(10)
+    await expect(transport.readDeviceType(10)).rejects.toThrow('already pending')
+    await expect(pending).rejects.toThrow('timed out')
+    await expect(transport.readFirmwareVersion(5)).rejects.toThrow('timed out')
   })
 })

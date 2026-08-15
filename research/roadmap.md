@@ -26,13 +26,13 @@ device trial, and only then product UI.
 - Captured `readDeviceType` and `readFirmwareVersion` queries.
 - No arbitrary report-writing API.
 
-### M2 — Complete read-only device information
+### M2 — Complete read-only device information (complete for Anne Pro 2 C18)
 
-- Map every renderer-visible information query to native symbols and command/action bytes.
-- Add read-only IAP-state parsing without mode switching.
-- Treat UDID/serial data as sensitive: masked display, excluded from ordinary exports.
-- Add capability flags derived from model and firmware rather than assumptions.
-- Test timeouts, disconnects, mismatched replies, and stale trailing bytes.
+- [x] Map every C18 renderer-visible information query to native symbols and command/action bytes.
+- [x] Add read-only IAP-state parsing without mode switching.
+- [x] Treat UDID/serial data as sensitive: masked display, excluded from ordinary exports.
+- [x] Add capability flags derived from model and firmware rather than assumptions.
+- [x] Test timeouts, concurrent operations, mismatched replies, and stale trailing bytes.
 
 ### M3 — Keyboard layout download and model
 
@@ -63,14 +63,14 @@ device trial, and only then product UI.
 - [x] Per-key static RGB editor for all 61 physical keys and independent 12-color dynamic palettes.
 - [x] Macro event/binding editor, full-image serialization, CRC-32, staged 49-byte download, commit, backup/restore, and semantic device readback.
 - [x] Audio Visualize pure/colorful transient stream with explicit microphone consent, stop/restore, 20 FPS cap, and awaited single-flight reports.
-- [x] ObinsKit-equivalent factory reset composition for model 5: default settings, empty macro image, eleven default lights, and BLE host clearing; protected by typed confirmation.
+- [x] ObinsKit-equivalent factory reset composition for model 5: default settings, empty macro image, final 14-effect default group, and BLE host clearing; protected by typed confirmation.
 
 ### M6 — Compatibility and release
 
-- Test supported PIDs and known firmware families separately.
-- Add a compatibility matrix, udev guidance, disconnect recovery, and browser diagnostics.
-- Add fixture-based regression tests for every supported protocol variant.
-- Package as a static HTTPS-capable site with no backend requirement.
+- [ ] Test currently unavailable PIDs and firmware families on physical hardware.
+- [x] Add a compatibility matrix, udev guidance, disconnect recovery, and browser diagnostics.
+- [x] Add fixture-based regression tests for every implemented protocol variant.
+- [x] Package as a static HTTPS-capable site with no backend requirement.
 
 ### M7 — IAP and firmware (deferred)
 
@@ -91,5 +91,5 @@ device trial, and only then product UI.
 
 - Device identity is available with a masked-by-default 16-byte UDID.
 - BLE MAC reading uses the confirmed MCU BLE route.
-- Clearing BLE host bindings is implemented with typed destructive confirmation; it is intentionally not exercised during automated or physical verification.
+- Clearing BLE host bindings is implemented with typed destructive confirmation and physically verified with success status `00`.
 - Model-only combination-mode and virtual-mouse commands are excluded from the Anne Pro 2 UI after C18 returned no response.

@@ -41,6 +41,12 @@ export async function getGrantedAnneProDevices(): Promise<HIDDevice[]> {
   return (await navigator.hid.getDevices()).filter(isAnneProDevice)
 }
 
+export async function getPreferredGrantedAnneProDevice(): Promise<DeviceSelection> {
+  const candidates = await getGrantedAnneProDevices()
+  const device = selectPreferredDevice(candidates)
+  return { device, candidates, hasProtocolCollection: device ? hasProtocolCollection(device) : false }
+}
+
 export async function requestAnneProDevice(): Promise<DeviceSelection> {
   const requested = await navigator.hid.requestDevice({ filters: ANNE_PRO_PROTOCOL_FILTERS })
   const granted = await getGrantedAnneProDevices()

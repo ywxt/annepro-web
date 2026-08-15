@@ -1,0 +1,8 @@
+{
+  "capturedAt": "2026-08-16",
+  "device": "/dev/hidraw10",
+  "deviceId": "04d9:a293",
+  "request": "7b 12 51 00 02 00 00 7d 40 05",
+  "response": "7b 12 15 00 03 00 00 7d 40 05 00",
+  "result": "The C18 BLE MCU acknowledged deletion with success status 00. Existing BLE hosts must be paired again."
+}

@@ -23,5 +23,5 @@
       "60/05 readVirtualMouseConfig"
     ]
   },
-  "safety": "No deleteBleHost command was sent. The UI requires typed confirmation before 40/05."
+  "safety": "This capture contains reads only. deleteBleHost was later verified separately in delete-ble-host-isolated.json; the UI requires typed confirmation before 40/05."
 }

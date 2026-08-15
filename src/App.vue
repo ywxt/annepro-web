@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import CollectionsView from './components/CollectionsView.vue'
 import DevicePanel from './components/DevicePanel.vue'
 import KeyboardLayout from './components/KeyboardLayout.vue'
@@ -12,8 +12,9 @@ import AudioVisualizePanel from './components/AudioVisualizePanel.vue'
 import IdentityPanel from './components/IdentityPanel.vue'
 import FactoryResetPanel from './components/FactoryResetPanel.vue'
 import { collectMetadata } from './hid/device.ts'
-import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
-import { ReadonlyHidTransport } from './hid/transport.ts'
+import { getPreferredGrantedAnneProDevice, isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
+import type { DeviceSelection } from './hid/types.ts'
+import { AnneProHidTransport } from './hid/transport.ts'
 import type { InputReportRecord } from './hid/types.ts'
 import { deriveDeviceCapabilities } from './protocol/capabilities.ts'
 import type { DeviceTypeResponse } from './protocol/device-info.ts'
@@ -36,7 +37,7 @@ const supported = isWebHidSupported()
 const connecting = ref(false)
 const message = ref(supported ? '' : '此瀏覽器不支援 WebHID')
 const device = shallowRef<HIDDevice | null>(null)
-const transport = shallowRef<ReadonlyHidTransport | null>(null)
+const transport = shallowRef<AnneProHidTransport | null>(null)
 const protocolReady = ref(false)
 const busy = ref<string | null>(null)
 const records = ref<InputReportRecord[]>([])
@@ -65,6 +66,9 @@ const lightEffects = ref<LightEffect[]>(loadLightEffects())
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
 const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
+const fullBackupReady = computed(() => Boolean(
+  deviceType.value && firmware.value && hardwareState.value && macroBackup.value && allLayersLoaded.value,
+))
 const capabilities = computed(() => deriveDeviceCapabilities(deviceType.value, firmware.value))
 let stopListening: (() => void) | null = null
 let audioStream: MediaStream | null = null
@@ -99,22 +103,55 @@ async function connect(): Promise<void> {
   connecting.value = true
   message.value = '等待選擇裝置…'
   try {
-    const selection = await requestAnneProDevice()
-    if (!selection.device) { message.value = '未選擇裝置。'; return }
-    const nextTransport = new ReadonlyHidTransport(selection.device)
-    await nextTransport.open()
-    stopListening?.()
-    device.value = selection.device
-    transport.value = nextTransport
-    protocolReady.value = selection.hasProtocolCollection
-    stopListening = nextTransport.listen((record) => records.value.unshift(record))
-    message.value = selection.hasProtocolCollection
-      ? `已從 ${selection.candidates.length} 個候選介面中連接協議 collection。`
-      : `找到 ${selection.candidates.length} 個候選，但未選到 64-byte 協議介面。`
+    await useSelection(await requestAnneProDevice())
   } catch (error) {
     message.value = `連接失敗：${error instanceof Error ? error.message : String(error)}`
   } finally { connecting.value = false }
 }
+
+async function useSelection(selection: DeviceSelection): Promise<void> {
+  if (!selection.device) { message.value = '沒有可用的 Anne Pro 2 協議介面。'; return }
+  const previous = transport.value
+  const nextTransport = new AnneProHidTransport(selection.device)
+  await nextTransport.open()
+  stopListening?.()
+  if (previous && previous.device !== selection.device) await previous.close().catch(() => undefined)
+  device.value = selection.device
+  transport.value = nextTransport
+  protocolReady.value = selection.hasProtocolCollection
+  stopListening = nextTransport.listen((record) => records.value.unshift(record))
+  message.value = selection.hasProtocolCollection
+    ? `已從 ${selection.candidates.length} 個候選介面中連接協議 collection。`
+    : `找到 ${selection.candidates.length} 個候選，但未選到 64-byte 協議介面。`
+}
+
+async function reconnectGranted(): Promise<void> {
+  connecting.value = true
+  message.value = '正在尋找已授權的 Anne Pro 2…'
+  try { await useSelection(await getPreferredGrantedAnneProDevice()) }
+  catch (error) { message.value = `快速重連失敗：${error instanceof Error ? error.message : String(error)}` }
+  finally { connecting.value = false }
+}
+
+function onHidDisconnect(event: HIDConnectionEvent): void {
+  if (event.device !== device.value) return
+  void stopAudioVisualize(false)
+  stopListening?.()
+  stopListening = null
+  transport.value = null
+  protocolReady.value = false
+  message.value = 'Anne Pro 2 已斷線。重新插入後可使用「快速重連」。'
+}
+
+function onHidConnect(event: HIDConnectionEvent): void {
+  if (event.device.vendorId === 0x04d9) message.value = '偵測到 HID 裝置重新接入；可使用「快速重連」。'
+}
+
+onMounted(() => {
+  if (!supported) return
+  navigator.hid.addEventListener('disconnect', onHidDisconnect)
+  navigator.hid.addEventListener('connect', onHidConnect)
+})
 
 async function confirmedRead<T>(name: string, prompt: string, read: () => Promise<T>, assign: (value: T) => void): Promise<void> {
   if (!window.confirm(prompt)) return
@@ -128,6 +165,29 @@ async function confirmedRead<T>(name: string, prompt: string, read: () => Promis
 const readDeviceType = () => transport.value && confirmedRead('readDeviceType', '傳送一次已確認的唯讀封包：\n7b 12 31 00 02 00 00 7d 01 01', () => transport.value!.readDeviceType(), value => { deviceType.value = value })
 const readFirmware = () => transport.value && confirmedRead('readFirmwareVersion', '傳送一次已確認的唯讀封包：\n7b 12 31 00 02 00 00 7d 01 03', () => transport.value!.readFirmwareVersion(), value => { firmware.value = value })
 const readIap = () => transport.value && confirmedRead('readIapMode（不切換模式）', '只讀取 IAP 狀態，不切換模式：\n7b 12 31 00 02 00 00 7d 02 02', () => transport.value!.readIapMode(), value => { iap.value = value })
+async function readAll(): Promise<void> {
+  if (!transport.value || !window.confirm('將依序執行所有 Anne Pro 2 已確認唯讀命令，包含身份、版本、運行資訊、設定、四層鍵位與完整巨集備份。全程單飛且不修改鍵盤。')) return
+  busy.value = 'read all'
+  try {
+    deviceType.value = await transport.value.readDeviceType()
+    firmware.value = await transport.value.readFirmwareVersion()
+    iap.value = await transport.value.readIapMode()
+    powerOnTime.value = await transport.value.readPowerOnTime()
+    battery.value = await transport.value.readBattery()
+    hardwareState.value = await transport.value.readHardwareState()
+    udid.value = await transport.value.readUdid()
+    bleMac.value = await transport.value.readBleMac()
+    if (capabilities.value?.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
+    if (capabilities.value?.capslockColor) indicatorColor.value = await transport.value.readIndicatorColor()
+    const nextLayers: KeyboardLayerResponse[] = []
+    for (let layer = 0; layer < 4; layer += 1) nextLayers.push(await transport.value.readKeyboardLayer(layer))
+    layers.value = nextLayers
+    macroBackup.value = await transport.value.readMacroBackup()
+    message.value = '所有可讀資訊與配置已完成讀取；鍵位與巨集現在可匯出備份。'
+  } catch (error) {
+    message.value = `完整讀取在 ${busy.value} 階段失敗：${error instanceof Error ? error.message : String(error)}；先前已完成的資料仍保留。`
+  } finally { busy.value = null }
+}
 const readLayer = (layer: number) => transport.value && confirmedRead(
   `Layer ${layer}`,
   `傳送一次已確認的唯讀 Layer ${layer} 查詢：\n7b 12 31 00 03 00 00 7d 10 02 0${layer}`,
@@ -338,6 +398,24 @@ function exportMacros(): void {
   })
 }
 
+function exportFullBackup(): void {
+  if (!fullBackupReady.value || !device.value || !deviceType.value || !firmware.value || !hardwareState.value || !macroBackup.value) return
+  downloadJson(`annepro-full-backup-${Date.now()}.json`, {
+    format: 'annepro-web-full-backup', version: 1, capturedAt: new Date().toISOString(),
+    device: { vendorId: device.value.vendorId, productId: device.value.productId, productName: device.value.productName, model: deviceType.value.model, type: deviceType.value.type },
+    firmware: { key: firmware.value.key, led: firmware.value.led, ble: firmware.value.ble },
+    runtime: { batteryPercent: battery.value?.percent, batteryVoltage: battery.value?.voltage, powerOnHours: powerOnTime.value?.hours },
+    settings: { ...hardwareState.value, rawFrame: bytesToHex(hardwareState.value.rawFrame), ledPowerMode: ledPowerMode.value?.mode, indicatorColor: indicatorColor.value?.hex },
+    layers: loadedLayers.value.map(layer => ({ index: layer.layer, keycodes: Array.from(layer.data) })),
+    macros: {
+      map: macroBackup.value.map.map(entry => ({ ...entry, raw: bytesToHex(entry.raw) })),
+      items: macroBackup.value.macros.map(macro => ({ ...macro, events: Array.from(macro.events), separator: Array.from(macro.separator) })),
+      activeList: macroBackup.value.activeList,
+    },
+    privacy: { udidExcluded: true, bleMacExcluded: true },
+  })
+}
+
 function cloneMacroBackup(backup: MacroBackup): MacroBackup {
   return {
     config: { ...backup.config, rawFrame: backup.config.rawFrame.slice() },
@@ -374,6 +452,57 @@ async function restoreMacros(): Promise<void> {
     message.value = `巨集復原失敗：${error instanceof Error ? error.message : String(error)}`
   } finally { busy.value = null }
 }
+
+async function importMacros(file: File): Promise<void> {
+  if (!transport.value) return
+  try {
+    const parsed = JSON.parse(await file.text()) as { format?: string; macros?: Array<Record<string, unknown>>; activeList?: ActiveMacroBinding[] }
+    if (parsed.format !== 'annepro-web-macro-backup' || !Array.isArray(parsed.macros) || !Array.isArray(parsed.activeList)) throw new Error('檔案格式不符')
+    if (parsed.macros.length > 16 || parsed.activeList.length > 64) throw new Error('巨集或綁定數量超出裝置限制')
+    const macros: StoredMacro[] = parsed.macros.map((item, index) => {
+      if (!Array.isArray(item.events) || !item.events.every(value => Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 255)) throw new Error(`Macro ${index} events 無效`)
+      const name = String(item.name ?? '')
+      const icon = Number(item.icon ?? 0)
+      if (name.length > 64 || !Number.isInteger(icon) || icon < 0 || icon > 65535) throw new Error(`Macro ${index} metadata 無效`)
+      return { id: index, uuid: String(item.uuid ?? '0'), name, icon, events: new Uint8Array(item.events as number[]), separator: new Uint8Array([0, 0, 0]) }
+    })
+    const bindings = parsed.activeList.map((binding, index) => {
+      if (![binding.layer, binding.matrixPosition, binding.macroIndex].every(Number.isInteger)
+        || binding.layer < 0 || binding.layer > 3 || binding.matrixPosition < 0 || binding.matrixPosition > 255
+        || binding.macroIndex < 0 || binding.macroIndex >= macros.length) throw new Error(`Binding ${index} 無效`)
+      return { ...binding }
+    })
+    if (!window.confirm(`從 ${file.name} 寫入 ${macros.length} 個巨集與 ${bindings.length} 個綁定？目前裝置巨集會先備份。`)) return
+    if (!macroBackup.value) macroBackup.value = await transport.value.readMacroBackup()
+    await applyMacros(macros, bindings)
+  } catch (error) { message.value = `巨集匯入失敗：${error instanceof Error ? error.message : String(error)}` }
+}
+
+async function importLayout(file: File): Promise<void> {
+  if (!transport.value || !allLayersLoaded.value) return
+  try {
+    const parsed = JSON.parse(await file.text()) as { format?: string; layers?: Array<{ index?: number; keycodes?: number[] }> }
+    if (parsed.format !== 'annepro-web-layout-backup' || !Array.isArray(parsed.layers) || parsed.layers.length !== 4) throw new Error('必須是含四層的 annepro-web layout backup')
+    const imported = Array.from({ length: 4 }, (_, index) => {
+      const layer = parsed.layers!.find(candidate => candidate.index === index)
+      if (!layer || !Array.isArray(layer.keycodes) || layer.keycodes.length !== 61 || !layer.keycodes.every(value => Number.isInteger(value) && value >= 0 && value <= 255)) throw new Error(`Layer ${index} 無效`)
+      return new Uint8Array(layer.keycodes)
+    })
+    if (!window.confirm(`從 ${file.name} 覆寫全部四層鍵位？每層會保留目前備份並逐 byte 回讀驗證。`)) return
+    busy.value = 'import layout'
+    for (let index = 0; index < 4; index += 1) {
+      const backups = layerBackups.value.slice()
+      backups[index] ??= layers.value[index]!.data.slice()
+      layerBackups.value = backups
+      const readback = await transport.value.writeKeyboardLayer(index, imported[index])
+      const next = layers.value.slice(); next[index] = readback; layers.value = next
+    }
+    message.value = '四層鍵位備份已匯入並逐 byte 回讀驗證。'
+  } catch (error) { message.value = `鍵位匯入失敗：${error instanceof Error ? error.message : String(error)}` }
+  finally { busy.value = null }
+}
+
+function pickLayoutFile(event: Event): void { const file = (event.target as HTMLInputElement).files?.[0]; if (file) void importLayout(file) }
 
 async function applyLayer(layer: number, data: Uint8Array): Promise<void> {
   if (!transport.value || !layers.value[layer]) return
@@ -505,22 +634,30 @@ async function stopAudioVisualize(restore = true): Promise<void> {
   }
 }
 
-onBeforeUnmount(() => { void stopAudioVisualize(false) })
+onBeforeUnmount(() => {
+  void stopAudioVisualize(false)
+  stopListening?.()
+  if (supported) {
+    navigator.hid.removeEventListener('disconnect', onHidDisconnect)
+    navigator.hid.removeEventListener('connect', onHidConnect)
+  }
+  void transport.value?.close()
+})
 </script>
 
 <template>
   <header><p class="eyebrow">WEBHID CONFIGURATOR</p><h1>Anne Pro Web Configurator</h1><p class="lede">讀取、備份與設定 Anne Pro 2。一般寫入都有範圍檢查、明確確認及裝置回讀驗證；韌體與 IAP 寫入永遠停用。</p></header>
-  <section class="card status"><div><span class="dot"></span>{{ supported ? 'WebHID 可用' : '此瀏覽器不支援 WebHID' }}</div><button :disabled="!supported || connecting" @click="connect">連接 Anne Pro 2</button></section>
+  <section class="card status"><div><span class="dot"></span>{{ supported ? 'WebHID 可用' : '此瀏覽器不支援 WebHID' }}</div><div class="actions"><button class="secondary" :disabled="!supported || connecting" @click="reconnectGranted">快速重連</button><button :disabled="!supported || connecting" @click="connect">選擇 Anne Pro 2</button></div></section>
   <p id="message" role="status" aria-live="polite">{{ message }}</p>
-  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
-  <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
+  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
+  <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><div class="actions"><label class="file-button">匯入四層備份<input type="file" accept="application/json" :disabled="!allLayersLoaded || busy !== null" @change="pickLayoutFile"></label><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></div></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" :busy="busy !== null" :has-backup="layerBackups[layer.layer] !== null" @apply="applyLayer" @restore="restoreLayer" />
   <LightingPanel v-if="device && protocolReady && capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" />
   <AudioVisualizePanel v-if="device && protocolReady && capabilities?.hasLed" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" />
   <RuntimeInfoPanel v-if="device && protocolReady" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" />
   <IdentityPanel v-if="device && protocolReady" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" />
   <FactoryResetPanel v-if="device && protocolReady" :busy="busy !== null" :ready="hardwareState !== null && capabilities?.profileKnown === true" @reset="factoryReset" />
-  <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @apply="applyMacros" @restore="restoreMacros" />
+  <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" />
   <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-setting="applySetting" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />

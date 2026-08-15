@@ -49,7 +49,7 @@ response:  7b 12 13 00 04 00 00 7d 01 01 05 01
 decoded:   model 5 (AnnePro2C18), type 1 (Keyboard)
 ```
 
-ObinsKit sent 17 initialization queries in total. Command/action `01/01` was isolated and retained as a fixture. Each implemented read is separately documented and constrained; the remaining initialization requests are not authorized by this finding. The web implementation exposes confirmed requests only as one-shot actions with a confirmation dialog and timeout; it does not expose arbitrary report writing.
+ObinsKit sent 17 initialization queries in total. Command/action `01/01` was isolated and retained as a fixture. Each implemented read and write is separately documented and constrained; the web implementation does not expose arbitrary report writing.
 
 ## `readFirmwareVersion`
 
@@ -62,7 +62,7 @@ response:  7b 12 13 00 08 00 00 7d 01 03 24 02 21 02 05 02
 decoded:   key 2.36, LED 2.33, BLE 2.05
 ```
 
-This exact read is implemented with the same confirmation, single-flight, strict-response, and timeout restrictions as `readDeviceType`. Other captured initialization commands remain unimplemented.
+This exact read is implemented with the same confirmation, single-flight, strict-response, and timeout restrictions as `readDeviceType`.
 
 ## `readIapMode`
 
@@ -106,13 +106,13 @@ input2  Consumer + Keyboard + Mouse             report IDs 1, 2, 3
 input3  Generic Desktop / Game Controls         control inputs
 ```
 
-`input1` is the strong protocol-interface candidate. Contrary to the initial assumption, this firmware does not place it on a vendor-defined usage page; it uses usage page `0x0001`, usage `0x0000`. The web discovery classifier therefore accepts either a vendor-defined collection or this observed 64-byte bidirectional descriptor. This classification does not authorize writing its output report.
+`input1` is the strong protocol-interface candidate. Contrary to the initial assumption, this firmware does not place it on a vendor-defined usage page; it uses usage page `0x0001`, usage `0x0000`. The web discovery classifier therefore accepts either a vendor-defined collection or this observed 64-byte bidirectional descriptor. Typed protocol operations use this report; no arbitrary report UI exists.
 
 The second browser capture confirms Chromium exposes this exact collection with report ID 0 and 512-bit input/output reports.
 
 ## Offline frame parser
 
-The project parses, but does not construct or transmit, the statically observed frame layout:
+The project parses and constructs only typed, reviewed operations using the observed frame layout:
 
 ```text
 offset  size  meaning
@@ -234,7 +234,7 @@ imported, and exported by the browser rather than described as device backups.
 
 - `01/0d` (`readUDID`, MCU main route `0x3`) returns a 16-byte unique device ID on C18. Treat it as sensitive: mask by default and exclude it from automatic exports.
 - `40/30` (`readBleMac`, MCU BLE route `0x5`, request header byte `0x51`) returns the six-byte BLE address.
-- `40/05` (`deleteBleHost`, MCU BLE route `0x5`) clears remembered BLE hosts. It is exposed only behind typed destructive confirmation and was not sent during protocol verification.
+- `40/05` (`deleteBleHost`, MCU BLE route `0x5`) clears remembered BLE hosts. A physical command returned success status `00`; the UI exposes it only behind typed destructive confirmation.
 - C18 did not respond to the statically identified `01/04`, `01/11`, `01/f1`, or `60/05` requests. The latter two are used by other ObinsKit model families and are not exposed for Anne Pro 2.
 
 # CapsLock indicator color
