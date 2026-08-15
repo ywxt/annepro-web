@@ -1,6 +1,9 @@
-# Clean-room implementation roadmap
+# Implementation roadmap
 
-The goal is functional interoperability, not a copy of ObinsKit source code or UI. Every protocol operation moves through evidence, offline tests, a bounded device trial, and only then product UI.
+The goal is functional interoperability with an independently maintained web UI.
+Protocol work may directly reference the unpacked ObinsKit implementation. Every
+device operation still moves through source analysis, offline tests, a bounded
+device trial, and only then product UI.
 
 ## Safety levels
 

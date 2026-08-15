@@ -1,6 +1,11 @@
 # Anne Pro Web Configurator
 
-A clean-room, read-only WebHID explorer for Anne Pro 2. The MVP opens a supported device, exports HID metadata, records input reports, reads confirmed device information, and renders the captured Layer 0 keymap. It intentionally has no arbitrary HID or configuration-write API.
+An open-source, read-only WebHID explorer for Anne Pro 2. Protocol compatibility
+is implemented with direct reference to the unpacked ObinsKit application, while
+the web UI and safety model are independently maintained. The MVP opens a
+supported device, exports HID metadata, records input reports, reads confirmed
+device information, and renders keyboard layers. It intentionally has no
+arbitrary HID or configuration-write API.
 
 ## Run locally
 
@@ -39,4 +44,4 @@ The transport opens the device, listens for input, and exposes narrowly scoped `
 
 Static analysis and controlled captures have confirmed the current identity, firmware, IAP-state, and Layer 0 reads, as documented in [`research/protocol.md`](research/protocol.md). Every additional command must be independently correlated and captured before it is added as a reviewed protocol function with fixture-based tests and a bounded UI action.
 
-Development is organized by the [`clean-room roadmap`](research/roadmap.md) and [`command matrix`](research/commands.md). Firmware/IAP/erase operations are explicitly deferred from the normal configurator.
+Development is organized by the [`implementation roadmap`](research/roadmap.md) and [`command matrix`](research/commands.md). Firmware/IAP/erase operations are explicitly deferred from the normal configurator.

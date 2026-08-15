@@ -1,6 +1,8 @@
 # Project: Anne Pro Web Configurator
 
-Build a clean-room, open-source WebHID configurator for Anne Pro 2.
+Build an open-source WebHID configurator for Anne Pro 2. The user has authorized
+direct reference to the unpacked ObinsKit JavaScript, native addon, and protocol
+implementation; clean-room separation is not required for protocol work.
 
 ## Current phase
 
@@ -23,5 +25,7 @@ The user has explicitly authorized bounded discovery sends for commands that sta
 - Run on localhost or HTTPS.
 - Keep packet encoding and decoding independently testable.
 - Display and export raw packets as hexadecimal.
-- Do not copy ObinsKit source code, UI, icons, or other copyrighted assets.
-- Clean-room reimplementation based on observed behavior and packet formats is allowed.
+- Protocol constants, parsers, data structures, and control flow may be directly
+  derived from the unpacked ObinsKit implementation.
+- Do not import ObinsKit UI, icons, branding, or bundled visual assets unless the
+  user separately requests and confirms the licensing implications.

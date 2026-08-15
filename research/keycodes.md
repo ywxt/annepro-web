@@ -1,8 +1,8 @@
 # Keycode mapping notes
 
-This is a clean-room interoperability table derived from behavior and numeric
-constants in the unpacked, SHA-256-verified ObinsKit 1.2.11 Electron bundle.
-It does not reproduce ObinsKit UI assets or implementation code.
+This interoperability table directly references behavior and numeric constants
+in the unpacked, SHA-256-verified ObinsKit 1.2.11 Electron bundle. It does not
+include ObinsKit UI assets.
 
 ## Renderer path
 
