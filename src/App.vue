@@ -32,6 +32,7 @@ import { audioRgbFromFrequencyData, type AudioVisualizeMode } from './protocol/a
 import type { BleMacAddress, DeviceUdid } from './protocol/device-identity.ts'
 import type { IndicatorColorResponse } from './protocol/indicator-color.ts'
 import { annePro2FactoryLights, ANNE_PRO_2_FACTORY_SETTINGS } from './protocol/factory-defaults.ts'
+import { parseFullBackup } from './protocol/full-backup.ts'
 
 const supported = isWebHidSupported()
 const connecting = ref(false)
@@ -66,10 +67,12 @@ const lightEffects = ref<LightEffect[]>(loadLightEffects())
 const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
 const loadedLayers = computed(() => layers.value.filter((layer): layer is KeyboardLayerResponse => layer !== null))
 const allLayersLoaded = computed(() => loadedLayers.value.length === 4)
-const fullBackupReady = computed(() => Boolean(
-  deviceType.value && firmware.value && hardwareState.value && macroBackup.value && allLayersLoaded.value,
-))
 const capabilities = computed(() => deriveDeviceCapabilities(deviceType.value, firmware.value))
+const fullBackupReady = computed(() => Boolean(
+  deviceType.value && firmware.value && hardwareState.value && macroBackup.value && allLayersLoaded.value
+  && (!capabilities.value?.ledPowerMode || ledPowerMode.value)
+  && (!capabilities.value?.capslockColor || indicatorColor.value),
+))
 let stopListening: (() => void) | null = null
 let audioStream: MediaStream | null = null
 let audioContext: AudioContext | null = null
@@ -405,15 +408,87 @@ function exportFullBackup(): void {
     device: { vendorId: device.value.vendorId, productId: device.value.productId, productName: device.value.productName, model: deviceType.value.model, type: deviceType.value.type },
     firmware: { key: firmware.value.key, led: firmware.value.led, ble: firmware.value.ble },
     runtime: { batteryPercent: battery.value?.percent, batteryVoltage: battery.value?.voltage, powerOnHours: powerOnTime.value?.hours },
-    settings: { ...hardwareState.value, rawFrame: bytesToHex(hardwareState.value.rawFrame), ledPowerMode: ledPowerMode.value?.mode, indicatorColor: indicatorColor.value?.hex },
+    settings: {
+      ...hardwareState.value,
+      rawFrame: bytesToHex(hardwareState.value.rawFrame),
+      sleepTimeoutRaw: capabilities.value?.sleepTimeout && hardwareState.value.sleepTimeoutRaw >= 10 && hardwareState.value.sleepTimeoutRaw <= 3600 ? hardwareState.value.sleepTimeoutRaw : undefined,
+      sleepTimeoutRawObserved: hardwareState.value.sleepTimeoutRaw,
+      ledPowerMode: ledPowerMode.value?.mode,
+      indicatorColor: indicatorColor.value?.hex,
+    },
     layers: loadedLayers.value.map(layer => ({ index: layer.layer, keycodes: Array.from(layer.data) })),
     macros: {
       map: macroBackup.value.map.map(entry => ({ ...entry, raw: bytesToHex(entry.raw) })),
       items: macroBackup.value.macros.map(macro => ({ ...macro, events: Array.from(macro.events), separator: Array.from(macro.separator) })),
       activeList: macroBackup.value.activeList,
     },
+    lights: lightEffects.value,
     privacy: { udidExcluded: true, bleMacExcluded: true },
   })
+}
+
+async function importFullBackup(file: File): Promise<void> {
+  if (!transport.value || !device.value || !deviceType.value || !hardwareState.value || !macroBackup.value || !allLayersLoaded.value) return
+  let stage = '解析備份'
+  try {
+    const backup = parseFullBackup(JSON.parse(await file.text()) as unknown)
+    if (backup.device.model !== deviceType.value.model) throw new Error(`備份 model ${backup.device.model} 與目前鍵盤 model ${deviceType.value.model} 不符`)
+    const productWarning = backup.device.productId === device.value.productId ? '' : `\n注意：來源 PID 0x${backup.device.productId.toString(16)}，目前 PID 0x${device.value.productId.toString(16)}。`
+    const confirmation = window.prompt(`將完整覆寫四層鍵位、巨集、一般設定、CapsLock 顏色及 ${backup.lights.length} 個燈效。\n所有可讀的目前資料已在記憶體中保留；燈效沒有裝置讀回能力。${productWarning}\n\n請輸入 RESTORE FULL BACKUP 繼續：`)
+    if (confirmation !== 'RESTORE FULL BACKUP') return
+
+    settingsBackup.value ??= { state: hardwareState.value, ledPowerMode: ledPowerMode.value }
+    if (indicatorColor.value) indicatorColorBackup.value ??= indicatorColor.value.hex
+    originalMacroBackup.value ??= cloneMacroBackup(macroBackup.value)
+    const savedLayers = layerBackups.value.slice()
+    for (let index = 0; index < 4; index += 1) savedLayers[index] ??= layers.value[index]!.data.slice()
+    layerBackups.value = savedLayers
+    busy.value = 'restore full backup'
+
+    stage = '還原四層鍵位'
+    for (let index = 0; index < 4; index += 1) {
+      const current = layers.value[index]!.data
+      if (current.every((value, offset) => value === backup.layers[index][offset])) continue
+      const readback = await transport.value.writeKeyboardLayer(index, backup.layers[index])
+      const next = layers.value.slice(); next[index] = readback; layers.value = next
+    }
+
+    stage = '還原巨集'
+    macroBackup.value = await transport.value.writeMacros(backup.macros, backup.bindings)
+
+    stage = '還原燈效'
+    await transport.value.installLights(backup.lights)
+    lightEffects.value = backup.lights
+
+    stage = '還原一般設定'
+    for (const key of STATE_KEYS) {
+      if (key === 'sleepTimeoutRaw' && (!capabilities.value?.sleepTimeout || backup.settings.sleepTimeoutRaw === undefined)) continue
+      const value = backup.settings[key]
+      if (value === undefined) continue
+      await transport.value.writeHardwareSetting(key, value)
+    }
+    if (capabilities.value?.ledPowerMode && backup.settings.ledPowerMode !== undefined) {
+      await transport.value.writeHardwareSetting('ledPowerMode', backup.settings.ledPowerMode)
+    }
+    if (capabilities.value?.capslockColor && backup.settings.indicatorColor) {
+      indicatorColor.value = await transport.value.writeIndicatorColor(backup.settings.indicatorColor)
+    }
+
+    stage = '驗證一般設定'
+    const readback = await transport.value.readHardwareState()
+    for (const key of STATE_KEYS) {
+      if (key === 'sleepTimeoutRaw' && (!capabilities.value?.sleepTimeout || backup.settings.sleepTimeoutRaw === undefined)) continue
+      if (readback[key] !== backup.settings[key]) throw new Error(`${key} 回讀 ${readback[key]}，預期 ${backup.settings[key]}`)
+    }
+    hardwareState.value = readback
+    if (capabilities.value?.ledPowerMode && backup.settings.ledPowerMode !== undefined) {
+      ledPowerMode.value = await transport.value.readLedPowerMode()
+      if (ledPowerMode.value.mode !== backup.settings.ledPowerMode) throw new Error('LED power mode 回讀不一致')
+    }
+    message.value = `完整備份 ${file.name} 已還原：4 層、${backup.macros.length} 個巨集與一般設定已回讀驗證；${backup.lights.length} 個燈效已取得逐封包 acknowledgement。`
+  } catch (error) {
+    message.value = `完整備份還原在「${stage}」失敗：${error instanceof Error ? error.message : String(error)}。已完成的階段不會自動回滾；可讀配置可使用各區塊復原，燈效則沒有裝置讀回備份。`
+  } finally { busy.value = null }
 }
 
 function cloneMacroBackup(backup: MacroBackup): MacroBackup {
@@ -649,7 +724,7 @@ onBeforeUnmount(() => {
   <header><p class="eyebrow">WEBHID CONFIGURATOR</p><h1>Anne Pro Web Configurator</h1><p class="lede">讀取、備份與設定 Anne Pro 2。一般寫入都有範圍檢查、明確確認及裝置回讀驗證；韌體與 IAP 寫入永遠停用。</p></header>
   <section class="card status"><div><span class="dot"></span>{{ supported ? 'WebHID 可用' : '此瀏覽器不支援 WebHID' }}</div><div class="actions"><button class="secondary" :disabled="!supported || connecting" @click="reconnectGranted">快速重連</button><button :disabled="!supported || connecting" @click="connect">選擇 Anne Pro 2</button></div></section>
   <p id="message" role="status" aria-live="polite">{{ message }}</p>
-  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
+  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><div class="actions"><label class="file-button">匯入四層備份<input type="file" accept="application/json" :disabled="!allLayersLoaded || busy !== null" @change="pickLayoutFile"></label><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></div></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" :busy="busy !== null" :has-backup="layerBackups[layer.layer] !== null" @apply="applyLayer" @restore="restoreLayer" />
   <LightingPanel v-if="device && protocolReady && capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" />

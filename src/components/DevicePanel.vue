@@ -6,7 +6,8 @@ import type { IapModeResponse } from '../protocol/iap-info.ts'
 import { bytesToHex, formatHex } from '../protocol/packet.ts'
 
 defineProps<{ device: HIDDevice; deviceType: DeviceTypeResponse | null; firmware: FirmwareVersions | null; iap: IapModeResponse | null; capabilities: DeviceCapabilities | null; busy: string | null; protocolReady: boolean; fullBackupReady: boolean }>()
-defineEmits<{ readAll: []; exportFullBackup: []; readDeviceType: []; readFirmware: []; readIap: []; readLayer: [layer: number] }>()
+const emit = defineEmits<{ readAll: []; exportFullBackup: []; importFullBackup: [file: File]; readDeviceType: []; readFirmware: []; readIap: []; readLayer: [layer: number] }>()
+function pickFullBackup(event: Event): void { const file = (event.target as HTMLInputElement).files?.[0]; if (file) emit('importFullBackup', file) }
 </script>
 
 <template>
@@ -14,6 +15,7 @@ defineEmits<{ readAll: []; exportFullBackup: []; readDeviceType: []; readFirmwar
     <div class="section-heading"><h2>裝置</h2><div v-if="protocolReady" class="actions">
       <button :disabled="busy !== null" @click="$emit('readAll')">讀取全部／建立備份</button>
       <button class="secondary" :disabled="busy !== null || !fullBackupReady" @click="$emit('exportFullBackup')">匯出完整備份</button>
+      <label class="file-button">還原完整備份<input type="file" accept="application/json" :disabled="busy !== null || !fullBackupReady" @change="pickFullBackup"></label>
       <button class="secondary" :disabled="busy !== null" @click="$emit('readDeviceType')">讀取裝置類型</button>
       <button class="secondary" :disabled="busy !== null" @click="$emit('readFirmware')">讀取韌體版本</button>
       <button class="secondary" :disabled="busy !== null" @click="$emit('readIap')">讀取 IAP 狀態</button>

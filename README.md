@@ -42,6 +42,10 @@ USB removal is detected; reconnect the keyboard and use **快速重連**.
   RGB, backlight brightness, auto-sleep, Tap mode/timeout, sleep timeout, and LED
   power mode.
 - Read/export/edit/install/restore macro images with CRC and active bindings.
+- Export and restore one complete versioned backup containing settings, all four
+  layers, macros, CapsLock RGB, and the current host-managed light profile. The
+  entire file is validated before the first write and readable sections are
+  verified after restoration.
 - Create, import, export, preview, and install static, per-key, and dynamic light
   profiles; stream microphone visualization at a bounded 20 FPS.
 - Clear BLE host bindings and perform ObinsKit-equivalent non-firmware factory

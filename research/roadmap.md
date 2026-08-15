@@ -64,6 +64,7 @@ device trial, and only then product UI.
 - [x] Macro event/binding editor, full-image serialization, CRC-32, staged 49-byte download, commit, backup/restore, and semantic device readback.
 - [x] Audio Visualize pure/colorful transient stream with explicit microphone consent, stop/restore, 20 FPS cap, and awaited single-flight reports.
 - [x] ObinsKit-equivalent factory reset composition for model 5: default settings, empty macro image, final 14-effect default group, and BLE host clearing; protected by typed confirmation.
+- [x] Symmetric full-backup export/import with preflight schema validation, in-memory snapshots, staged restore, and per-capability readback.
 
 ### M6 — Compatibility and release
 
