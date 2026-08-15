@@ -4,12 +4,15 @@ A clean-room, read-only WebHID explorer for Anne Pro 2. The MVP opens a supporte
 
 ## Run locally
 
-Requires a current Chromium-based browser with WebHID (Chrome or Edge) and Node.js 20.19+ or 22.12+.
+Requires Nix with flakes enabled and a current Chromium-based browser with WebHID (Chrome or Edge). The project flake selects Node.js 24, pnpm, and native-addon build tools.
 
 ```sh
-npm install
-npm run dev
+nix develop
+pnpm install
+pnpm dev
 ```
+
+With nix-direnv enabled, run `direnv allow` once; the checked-in `.envrc` then loads the same flake automatically whenever the directory is entered.
 
 Open the localhost URL printed by Vite, click **連接 Anne Pro 2**, and choose the vendor-defined HID interface. WebHID is available only in a secure context: HTTPS or localhost. It is not supported by Firefox or Safari.
 
@@ -22,10 +25,10 @@ If Chrome can see the keyboard but cannot open it, install a narrowly scoped ude
 ## Checks
 
 ```sh
-npm run lint
-npm run typecheck
-npm test
-npm run build
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
 ## Safety boundary

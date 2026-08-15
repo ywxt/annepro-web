@@ -1,0 +1,94 @@
+<script setup lang="ts">
+import { computed, ref, shallowRef } from 'vue'
+import CollectionsView from './components/CollectionsView.vue'
+import DevicePanel from './components/DevicePanel.vue'
+import KeyboardLayout from './components/KeyboardLayout.vue'
+import ReportsView from './components/ReportsView.vue'
+import { collectMetadata } from './hid/device.ts'
+import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
+import { ReadonlyHidTransport } from './hid/transport.ts'
+import type { InputReportRecord } from './hid/types.ts'
+import type { DeviceTypeResponse } from './protocol/device-info.ts'
+import type { FirmwareVersions } from './protocol/firmware-info.ts'
+import type { IapModeResponse } from './protocol/iap-info.ts'
+import type { KeyboardLayerResponse } from './protocol/layout.ts'
+import { bytesToHex } from './protocol/packet.ts'
+
+const supported = isWebHidSupported()
+const connecting = ref(false)
+const message = ref(supported ? '' : '此瀏覽器不支援 WebHID')
+const device = shallowRef<HIDDevice | null>(null)
+const transport = shallowRef<ReadonlyHidTransport | null>(null)
+const protocolReady = ref(false)
+const busy = ref<string | null>(null)
+const records = ref<InputReportRecord[]>([])
+const deviceType = ref<DeviceTypeResponse | null>(null)
+const firmware = ref<FirmwareVersions | null>(null)
+const iap = ref<IapModeResponse | null>(null)
+const layer0 = ref<KeyboardLayerResponse | null>(null)
+const collections = computed(() => device.value ? collectMetadata(device.value.collections) : [])
+let stopListening: (() => void) | null = null
+
+function downloadJson(filename: string, value: unknown): void {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+async function connect(): Promise<void> {
+  connecting.value = true
+  message.value = '等待選擇裝置…'
+  try {
+    const selection = await requestAnneProDevice()
+    if (!selection.device) { message.value = '未選擇裝置。'; return }
+    const nextTransport = new ReadonlyHidTransport(selection.device)
+    await nextTransport.open()
+    stopListening?.()
+    device.value = selection.device
+    transport.value = nextTransport
+    protocolReady.value = selection.hasProtocolCollection
+    stopListening = nextTransport.listen((record) => records.value.unshift(record))
+    message.value = selection.hasProtocolCollection
+      ? `已從 ${selection.candidates.length} 個候選介面中連接協議 collection。`
+      : `找到 ${selection.candidates.length} 個候選，但未選到 64-byte 協議介面。`
+  } catch (error) {
+    message.value = `連接失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { connecting.value = false }
+}
+
+async function confirmedRead<T>(name: string, prompt: string, read: () => Promise<T>, assign: (value: T) => void): Promise<void> {
+  if (!window.confirm(prompt)) return
+  busy.value = name
+  message.value = `等待 ${name} 回應…`
+  try { assign(await read()); message.value = `${name} 完成。` }
+  catch (error) { message.value = `${name} 失敗：${error instanceof Error ? error.message : String(error)}` }
+  finally { busy.value = null }
+}
+
+const readDeviceType = () => transport.value && confirmedRead('readDeviceType', '傳送一次已確認的唯讀封包：\n7b 12 31 00 02 00 00 7d 01 01', () => transport.value!.readDeviceType(), value => { deviceType.value = value })
+const readFirmware = () => transport.value && confirmedRead('readFirmwareVersion', '傳送一次已確認的唯讀封包：\n7b 12 31 00 02 00 00 7d 01 03', () => transport.value!.readFirmwareVersion(), value => { firmware.value = value })
+const readIap = () => transport.value && confirmedRead('readIapMode（不切換模式）', '只讀取 IAP 狀態，不切換模式：\n7b 12 31 00 02 00 00 7d 02 02', () => transport.value!.readIapMode(), value => { iap.value = value })
+const readLayer0 = () => transport.value && confirmedRead('Layer 0', '傳送一次已確認的唯讀 Layer 0 查詢：\n7b 12 31 00 03 00 00 7d 10 02 00', () => transport.value!.readKeyboardLayer0(), value => { layer0.value = value })
+
+function exportMetadata(): void {
+  if (!device.value) return
+  downloadJson(`annepro-hid-metadata-${Date.now()}.json`, { capturedAt: new Date().toISOString(), vendorId: device.value.vendorId, productId: device.value.productId, productName: device.value.productName, opened: device.value.opened, collections: collections.value })
+}
+function exportReports(): void {
+  downloadJson(`annepro-input-reports-${Date.now()}.json`, records.value.map(record => ({ ...record, bytes: bytesToHex(record.bytes), length: record.bytes.byteLength })))
+}
+</script>
+
+<template>
+  <header><p class="eyebrow">READ-ONLY WEBHID EXPLORER</p><h1>Anne Pro Web Configurator</h1><p class="lede">檢視 Anne Pro 2 的 HID collections、裝置資訊與唯讀鍵位層。所有查詢都固定、可核對並需要逐次確認。</p></header>
+  <section class="card status"><div><span class="dot"></span>{{ supported ? 'WebHID 可用' : '此瀏覽器不支援 WebHID' }}</div><button :disabled="!supported || connecting" @click="connect">連接 Anne Pro 2</button></section>
+  <p id="message" role="status" aria-live="polite">{{ message }}</p>
+  <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer0="readLayer0" />
+  <KeyboardLayout v-if="layer0" :layer="layer0" />
+  <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
+  <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
+  <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>
+</template>
