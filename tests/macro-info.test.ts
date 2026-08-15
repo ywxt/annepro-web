@@ -8,6 +8,14 @@ import {
   parseMacroConfigResponse,
   parseMacroMapResponse,
   parseStoredMacro,
+  crc32,
+  macroUuid,
+  decodeMacroEvents,
+  encodeMacroEvents,
+  serializeMacroImage,
+  createPrepareMacroImageRequest,
+  createDownloadMacroRequests,
+  parseMacroWriteAck,
 } from '../src/protocol/macro-info.ts'
 
 function response(action: number, payload: number[]): Uint8Array {
@@ -35,6 +43,47 @@ describe('readMacroConfig protocol', () => {
       rawFrame: frame,
       trailingLength: 1,
     })
+  })
+
+  it('encodes event records and ObinsKit-compatible CRC identifiers', () => {
+    const events = encodeMacroEvents([{ type: 2, value: 4 }, { type: 3, value: 10 }, { type: 1, value: 4 }])
+    expect(Array.from(events)).toEqual([2, 4, 0, 3, 10, 0, 1, 4, 0])
+    expect(decodeMacroEvents(events)).toEqual([{ type: 2, value: 4 }, { type: 3, value: 10 }, { type: 1, value: 4 }])
+    expect(crc32(new TextEncoder().encode('123456789'))).toBe(0xcbf43926)
+    expect(macroUuid(events)).toBe(crc32(new TextEncoder().encode('[2,4,0,3,10,0,1,4,0]')))
+  })
+
+  it('serializes the active list, map, content, alias and trailing CRC', () => {
+    const events = new Uint8Array([2, 4, 0, 1, 4, 0])
+    const image = serializeMacroImage(
+      [{ icon: 2, name: 'A人', events }],
+      [{ layer: 1, matrixPosition: 9, macroIndex: 0 }],
+    )
+    expect(Array.from(image.slice(0, 5))).toEqual([1, 1, 1, 9, 0])
+    const map = image.slice(5, 19)
+    expect(Array.from(map.slice(4, 8))).toEqual([19, 0, 0, 0])
+    expect(Array.from(map.slice(8))).toEqual([9, 0, 4, 0, 2, 0])
+    expect(Array.from(image.slice(19, -4))).toEqual([2, 4, 0, 1, 4, 0, 0, 0, 0, 0, 65, 78, 186])
+    expect(Array.from(image.slice(-4))).toEqual(Array.from(new Uint8Array(new Uint32Array([crc32(image.slice(2, -4))]).buffer)))
+  })
+
+  it('prepares and chunks a macro image using ObinsKit USB block size', () => {
+    expect(Array.from(createPrepareMacroImageRequest(53).slice(-4))).toEqual([53, 0, 0, 0])
+    const requests = createDownloadMacroRequests(new Uint8Array(50).map((_, index) => index))
+    expect(requests).toHaveLength(2)
+    expect(Array.from(requests[0].slice(10, 14))).toEqual([0, 0, 0, 0])
+    expect(Array.from(requests[1].slice(10, 14))).toEqual([49, 0, 0, 0])
+    expect(requests[0].byteLength).toBe(63)
+    expect(requests[1].byteLength).toBe(15)
+    expect(Array.from(parseMacroWriteAck(0x05, response(0x05, [0])))).toEqual([0])
+    expect(() => parseMacroWriteAck(0x05, response(0x05, [1]))).toThrow('not success')
+  })
+
+  it('rejects unbound on-device macros like the ObinsKit serializer', () => {
+    expect(() => serializeMacroImage(
+      [{ icon: 0, name: 'orphan', events: new Uint8Array() }],
+      [],
+    )).toThrow('both be empty or both be present')
   })
 
   it('rejects unrelated or malformed responses', () => {

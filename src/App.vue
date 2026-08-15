@@ -17,7 +17,7 @@ import type { FirmwareVersions } from './protocol/firmware-info.ts'
 import type { IapModeResponse } from './protocol/iap-info.ts'
 import type { HardwareState } from './protocol/hardware-state.ts'
 import type { KeyboardLayerResponse } from './protocol/layout.ts'
-import type { MacroBackup } from './protocol/macro-info.ts'
+import type { ActiveMacroBinding, MacroBackup, StoredMacro } from './protocol/macro-info.ts'
 import type { LedPowerModeResponse } from './protocol/led-power.ts'
 import type { HardwareSettingKey } from './protocol/settings-write.ts'
 import { encodeLightRgb, type LightEffect } from './protocol/lighting.ts'
@@ -36,6 +36,7 @@ const firmware = ref<FirmwareVersions | null>(null)
 const iap = ref<IapModeResponse | null>(null)
 const hardwareState = ref<HardwareState | null>(null)
 const macroBackup = ref<MacroBackup | null>(null)
+const originalMacroBackup = ref<MacroBackup | null>(null)
 const ledPowerMode = ref<LedPowerModeResponse | null>(null)
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
@@ -226,6 +227,43 @@ function exportMacros(): void {
   })
 }
 
+function cloneMacroBackup(backup: MacroBackup): MacroBackup {
+  return {
+    config: { ...backup.config, rawFrame: backup.config.rawFrame.slice() },
+    map: backup.map.map(entry => ({ ...entry, raw: entry.raw.slice() })),
+    macros: backup.macros.map(macro => ({ ...macro, events: macro.events.slice(), separator: macro.separator.slice() })),
+    activeList: backup.activeList.map(binding => ({ ...binding })),
+  }
+}
+
+async function applyMacros(macros: StoredMacro[], bindings: ActiveMacroBinding[]): Promise<void> {
+  if (!transport.value || !macroBackup.value) return
+  if (!window.confirm(`將覆寫鍵盤巨集映像：${macros.length} 個巨集、${bindings.length} 個鍵位綁定。\n\n會先保留目前完整備份，完成後重新讀取並逐項驗證。`)) return
+  originalMacroBackup.value ??= cloneMacroBackup(macroBackup.value)
+  busy.value = 'write macros'
+  try {
+    macroBackup.value = await transport.value.writeMacros(macros, bindings)
+    hardwareState.value = await transport.value.readHardwareState()
+    message.value = '巨集映像已寫入並完成逐項回讀驗證。'
+  } catch (error) {
+    message.value = `巨集寫入失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
+async function restoreMacros(): Promise<void> {
+  if (!transport.value || !originalMacroBackup.value || !window.confirm('寫回首次修改前的完整巨集映像，並重新讀取驗證？')) return
+  busy.value = 'restore macros'
+  try {
+    const backup = originalMacroBackup.value
+    macroBackup.value = await transport.value.writeMacros(backup.macros, backup.activeList)
+    hardwareState.value = await transport.value.readHardwareState()
+    originalMacroBackup.value = null
+    message.value = '巨集已復原並完成回讀驗證。'
+  } catch (error) {
+    message.value = `巨集復原失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
+
 async function applyLayer(layer: number, data: Uint8Array): Promise<void> {
   if (!transport.value || !layers.value[layer]) return
   const original = layers.value[layer]!
@@ -308,16 +346,16 @@ async function importLights(file: File): Promise<void> {
 </script>
 
 <template>
-  <header><p class="eyebrow">READ-ONLY WEBHID EXPLORER</p><h1>Anne Pro Web Configurator</h1><p class="lede">檢視 Anne Pro 2 的 HID collections、裝置資訊與唯讀鍵位層。所有查詢都固定、可核對並需要逐次確認。</p></header>
+  <header><p class="eyebrow">WEBHID CONFIGURATOR</p><h1>Anne Pro Web Configurator</h1><p class="lede">讀取、備份與設定 Anne Pro 2。一般寫入都有範圍檢查、明確確認及裝置回讀驗證；韌體與 IAP 寫入永遠停用。</p></header>
   <section class="card status"><div><span class="dot"></span>{{ supported ? 'WebHID 可用' : '此瀏覽器不支援 WebHID' }}</div><button :disabled="!supported || connecting" @click="connect">連接 Anne Pro 2</button></section>
   <p id="message" role="status" aria-live="polite">{{ message }}</p>
   <DevicePanel v-if="device" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" />
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" :busy="busy !== null" :has-backup="layerBackups[layer.layer] !== null" @apply="applyLayer" @restore="restoreLayer" />
   <LightingPanel v-if="device && protocolReady && capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" />
-  <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" />
+  <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @apply="applyMacros" @restore="restoreMacros" />
   <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @apply-setting="applySetting" @restore-settings="restoreSettings" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
   <ReportsView v-if="device" :records="records" @clear="records = []" @export-reports="exportReports" />
-  <footer>安全模式：只允許已捕獲驗證的固定唯讀查詢；不提供任意封包或設定寫入</footer>
+  <footer>安全模式：不提供任意封包；一般設定寫入需確認及回讀驗證；IAP、韌體與 flash erase 永遠停用</footer>
 </template>

@@ -31,6 +31,11 @@ import {
   parseMacroConfigResponse,
   parseMacroMapResponse,
   parseStoredMacro,
+  createPrepareMacroImageRequest,
+  createDownloadMacroRequests,
+  parseMacroWriteAck,
+  serializeMacroImage,
+  type ActiveMacroBinding,
   type MacroBackup,
   type MacroConfigResponse,
   type StoredMacro,
@@ -177,6 +182,51 @@ export class ReadonlyHidTransport {
       timeoutMs,
     )
     return { config, map, macros, activeList }
+  }
+
+  async writeMacros(
+    macros: readonly Pick<StoredMacro, 'icon' | 'name' | 'events'>[],
+    bindings: readonly ActiveMacroBinding[],
+    timeoutMs = 2500,
+  ): Promise<MacroBackup> {
+    const image = macros.length === 0 && bindings.length === 0
+      ? new Uint8Array()
+      : serializeMacroImage(macros, bindings)
+    await this.requestConfirmedRead(
+      createPrepareMacroImageRequest(image.byteLength),
+      response => parseMacroWriteAck(0x0a, response),
+      timeoutMs,
+    )
+    for (const request of createDownloadMacroRequests(image)) {
+      await this.requestConfirmedRead(
+        request,
+        response => parseMacroWriteAck(0x05, response),
+        timeoutMs,
+      )
+    }
+    // ObinsKit commits the staged image by toggling writeMacroFn after all chunks.
+    await this.writeHardwareSetting('macroTrigger', bindings.length === 0 ? 0 : 1, timeoutMs)
+    const readback = await this.readMacroBackup(timeoutMs)
+    if (readback.macros.length !== macros.length || readback.activeList.length !== bindings.length) {
+      throw new Error('Macro readback count does not match written image')
+    }
+    for (const [index, expected] of macros.entries()) {
+      const actual = readback.macros[index]
+      if (actual.name !== expected.name || actual.icon !== expected.icon
+        || actual.events.byteLength !== expected.events.byteLength
+        || !actual.events.every((value, offset) => value === expected.events[offset])) {
+        throw new Error(`Macro ${index} readback does not match written data`)
+      }
+    }
+    for (const [index, expected] of bindings.entries()) {
+      const actual = readback.activeList[index]
+      if (!actual || actual.layer !== expected.layer
+        || actual.matrixPosition !== expected.matrixPosition
+        || actual.macroIndex !== expected.macroIndex) {
+        throw new Error(`Macro binding ${index} readback does not match written data`)
+      }
+    }
+    return readback
   }
 
   /** All four C18 layer indices have been independently confirmed on physical hardware. */

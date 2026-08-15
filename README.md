@@ -1,6 +1,6 @@
 # Anne Pro Web Configurator
 
-An open-source, read-only WebHID explorer for Anne Pro 2. Protocol compatibility
+An open-source WebHID configurator for Anne Pro 2. Protocol compatibility
 is implemented with direct reference to the unpacked ObinsKit application, while
 the web UI and safety model are independently maintained. The MVP opens a
 supported device, exports HID metadata, records input reports, reads confirmed
@@ -38,7 +38,7 @@ pnpm build
 
 ## Safety boundary
 
-The transport opens the device, listens for input, and exposes narrowly scoped device information, hardware state, LED power mode, macro backup, and four-layer layout reads confirmed by controlled captures. The UI shows the exact packet and requires confirmation before each bounded query. `readIapMode` only reports the state code and cannot switch modes. No arbitrary `sendReport`, feature-report, firmware write, IAP switch, erase, or configuration API is exposed.
+The transport opens the device, listens for input, and exposes narrowly scoped device information plus guarded layout, lighting, macro, and ordinary-setting operations. Persistent readable data is backed up before its first edit and verified by device readback. Macro images use ObinsKit's full map/content/CRC format and 49-byte USB chunks. `readIapMode` only reports the state code and cannot switch modes. No arbitrary packet API, firmware write, IAP switch, flash erase, or firmware-memory operation is exposed.
 
 ## Next protocol research
 

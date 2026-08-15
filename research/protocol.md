@@ -163,7 +163,24 @@ when payload byte 0 is zero. The isolated device response to config was two zero
 bytes, so no map, content, or active-list request was needed.
 
 The similarly named `downloadMacro` is not a read: the renderer uses it to send
-serialized macro storage in chunks with action `30/05`. It remains disabled.
+serialized macro storage in chunks with action `30/05`. The image format is:
+
+```text
+bindingCount:u8, macroCount:u8,
+bindings[bindingCount] = { layer:u8, matrixPosition:u8, macroIndex:u8 },
+map[macroCount] = { uuid:u32le, address:u32le, macroLength:u16le,
+                    aliasLength:u16le, icon:u16le },
+contents = events + 00 00 00 + UTF-16BE alias,
+crc32:u32le
+```
+
+`uuid` is CRC-32 of the UTF-8 JSON representation of the event byte array. The
+final CRC covers the binding table, map and contents (not the two count bytes).
+ObinsKit declares the full image length through `clearMacro` (`30/0a`), sends
+`UInt32LE(offset) + up to 49 bytes` through `downloadMacro` (`30/05`), then
+commits it with `writeMacroFn(1)` (`30/03`). An empty image is paired with
+`writeMacroFn(0)`. The web implementation backs up first and verifies config,
+map, contents and bindings through `30/06–09` after committing.
 
 ### Hardware state (`01/09`)
 

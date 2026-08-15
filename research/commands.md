@@ -17,7 +17,8 @@ Evidence labels:
 | `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | startup capture + native dispatch | R1 | offline assembler implemented; isolated layer capture pending |
 | `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix + 61 bytes split 54 + 8 | captured no-op round trip | W1 | implemented with backup and byte-level readback |
 | ordinary setting writes | write + readback | `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native dispatch + brightness round trip | W1 | implemented with snapshot and verification |
-| `downloadMacro(offset, chunk)` | chunked write | command/action `30/05`; renderer sends serialized macro storage in 49-byte USB chunks | renderer + native dispatch | W1 | disabled |
+| `prepare/clearMacro(length)` | write | command/action `30/0a`; UInt32LE complete image length | renderer + staged physical round trip | W1 | implemented |
+| `downloadMacro(offset, chunk)` | chunked write | command/action `30/05`; UInt32LE offset + up to 49 image bytes | renderer + native dispatch + staged physical round trip | W1 | implemented with backup and semantic readback |
 | `readMacroConfig` | read | command/action `30/06`, two-byte response | captured | R1 | implemented |
 | `readMacroActiveList` | read | command/action `30/07` | static native dispatch | R1 | capture only when config is non-empty |
 | `readMacroMap` | read | command/action `30/08` | static native dispatch | R1 | capture only when config is non-empty |
@@ -27,7 +28,7 @@ Evidence labels:
 | `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
 | `writeSleepTimeout` | configuration write | command/action `01/0f`, UInt16LE seconds | native dispatch | W1 | implemented with readback |
 | `writeAudioVisualize` | configuration write | unresolved | static symbol | W1 | disabled |
-| `writeMacro` | multi-packet write | unresolved | static symbol | W1 | disabled |
+| `writeMacro` (legacy) | multi-packet write | `30/01`; index, trigger, event records + separator | native + renderer | W1 | not used; full image path supersedes it |
 | `writeIapMode` | mode switch | unresolved | static symbol | X | forbidden/deferred |
 | `writeIapMemory` | firmware write | unresolved | observed name | X | forbidden/deferred |
 | `writeEraseMemory` | flash erase | unresolved | static symbol | X | forbidden/deferred |

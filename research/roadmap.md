@@ -59,7 +59,7 @@ device trial, and only then product UI.
 - [x] Ordinary settings editor with first-write snapshot and readback verification.
 - [x] LED power-mode read and guarded write.
 - [x] Host-managed lighting list, preview, download, and local backup/import.
-- [ ] Macro editor, serialization, write, and conditional device readback.
+- [x] Macro event/binding editor, full-image serialization, CRC-32, staged 49-byte download, commit, backup/restore, and semantic device readback.
 
 ### M6 — Compatibility and release
 
