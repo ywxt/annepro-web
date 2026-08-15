@@ -137,3 +137,8 @@ The observed response is multipart: packet `80` carries 54 data bytes and packet
 `01` carries the final 7, producing a 61-byte opaque layer payload. The web
 implementation currently models and tests this format offline only; it does not
 yet expose a layout query in the HID transport or interpret the keycodes.
+
+An isolated Layer 0 request confirmed the first packet exactly: packet `80`
+contains 54 bytes beginning `35 1e 1f 20 ...` and has no HID padding. The capture
+closed before reading packet `01`, so it is deliberately recorded as incomplete
+and is rejected by the complete-layer parser.
