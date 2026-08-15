@@ -8,12 +8,16 @@
       "packet": 0,
       "continuation": true,
       "payloadBytes": 53,
+      "layerPrefixBytes": 1,
+      "keycodeBytes": 52,
       "ackDeclaredFrame": "7b 12 13 00 03 00 00 7d 10 01 00"
     },
     {
       "packet": 1,
       "continuation": false,
-      "payloadBytes": 9,
+      "payloadBytes": 10,
+      "layerPrefixBytes": 1,
+      "keycodeBytes": 9,
       "ackDeclaredFrame": "7b 12 13 00 03 00 00 7d 10 01 01"
     }
   ],
@@ -22,5 +26,5 @@
     "dataLength": 61,
     "matchesOriginal": true
   },
-  "notes": "Corrected against ObinsKit's DWARF-backed native implementation: the USB Liana profile's multipart data limit is 0x35 (53), so layer index plus 61 keycodes split 53 + 9. Earlier 54 + 8 notes conflated WebHID's 64-byte report data with the native vector's separate report-ID byte."
+  "notes": "Corrected against ObinsKit's DWARF-backed downloadKbdLayout call: multi_package_create receives the 61 keycodes and one-byte layer prefix as separate vectors. USB limit 0x35 minus prefix length gives 52 keycodes per packet, and the layer prefix is repeated in both packets: layer+52, then layer+9."
 }

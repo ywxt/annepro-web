@@ -19,7 +19,7 @@ Evidence labels:
 | `readBleMac` | read | BLE route, command/action `40/30`, 6-byte address | captured | R1 | implemented |
 | `deleteBleHost` | destructive config | BLE route, command/action `40/05`, status `00` | captured | W2 | implemented behind typed confirmation |
 | `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | captured for layers 0–3 | R1 | implemented |
-| `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix + 61 bytes split 53 + 9, followed by `writeKbdLayout(1)` | native `0x35` USB chunk limit + renderer sequence | W1 | four-layer transaction; ACK per packet, byte-level readback, User-layout readback |
+| `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix repeated per packet, 61 keycodes split 52 + 9, followed by `writeKbdLayout(1)` | native `0x35 - prefix length` calculation + renderer sequence | W1 | four-layer transaction; ACK per packet, byte-level readback, User-layout readback |
 | ordinary setting writes | write + readback | `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native dispatch + brightness round trip | W1 | implemented with snapshot and verification |
 | `prepare/clearMacro(length)` | write | command/action `30/0a`; UInt32LE complete image length | renderer + staged physical round trip | W1 | implemented |
 | `downloadMacro(offset, chunk)` | chunked write | command/action `30/05`; UInt32LE offset + up to 49 image bytes | renderer + native dispatch + staged physical round trip | W1 | implemented with backup and semantic readback |

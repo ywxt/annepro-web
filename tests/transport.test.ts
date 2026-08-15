@@ -83,10 +83,11 @@ class LayerWriteHidDevice extends FakeHidDevice {
       if (command === 0x10 && action === 0x01) {
         const packet = bytes[3] & 0x7f
         const payload = Array.from(bytes.slice(10, 8 + bytes[4]))
-        if (packet === 0) this.staged.set(payload[0], payload.slice(1))
+        const layer = payload[0]
+        if (packet === 0) this.staged.set(layer, payload.slice(1))
         else {
-          const current = this.staged.get(this.staged.size - 1)
-          if (current) this.staged.set(this.staged.size - 1, [...current, ...payload])
+          const current = this.staged.get(layer)
+          if (current) this.staged.set(layer, [...current, ...payload.slice(1)])
         }
         this.emitFrame(0x10, 0x01, [packet])
       } else if (command === 0x10 && action === 0x02) {

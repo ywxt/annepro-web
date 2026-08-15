@@ -41,7 +41,7 @@ describe('keyboard layout read protocol', () => {
     ])
     expect(requests[0]).toHaveLength(63)
     expect(Array.from(requests[1])).toEqual([
-      0x7b, 0x12, 0x31, 0x01, 11, 0, 0, 0x7d, 0x10, 0x01,
+      0x7b, 0x12, 0x31, 0x01, 12, 0, 0, 0x7d, 0x10, 0x01, 2,
       ...Array.from(data.slice(52)),
     ])
   })
