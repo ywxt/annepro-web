@@ -10,6 +10,8 @@ Evidence labels:
 | --- | --- | --- | --- | --- | --- |
 | `readDeviceType` | read | command/action `01/01`, report ID 0 | captured | R1 | implemented |
 | `readFirmwareVersion(MCU_MAIN)` | read | command/action `01/03`, report ID 0 | captured | R1 | implemented |
+| `readPowerOnTime` | read | command/action `01/02`, UInt32LE hours | captured | R1 | implemented |
+| `readBattery` | read | command/action `01/05`, UInt16LE ADC + two reserved bytes | captured | R1 | implemented with ObinsKit voltage/percent curve |
 | `readHardwareState(MCU_MAIN)` | read | command/action `01/09`, 6-byte legacy or 24-byte modern response | captured | R1 | implemented |
 | `readLedPowerMode(MCU_MAIN)` | read | command/action `20/1e`, one-byte mode (`1` low, `2` high) | captured | R1 | implemented |
 | `readIapMode(MCU_MAIN)` | read | command/action `02/02`, report ID 0 | captured | R1 | implemented; mode labels pending |

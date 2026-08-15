@@ -53,6 +53,10 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .macro-event span { min-width: 180px; }
 .macro-binding { margin-top: 8px; }
 .danger { background: #6f2931; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 14px 0; }
+.info-grid > div { display: grid; gap: 5px; padding: 12px; border: 1px solid #293340; border-radius: 8px; background: #111923; }
+.info-grid span { color: #929dac; font-size: 12px; }
+.info-grid strong { font-size: 18px; }
 .light-item { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(150px, 1fr) 55px auto auto auto; align-items: center; gap: 9px; margin-top: 10px; padding: 10px; border: 1px solid #293340; border-radius: 8px; }
 .light-item input, .light-item select { min-width: 0; padding: 7px; color: #e8ecf2; border: 1px solid #354252; border-radius: 6px; background: #111923; }
 .light-item input[type="color"] { width: 48px; height: 38px; padding: 3px; }

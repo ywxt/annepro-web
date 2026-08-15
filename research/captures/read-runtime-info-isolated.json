@@ -1,0 +1,7 @@
+{
+  "source": "Static ObinsKit mapping plus isolated /dev/hidraw10 reads",
+  "capturedAt": "2026-08-16T02:28:00+08:00",
+  "device": "0x04d9:0xa293",
+  "powerOnTime": { "request": "7b 12 31 00 02 00 00 7d 01 02", "declaredResponse": "7b 12 13 00 06 00 00 7d 01 02 58 29 00 00", "hours": 10584 },
+  "battery": { "request": "7b 12 31 00 02 00 00 7d 01 05", "declaredResponse": "7b 12 13 00 06 00 00 7d 01 05 78 0a 00 00", "adc": 2680, "voltage": 4.057631, "percent": 94 }
+}

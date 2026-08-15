@@ -64,6 +64,14 @@ import {
   parseWriteLightListAck,
   type LightEffect,
 } from '../protocol/lighting.ts'
+import {
+  createReadBatteryRequest,
+  createReadPowerOnTimeRequest,
+  parseBatteryResponse,
+  parsePowerOnTimeResponse,
+  type BatteryResponse,
+  type PowerOnTimeResponse,
+} from '../protocol/runtime-info.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -142,6 +150,14 @@ export class ReadonlyHidTransport {
       parseLedPowerModeResponse,
       timeoutMs,
     )
+  }
+
+  async readBattery(timeoutMs = 1500): Promise<BatteryResponse> {
+    return this.requestConfirmedRead(createReadBatteryRequest(), parseBatteryResponse, timeoutMs)
+  }
+
+  async readPowerOnTime(timeoutMs = 1500): Promise<PowerOnTimeResponse> {
+    return this.requestConfirmedRead(createReadPowerOnTimeRequest(), parsePowerOnTimeResponse, timeoutMs)
   }
 
   async writeHardwareSetting(

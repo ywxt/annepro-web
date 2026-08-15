@@ -7,6 +7,7 @@ import LightingPanel from './components/LightingPanel.vue'
 import MacroPanel from './components/MacroPanel.vue'
 import ReportsView from './components/ReportsView.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
+import RuntimeInfoPanel from './components/RuntimeInfoPanel.vue'
 import { collectMetadata } from './hid/device.ts'
 import { isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
 import { ReadonlyHidTransport } from './hid/transport.ts'
@@ -22,6 +23,7 @@ import type { LedPowerModeResponse } from './protocol/led-power.ts'
 import type { HardwareSettingKey } from './protocol/settings-write.ts'
 import { encodeLightRgb, type LightEffect } from './protocol/lighting.ts'
 import { bytesToHex } from './protocol/packet.ts'
+import type { BatteryResponse, PowerOnTimeResponse } from './protocol/runtime-info.ts'
 
 const supported = isWebHidSupported()
 const connecting = ref(false)
@@ -38,6 +40,8 @@ const hardwareState = ref<HardwareState | null>(null)
 const macroBackup = ref<MacroBackup | null>(null)
 const originalMacroBackup = ref<MacroBackup | null>(null)
 const ledPowerMode = ref<LedPowerModeResponse | null>(null)
+const battery = ref<BatteryResponse | null>(null)
+const powerOnTime = ref<PowerOnTimeResponse | null>(null)
 const settingsBackup = ref<{ state: HardwareState; ledPowerMode: LedPowerModeResponse | null } | null>(null)
 const layers = shallowRef<Array<KeyboardLayerResponse | null>>([null, null, null, null])
 const layerBackups = shallowRef<Array<Uint8Array | null>>([null, null, null, null])
@@ -133,6 +137,17 @@ const readLedPowerMode = () => transport.value && confirmedRead(
   () => transport.value!.readLedPowerMode(),
   value => { ledPowerMode.value = value },
 )
+async function readRuntimeInfo(): Promise<void> {
+  if (!transport.value || !window.confirm('依序傳送兩個已確認的唯讀資訊查詢：\n01/02 readPowerOnTime\n01/05 readBattery')) return
+  busy.value = 'runtime info'
+  try {
+    powerOnTime.value = await transport.value.readPowerOnTime()
+    battery.value = await transport.value.readBattery()
+    message.value = '電池與運行時間讀取完成。'
+  } catch (error) {
+    message.value = `執行期資訊讀取失敗：${error instanceof Error ? error.message : String(error)}`
+  } finally { busy.value = null }
+}
 
 const STATE_KEYS: readonly Exclude<HardwareSettingKey, 'ledPowerMode'>[] = [
   'userLayout', 'magicFn', 'macroTrigger', 'capslockLed', 'backlightBrightness',
@@ -353,6 +368,7 @@ async function importLights(file: File): Promise<void> {
   <section v-if="loadedLayers.length" class="section-heading"><h2>鍵位層</h2><button class="secondary" :disabled="!allLayersLoaded" @click="exportLayers">匯出完整備份</button></section>
   <KeyboardLayout v-for="layer in loadedLayers" :key="layer.layer" :layer="layer" :busy="busy !== null" :has-backup="layerBackups[layer.layer] !== null" @apply="applyLayer" @restore="restoreLayer" />
   <LightingPanel v-if="device && protocolReady && capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" />
+  <RuntimeInfoPanel v-if="device && protocolReady" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" />
   <MacroPanel v-if="device && protocolReady" :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @apply="applyMacros" @restore="restoreMacros" />
   <SettingsPanel v-if="device && protocolReady" :state="hardwareState" :led-power-mode="ledPowerMode" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @apply-setting="applySetting" @restore-settings="restoreSettings" />
   <CollectionsView v-if="device" :collections="collections" @export-metadata="exportMetadata" />
