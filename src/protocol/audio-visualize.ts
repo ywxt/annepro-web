@@ -1,3 +1,5 @@
+import { parseLianaFrame } from './liana.ts'
+
 const LED_COUNT = 64
 
 export type AudioVisualizeMode = 'pure' | 'colorful'
@@ -11,19 +13,31 @@ export function createAudioVisualizeRequests(rgb: Uint8Array): Uint8Array[] {
   if (rgb.byteLength !== 3 && rgb.byteLength !== LED_COUNT * 3) {
     throw new Error(`Audio RGB data must contain 3 or ${LED_COUNT * 3} bytes`)
   }
-  const body = new Uint8Array(2 + rgb.byteLength)
-  body.set([0xff, rgb.byteLength === 3 ? 1 : 2])
-  body.set(rgb, 2)
   const requests: Uint8Array[] = []
-  for (let offset = 0, packet = 0; offset < body.byteLength; offset += 54, packet += 1) {
-    const payload = body.slice(offset, offset + 54)
-    const more = offset + payload.byteLength < body.byteLength
+  const rgbPerPacket = 51
+  const packetCount = Math.ceil(rgb.byteLength / rgbPerPacket)
+  const type = rgb.byteLength === 3 ? 1 : 2
+  for (let offset = 0, packet = 0; offset < rgb.byteLength; offset += rgbPerPacket, packet += 1) {
+    const colors = rgb.slice(offset, offset + rgbPerPacket)
+    const payload = new Uint8Array(2 + colors.byteLength)
+    payload.set([0xff, type])
+    payload.set(colors, 2)
     requests.push(new Uint8Array([
-      0x7b, 0x12, 0x31, packet | (more ? 0x80 : 0),
+      0x7b, 0x10, 0x41, packetCount << 4 | packet,
       payload.byteLength + 2, 0, 0, 0x7d, 0x20, 0x11, ...payload,
     ]))
   }
   return requests
+}
+
+export function parseAudioVisualizeAck(data: Uint8Array): void {
+  const frame = parseLianaFrame(data)
+  if (frame.command !== 0x20 || frame.action !== 0x11) {
+    throw new Error('Response is not writeAudioVisualize (20/11)')
+  }
+  if (frame.payload.byteLength !== 1 || frame.payload[0] !== 0) {
+    throw new Error('writeAudioVisualize did not return success status 0')
+  }
 }
 
 function hsv(hue: number, saturation: number, value: number): [number, number, number] {

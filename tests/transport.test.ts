@@ -85,6 +85,20 @@ class LightPreviewHidDevice extends FakeHidDevice {
   }
 }
 
+class AudioVisualizeHidDevice extends FakeHidDevice {
+  override async sendReport(reportId: number, data: BufferSource): Promise<void> {
+    const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data as ArrayBuffer)
+    this.sent.push({ reportId, data: bytes })
+    queueMicrotask(() => {
+      const ack = new Uint8Array([
+        0x7b, 0x10, 0x14, 0x10, 3, 0, 0, 0x7d, 0x20, 0x11, 0,
+      ])
+      const event = { reportId: 0, data: new DataView(ack.buffer) } as HIDInputReportEvent
+      for (const listener of this.listeners) listener(event)
+    })
+  }
+}
+
 class LayerWriteHidDevice extends FakeHidDevice {
   private staged = new Map<number, number[]>()
 
@@ -110,7 +124,7 @@ class LayerWriteHidDevice extends FakeHidDevice {
         this.emitFrame(0x10, 0x02, data.slice(0, 54), 0x80)
         this.emitFrame(0x10, 0x02, data.slice(54), 0x01)
       } else if (command === 0x10 && action === 0x06) {
-        this.emitFrame(0x10, 0x06, [1])
+        this.emitFrame(0x10, 0x06, [0], 0x10, 0x10)
       } else if (command === 0x01 && action === 0x09) {
         const state = Array(24).fill(0)
         state[12] = 1
@@ -227,6 +241,16 @@ describe('typed Anne Pro HID transport', () => {
     expect(device.sent.map(({ data }) => data[3])).toEqual([0x50, 0x51, 0x52, 0x53, 0x54])
     expect(device.sent.every(({ data }) => data[1] === 0x10 && data[2] === 0x41
       && data[8] === 0x20 && data[9] === 0x03 && data[10] === 0xff && data[11] === 2)).toBe(true)
+  })
+
+  it('waits for every native audio-visualize packet acknowledgement', async () => {
+    const device = new AudioVisualizeHidDevice()
+    const transport = new AnneProHidTransport(device as unknown as HIDDevice)
+    await transport.sendAudioVisualizeFrame(new Uint8Array(192), 100)
+    expect(device.sent).toHaveLength(4)
+    expect(device.sent.map(({ data }) => data[3])).toEqual([0x40, 0x41, 0x42, 0x43])
+    expect(device.sent.every(({ data }) => data[1] === 0x10 && data[2] === 0x41
+      && data[8] === 0x20 && data[9] === 0x11 && data[10] === 0xff && data[11] === 2)).toBe(true)
   })
 
   it('times out after ignoring mismatched replies and releases the single-flight guard', async () => {

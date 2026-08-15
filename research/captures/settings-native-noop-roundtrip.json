@@ -1,0 +1,32 @@
+{
+  "source": "ObinsKit native addon same-value writes under strace on /dev/hidraw10",
+  "capturedAt": "2026-08-16T05:18:00+08:00",
+  "device": "0x04d9:0xa293",
+  "hardwareStateBefore": "00 00 00 00 a5 a5 a5 a5 5b 29 00 00 01 01 00 01 18 07 00 01 03 71 00 7c",
+  "writes": [
+    { "name": "writeKbdLayout", "commandAction": "10/06", "value": 1, "ack": 0 },
+    { "name": "writeKbdMagicFn", "commandAction": "10/03", "value": 1, "ack": 0 },
+    { "name": "writeMacroFn", "commandAction": "30/03", "value": 0, "ack": 0 },
+    { "name": "writeKbdCapslock", "commandAction": "10/07", "value": 1, "ack": 0 },
+    { "name": "writeBacklightBrightness", "commandAction": "20/15", "value": 7, "ack": 7 },
+    { "name": "writeLightHoldOn", "commandAction": "20/0d", "value": 0, "ack": 0 },
+    { "name": "writeKbdTap", "commandAction": "10/05", "value": 1, "ack": 0 },
+    { "name": "writeKbdTapkeyActMode", "commandAction": "10/11", "value": 3, "ack": 0 },
+    { "name": "writeKbdTapkeyTimeout", "commandAction": "10/13", "value": 113, "ack": 0 },
+    { "name": "writeLedPowerMode", "commandAction": "20/1f", "value": 2, "ack": 2 },
+    { "name": "writeLedIndicatorColor", "commandAction": "20/1b", "valueHex": "ff8000", "ack": 0 }
+  ],
+  "unsupported": {
+    "name": "writeIndicatorBrightness",
+    "commandAction": "20/14",
+    "value": 24,
+    "result": "native timeout after one bounded retry"
+  },
+  "notWritten": {
+    "name": "writeSleepTimeout",
+    "rawReadback": 31744,
+    "reason": "auto sleep is disabled and the raw value is outside the renderer's valid 10–3600 second range"
+  },
+  "hardwareStateAfter": "00 00 00 00 a5 a5 a5 a5 5b 29 00 00 01 01 00 01 18 07 00 01 03 71 00 7c",
+  "powerAndColorMatched": true
+}

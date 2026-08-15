@@ -68,13 +68,16 @@ describe('readMacroConfig protocol', () => {
   })
 
   it('prepares and chunks a macro image using ObinsKit USB block size', () => {
-    expect(Array.from(createPrepareMacroImageRequest(53).slice(-4))).toEqual([53, 0, 0, 0])
+    expect(Array.from(createPrepareMacroImageRequest(53))).toEqual([
+      0x7b, 0x10, 0x31, 0x10, 6, 0, 0, 0x7d, 0x30, 0x0a, 53, 0, 0, 0,
+    ])
     const requests = createDownloadMacroRequests(new Uint8Array(50).map((_, index) => index))
     expect(requests).toHaveLength(2)
     expect(Array.from(requests[0].slice(10, 14))).toEqual([0, 0, 0, 0])
     expect(Array.from(requests[1].slice(10, 14))).toEqual([49, 0, 0, 0])
     expect(requests[0].byteLength).toBe(63)
     expect(requests[1].byteLength).toBe(15)
+    expect(requests.every(request => request[1] === 0x10 && request[3] === 0x10)).toBe(true)
     expect(Array.from(parseMacroWriteAck(0x05, response(0x05, [0])))).toEqual([0])
     expect(() => parseMacroWriteAck(0x05, response(0x05, [1]))).toThrow('not success')
   })

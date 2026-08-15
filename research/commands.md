@@ -20,9 +20,9 @@ Evidence labels:
 | `deleteBleHost` | destructive config | BLE route, command/action `40/05`, status `00` | captured | W2 | implemented behind typed confirmation |
 | `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | captured for layers 0–3 | R1 | implemented |
 | `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix repeated per packet, 61 keycodes split 52 + 9, followed by `writeKbdLayout(1)` | native `0x35 - prefix length` calculation + renderer sequence | W1 | four-layer transaction; ACK per packet, byte-level readback, User-layout readback |
-| ordinary setting writes | write + readback | `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native dispatch + brightness round trip | W1 | implemented with snapshot and verification |
-| `prepare/clearMacro(length)` | write | command/action `30/0a`; UInt32LE complete image length | renderer + staged physical round trip | W1 | implemented |
-| `downloadMacro(offset, chunk)` | chunked write | command/action `30/05`; UInt32LE offset + up to 49 image bytes | renderer + native dispatch + staged physical round trip | W1 | implemented with backup and semantic readback |
+| ordinary setting writes | write + readback | native protocol `10`, marker `10`; `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native same-value round trip | W1 | strict status/echo ACK plus semantic readback; indicator brightness unsupported |
+| `prepare/clearMacro(length)` | write | native `10/31/10`, command/action `30/0a`; UInt32LE complete image length | renderer + native empty-state round trip | W1 | implemented |
+| `downloadMacro(offset, chunk)` | chunked write | native `10/31/10`, command/action `30/05`; UInt32LE offset + up to 49 image bytes | native staged 49-byte physical round trip | W1 | implemented with backup and semantic readback |
 | `readMacroConfig` | read | command/action `30/06`, two-byte response | captured | R1 | implemented |
 | `readMacroActiveList` | read | command/action `30/07` | static native dispatch | R1 | capture only when config is non-empty |
 | `readMacroMap` | read | command/action `30/08` | static native dispatch | R1 | capture only when config is non-empty |
@@ -31,7 +31,7 @@ Evidence labels:
 | `downloadLight` | persistent multi-packet write | MCU main `20/02`; repeated slot/type prefix + up to 51 RGB bytes | renderer + native dispatch/trace | W1 | implemented as host-managed list; status `00` ACK per packet |
 | `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
 | `writeSleepTimeout` | configuration write | command/action `01/0f`, UInt16LE seconds | native dispatch | W1 | implemented with readback |
-| `writeAudioVisualize` | transient stream | `20/11`; `ff 01 + RGB` or `ff 02 + 64 RGB`, multipart when needed | native dispatch + bounded physical frame | W1 | implemented at max 20 FPS, awaited single-flight |
+| `writeAudioVisualize` | transient stream | MCU LED `20/11`; repeated `ff 01/02` prefix + up to 51 RGB bytes | native physical single/multipart traces | W1 | status `00` ACK per packet, max 20 FPS |
 | `writeAudioVisualConfig` | other-model transient config | MCU_LED route, command/action `21/01` | native dispatch + advanced renderer path | N/A | intentionally capability-excluded on C18 |
 | `writeAudioVisualData` | other-model transient stream | MCU_LED route, command/action `21/02` | native dispatch + advanced renderer path | N/A | intentionally capability-excluded on C18 |
 | indicator color | read/write/readback | `20/1a` read RGB, `20/1b` write RGB | captured same-value round trip | W1 | implemented with backup/restore |

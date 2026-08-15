@@ -26,7 +26,7 @@ export function createReadIndicatorColorRequest(): Uint8Array {
 
 export function createWriteIndicatorColorRequest(hex: string): Uint8Array {
   const rgb = parseColorHex(hex)
-  return new Uint8Array([0x7b, 0x12, 0x31, 0, 5, 0, 0, 0x7d, 0x20, 0x1b, ...rgb])
+  return new Uint8Array([0x7b, 0x10, 0x31, 0x10, 5, 0, 0, 0x7d, 0x20, 0x1b, ...rgb])
 }
 
 export function parseIndicatorColorResponse(data: Uint8Array): IndicatorColorResponse {

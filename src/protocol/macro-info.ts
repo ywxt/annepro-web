@@ -215,7 +215,7 @@ export function serializeMacroImage(
 function createWriteRequest(action: 0x05 | 0x0a, body: Uint8Array): Uint8Array {
   if (body.byteLength > 54) throw new RangeError('Macro write body exceeds one HID packet')
   return new Uint8Array([
-    0x7b, 0x12, 0x31, 0, body.byteLength + 2, 0, 0, 0x7d, 0x30, action, ...body,
+    0x7b, 0x10, 0x31, 0x10, body.byteLength + 2, 0, 0, 0x7d, 0x30, action, ...body,
   ])
 }
 

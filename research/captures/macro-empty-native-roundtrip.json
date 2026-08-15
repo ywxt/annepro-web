@@ -1,0 +1,31 @@
+{
+  "source": "ObinsKit native addon under strace on /dev/hidraw10",
+  "capturedAt": "2026-08-16T05:17:00+08:00",
+  "device": "0x04d9:0xa293",
+  "beforeConfig": "00 00",
+  "operations": [
+    {
+      "name": "clearMacro",
+      "request": "7b 10 31 10 06 00 00 7d 30 0a 31 00 00 00",
+      "ack": "7b 10 13 10 03 00 00 7d 30 0a 00"
+    },
+    {
+      "name": "downloadMacro",
+      "requestPrefix": "7b 10 31 10 37 00 00 7d 30 05 00 00 00 00",
+      "chunkBytes": 49,
+      "ack": "7b 10 13 10 03 00 00 7d 30 05 00"
+    },
+    {
+      "name": "clearMacro",
+      "request": "7b 10 31 10 06 00 00 7d 30 0a 00 00 00 00",
+      "ackStatus": 0
+    },
+    {
+      "name": "writeMacroFn",
+      "request": "7b 10 31 10 03 00 00 7d 30 03 00",
+      "ackStatus": 0
+    }
+  ],
+  "afterConfig": "00 00",
+  "notes": "The device was confirmed empty before testing. The 49-byte a5 staging chunk was never committed, was cleared immediately, and the final config remained byte-identical."
+}

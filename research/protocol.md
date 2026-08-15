@@ -182,6 +182,11 @@ commits it with `writeMacroFn(1)` (`30/03`). An empty image is paired with
 `writeMacroFn(0)`. The web implementation backs up first and verifies config,
 map, contents and bindings through `30/06–09` after committing.
 
+A native physical empty-state round trip confirmed all macro writes use protocol
+`10`, route `31`, single-packet marker `10`, and status ACK `00`. A maximum USB
+chunk is exactly `UInt32LE(offset) + 49 bytes`, producing declared frame length
+`37`. A staged test chunk was cleared without commit and config remained `00 00`.
+
 ### Hardware state (`01/09`)
 
 The modern renderer reads a 24-byte payload and uses indices 12–23 for ordinary
@@ -206,8 +211,14 @@ operations only. It snapshots the first read state, confirms each semantic diff,
 writes one field, then uses `readHardwareState` or `readLedPowerMode` to verify
 the effective value. A physical backlight test changed raw brightness 7 to 6,
 confirmed 6 by readback, restored 7, and confirmed 7. Write acknowledgement
-payloads are operation-specific (some echo values), so they are retained as raw
-data and are not interpreted as a universal status code.
+payloads are operation-specific. A complete same-value native round trip confirmed
+protocol `10` and marker `10` for every ordinary setting write. Layout, Magic Fn,
+macro trigger, CapsLock, LED hold, Tap state/mode/timeout, and indicator color
+return status `00`; backlight brightness and LED power echo their written value.
+The parser now enforces those semantics. `writeIndicatorBrightness (20/14)` timed
+out in the native addon on this C18 and remains unsupported. Sleep timeout was
+not physically rewritten because auto sleep was disabled and its raw readback
+`31744` is outside ObinsKit's valid 10–3600 second input range.
 
 ### Keyboard layout write (`downloadKbdLayout`, `10/01`)
 
@@ -274,6 +285,15 @@ Persistent installation is preceded by the one-byte `writeLightList` count on
 `20/04`.
 The keyboard has no light-list read command, so profiles are explicitly stored,
 imported, and exported by the browser rather than described as device backups.
+
+### Audio visualization (`20/11`)
+
+The native physical path uses MCU LED route `41` with the same packet builder as
+light preview. Prefix `ff 01` identifies a three-byte single-color frame; prefix
+`ff 02` identifies a 192-byte 64-LED frame. The prefix repeats in every packet,
+leaving 51 RGB bytes per packet. A colorful frame therefore uses markers `40`
+through `43` with chunks `51+51+51+39`. Every packet returns status `00`; the web
+transport now waits for each ACK while retaining its 20 FPS upper bound.
 # Device identity and Bluetooth
 
 - `01/0d` (`readUDID`, MCU main route `0x3`) returns a 16-byte unique device ID on C18. Treat it as sensitive: mask by default and exclude it from automatic exports.

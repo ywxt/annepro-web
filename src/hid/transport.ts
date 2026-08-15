@@ -72,7 +72,7 @@ import {
   type BatteryResponse,
   type PowerOnTimeResponse,
 } from '../protocol/runtime-info.ts'
-import { createAudioVisualizeRequests } from '../protocol/audio-visualize.ts'
+import { createAudioVisualizeRequests, parseAudioVisualizeAck } from '../protocol/audio-visualize.ts'
 import {
   createDeleteBleHostRequest,
   createReadBleMacRequest,
@@ -414,15 +414,11 @@ export class AnneProHidTransport {
     }
   }
 
-  /** Bounded fire-and-forget frame; callers must rate-limit and await each frame. */
-  async sendAudioVisualizeFrame(rgb: Uint8Array): Promise<void> {
+  /** Bounded native-style ACK queue; callers must still rate-limit each frame. */
+  async sendAudioVisualizeFrame(rgb: Uint8Array, timeoutMs = 1000): Promise<void> {
     const requests = createAudioVisualizeRequests(rgb)
-    if (this.confirmedReadPending) throw new Error('Another HID operation is already pending')
-    this.confirmedReadPending = true
-    try {
-      for (const request of requests) await this.device.sendReport(0, request)
-    } finally {
-      this.confirmedReadPending = false
+    for (const request of requests) {
+      await this.requestConfirmedRead(request, parseAudioVisualizeAck, timeoutMs)
     }
   }
 
