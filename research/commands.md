@@ -73,7 +73,7 @@ Captured `10/02` responses use protocol `0x12` multipart byte 3 as a continuatio
 
 Every exposed write is bounded and verified at the strongest level the device supports:
 
-- Keyboard layers, ordinary settings, LED power, indicator color, and macros receive typed acknowledgements and semantic readback. Layout writes cover all four layers and finish with ObinsKit's `writeKbdLayout(1)` reload step.
+- Keyboard layers, ordinary settings, LED power, indicator color, and macros receive typed acknowledgements and semantic readback. Layout writes acknowledge eight uninterrupted download packets, finish with ObinsKit's `writeKbdLayout(1)` reload step, then read back all four active layers.
 - Persistent lighting receives a typed acknowledgement for the list header and every multipart packet. Firmware exposes no lighting read command, so the UI explicitly treats the list as host-managed and does not claim semantic readback.
 - BLE-host deletion validates its returned zero status. There is no safe command that enumerates paired hosts afterward.
 - Lighting preview and audio visualization are transient operations for which the captured C18 firmware emits no acknowledgement. They are single-flight, size/rate bounded, and only treat `sendReport()` completion as transport success.

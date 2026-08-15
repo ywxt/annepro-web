@@ -220,7 +220,10 @@ the original four layers, preserves drafts while switching tabs, writes all four
 layers as one user action, and rejects any non-identical readback. The unpacked
 renderer then calls `writeKbdLayout(1)` after all `downloadKbdLayout` calls; the
 web transport mirrors this mandatory User-layout activation/reload step and
-verifies `userLayout === 1` through `readHardwareState`.
+verifies `userLayout === 1` through `readHardwareState`. It does not interleave
+`uploadKbdLayout` reads between layer downloads: all eight write packets are
+acknowledged first, matching ObinsKit's staging transaction, and all four layers
+are read back only after activation.
 
 ### Lighting (`20/03` and `20/04`)
 

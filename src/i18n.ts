@@ -18,7 +18,7 @@ export const messages = {
     locale: { label: '語言', zh: '繁體中文', en: 'English' },
     layer: {
       0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer',
-      keys: '{count} 個按鍵', changes: '{count} 項變更', totalChanges: '四層共 {count} 項變更', restore: '復原原層', apply: '套用 {name}', restoreAll: '復原四層', applyAll: '寫入四層',
+      keys: '{count} 個按鍵', changes: '{count} 項變更', totalChanges: '四層共 {count} 項變更', restore: '復原原層', apply: '套用 {name}', restoreAll: '復原四層', applyAll: '寫入四層', userActive: 'User layout 已啟用', userInactive: 'User layout 未啟用',
       selected: '按鍵 {index}', raw: '原始鍵位資料',
     },
     keyGroup: { Basic: '一般按鍵', Function: '功能鍵', Media: '媒體與系統', 'Anne Pro': 'Anne Pro 功能', Modifiers: '修飾鍵' },
@@ -56,7 +56,7 @@ export const messages = {
     locale: { label: 'Language', zh: '繁體中文', en: 'English' },
     layer: {
       0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer',
-      keys: '{count} keys', changes: '{count} changes', totalChanges: '{count} changes across four layers', restore: 'Restore original', apply: 'Apply {name}', restoreAll: 'Restore four layers', applyAll: 'Write four layers',
+      keys: '{count} keys', changes: '{count} changes', totalChanges: '{count} changes across four layers', restore: 'Restore original', apply: 'Apply {name}', restoreAll: 'Restore four layers', applyAll: 'Write four layers', userActive: 'User layout active', userInactive: 'User layout inactive',
       selected: 'Key {index}', raw: 'Raw key data',
     },
     keyGroup: { Basic: 'Basic keys', Function: 'Function keys', Media: 'Media and system', 'Anne Pro': 'Anne Pro functions', Modifiers: 'Modifiers' },

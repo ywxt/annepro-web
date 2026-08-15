@@ -18,6 +18,14 @@ header { max-width: 720px; margin-bottom: 36px; }
 .layer-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .layer-tabs button.secondary { margin-left: 0; }
 .layer-tabs button.active { color: #07120e; border-color: #62e5b4; background: #62e5b4; }
+.keys-workspace { padding: 0; overflow: hidden; }
+.keys-workspace > .embedded-settings { margin: 0; padding: 22px; border: 0; border-radius: 0; background: transparent; }
+.keys-workspace > .embedded-settings .settings-editor { margin-top: 16px; padding-top: 16px; }
+.keys-workspace > .embedded-settings .control-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; }
+.layer-workspace { padding: 22px; border-top: 1px solid #293340; }
+.layer-heading { align-items: end; margin-bottom: 12px; }
+.layout-status { padding: 5px 9px; color: #e6c992; border: 1px solid #68562e; border-radius: 99px; font-size: 12px; white-space: nowrap; }
+.layout-status.active { color: #62e5b4; border-color: #39765f; }
 .platform-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .platform-tabs button.secondary { margin: 0; }
 .platform-tabs button.active { color: #07120e; border-color: #62e5b4; background: #62e5b4; }
