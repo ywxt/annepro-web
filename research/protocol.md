@@ -259,15 +259,19 @@ remains stricter here: it awaits that activation, waits 150 ms, reads the state,
 and verifies all four active layers byte-for-byte. This is an intentional safety
 difference, not a packet-format difference.
 
-### Lighting (`20/03` and `20/04`)
+### Lighting (`20/02`, `20/03`, and `20/04`)
 
 `previewLight` and `downloadLight` share the native packet builder. Their body
 starts with slot and effect type. Type 1 carries one RGB color, type 2 carries
 61 per-key colors plus the C18 profile's nine blank LED positions, and dynamic
-types carry ObinsKit's 12-color palette. Preview uses slot 255 and action `04`;
-a bounded physical preview produced no acknowledgement, so it only awaits USB
-send completion. Persistent download uses action `03`, preceded by the one-byte
-`writeLightList` count on `20/04`, and retains packet acknowledgement checks.
+types carry ObinsKit's 12-color palette. Native-addon traces confirm preview uses
+MCU LED route `41`, slot 255, and action `03`; persistent download uses MCU main
+route `31` and action `02`. The two-byte slot/type prefix is repeated per packet,
+leaving 51 RGB bytes under the native 53-byte payload limit. A 210-byte per-key
+preview therefore uses markers `50` through `54` and chunks `51+51+51+51+6`.
+Every packet returns status `00`, and the next packet is sent only after its ACK.
+Persistent installation is preceded by the one-byte `writeLightList` count on
+`20/04`.
 The keyboard has no light-list read command, so profiles are explicitly stored,
 imported, and exported by the browser rather than described as device backups.
 # Device identity and Bluetooth

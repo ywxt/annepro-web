@@ -27,8 +27,8 @@ Evidence labels:
 | `readMacroActiveList` | read | command/action `30/07` | static native dispatch | R1 | capture only when config is non-empty |
 | `readMacroMap` | read | command/action `30/08` | static native dispatch | R1 | capture only when config is non-empty |
 | `readMacro(index)` | indexed read | command/action `30/09`, one-byte index | static native dispatch | R1 | capture only for indices declared by map |
-| `previewLight` | transient write | `20/04`; slot `ff`, type, RGB data | static + bounded physical send | W1 | implemented fire-and-forget; device emitted no ack |
-| `downloadLight` | persistent multi-packet write | `20/03`; slot, type, RGB data | renderer + native dispatch | W1 | implemented as host-managed list; no device readback exists |
+| `previewLight` | transient write | MCU LED `20/03`; repeated slot `ff`/type prefix + up to 51 RGB bytes | native physical single/multipart traces | W1 | implemented with status `00` ACK per packet |
+| `downloadLight` | persistent multi-packet write | MCU main `20/02`; repeated slot/type prefix + up to 51 RGB bytes | renderer + native dispatch/trace | W1 | implemented as host-managed list; status `00` ACK per packet |
 | `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
 | `writeSleepTimeout` | configuration write | command/action `01/0f`, UInt16LE seconds | native dispatch | W1 | implemented with readback |
 | `writeAudioVisualize` | transient stream | `20/11`; `ff 01 + RGB` or `ff 02 + 64 RGB`, multipart when needed | native dispatch + bounded physical frame | W1 | implemented at max 20 FPS, awaited single-flight |

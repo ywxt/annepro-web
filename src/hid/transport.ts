@@ -402,15 +402,15 @@ export class AnneProHidTransport {
     }
   }
 
-  /** Preview is fire-and-forget in ObinsKit and produced no input acknowledgement on C18. */
-  async previewLight(effect: LightEffect): Promise<void> {
+  /** Native ObinsKit advances each preview packet only after a success ACK. */
+  async previewLight(effect: LightEffect, timeoutMs = 2000): Promise<void> {
     const requests = createPreviewLightRequests(effect)
-    if (this.confirmedReadPending) throw new Error('Another HID operation is already pending')
-    this.confirmedReadPending = true
-    try {
-      for (const request of requests) await this.device.sendReport(0, request)
-    } finally {
-      this.confirmedReadPending = false
+    for (const [packet, request] of requests.entries()) {
+      await this.requestConfirmedRead(
+        request,
+        response => parseLightWriteAck(0x03, packet, response),
+        timeoutMs,
+      )
     }
   }
 
@@ -437,7 +437,7 @@ export class AnneProHidTransport {
       for (const [packet, request] of requests.entries()) {
         await this.requestConfirmedRead(
           request,
-          response => parseLightWriteAck(0x03, packet, response),
+          response => parseLightWriteAck(0x02, packet, response),
           timeoutMs,
         )
       }

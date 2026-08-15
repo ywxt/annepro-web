@@ -1,0 +1,29 @@
+{
+  "source": "ObinsKit native addon under strace on /dev/hidraw10",
+  "capturedAt": "2026-08-16T05:08:00+08:00",
+  "device": "0x04d9:0xa293",
+  "operation": "previewLight",
+  "singleColor": {
+    "request": "7b 10 41 10 07 00 00 7d 20 03 ff 01 00 ff 00",
+    "ack": "7b 10 14 10 03 00 00 7d 20 03 00"
+  },
+  "perKey": {
+    "rgbBytes": 210,
+    "packetCount": 5,
+    "packetMarkers": [80, 81, 82, 83, 84],
+    "rgbBytesPerPacket": [51, 51, 51, 51, 6],
+    "repeatedPrefix": "ff 02",
+    "ackStatusPerPacket": [0, 0, 0, 0, 0]
+  },
+  "persistentUnusedSlot": {
+    "operation": "downloadLight",
+    "slot": 31,
+    "route": 49,
+    "action": 2,
+    "packetMarkers": [80, 81, 82, 83, 84],
+    "repeatedPrefix": "1f 02",
+    "ackStatusPerPacket": [0, 0, 0, 0, 0],
+    "listed": false
+  },
+  "notes": "The native queue sent each next packet only after status 00. Both five-packet paths were followed by a successful single-color green preview. Slot 31 was used to validate persistent multipart encoding without changing writeLightList, so it is not part of the active light list."
+}

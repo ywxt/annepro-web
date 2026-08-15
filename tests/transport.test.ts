@@ -71,6 +71,20 @@ class LedPowerHidDevice extends FakeHidDevice {
   }
 }
 
+class LightPreviewHidDevice extends FakeHidDevice {
+  override async sendReport(reportId: number, data: BufferSource): Promise<void> {
+    const bytes = data instanceof Uint8Array ? data.slice() : new Uint8Array(data as ArrayBuffer)
+    this.sent.push({ reportId, data: bytes })
+    queueMicrotask(() => {
+      const ack = new Uint8Array([
+        0x7b, 0x10, 0x14, 0x10, 3, 0, 0, 0x7d, 0x20, 0x03, 0,
+      ])
+      const event = { reportId: 0, data: new DataView(ack.buffer) } as HIDInputReportEvent
+      for (const listener of this.listeners) listener(event)
+    })
+  }
+}
+
 class LayerWriteHidDevice extends FakeHidDevice {
   private staged = new Map<number, number[]>()
 
@@ -203,6 +217,16 @@ describe('typed Anne Pro HID transport', () => {
       0x7b, 0x12, 0x31, 0, 2, 0, 0, 0x7d, 0x20, 0x1e,
     ])
     expect(result).toMatchObject({ mode: 2, modeName: 'High' })
+  })
+
+  it('waits for every native light-preview packet acknowledgement', async () => {
+    const device = new LightPreviewHidDevice()
+    const transport = new AnneProHidTransport(device as unknown as HIDDevice)
+    await transport.previewLight({ name: 'Keys', type: 2, colors: Array(61).fill('#112233') }, 100)
+    expect(device.sent).toHaveLength(5)
+    expect(device.sent.map(({ data }) => data[3])).toEqual([0x50, 0x51, 0x52, 0x53, 0x54])
+    expect(device.sent.every(({ data }) => data[1] === 0x10 && data[2] === 0x41
+      && data[8] === 0x20 && data[9] === 0x03 && data[10] === 0xff && data[11] === 2)).toBe(true)
   })
 
   it('times out after ignoring mismatched replies and releases the single-flight guard', async () => {
