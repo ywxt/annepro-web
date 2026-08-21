@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: read
-  deployments: write
 
 jobs:
   deploy:
@@ -49,14 +48,13 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Install Wrangler
+        run: |
+          npm install --prefix "$RUNNER_TEMP/wrangler" wrangler@4
+          echo "$RUNNER_TEMP/wrangler/node_modules/.bin" >> "$GITHUB_PATH"
+
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          # Keep the app build on pnpm, but let the action install its own
-          # Wrangler with npm so pnpm's ignored-build policy does not block workerd.
-          packageManager: npm
-          wranglerVersion: "4"
-          command: pages deploy dist --project-name=annepro-web --branch=main
+        run: wrangler pages deploy dist --project-name=annepro-web --branch=main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
