@@ -47,9 +47,15 @@ date/time, image, text, and monitor operations and combines adjacent key bytes i
 use indicator-location/color variants. Some MCU-LED devices use advanced audio
 commands `21/01` and `21/02`, while Anne Pro 2 uses `20/11`.
 
-Only model IDs 3 and 5 currently receive Anne Pro 2 configuration capabilities in
-the web app. All other identifiers are named for diagnostics but remain disabled
-until their descriptors, layout geometry, command responses, and writes are tested.
+Only model IDs 3 and 5 currently receive the complete Anne Pro 2 configuration
+workspace. The official lazy profile data is now represented for every listed
+model, including key count, row geometry, RGB holes, macro matrix offsets, MCU
+routes, bottom-light metadata, and Tenet's 16-bit keycode width. Discovery uses its
+native `01/11` direct battery-percentage read. D87's `20/18` indicator-location read
+and `20/19` write are implemented as typed transport operations with write readback,
+but remain out of the product UI until the rest of the D87 settings workspace is
+available. Other model-specific writes remain capability-disabled rather than
+falling through to the C18 implementation.
 
 The WebHID chooser now includes every exact VID/PID pair in the Electron discovery
 table. For models without a verified profile, connection performs only `01/01`

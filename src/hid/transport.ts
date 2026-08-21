@@ -66,8 +66,10 @@ import {
 } from '../protocol/lighting.ts'
 import {
   createReadBatteryRequest,
+  createReadBatteryPercentageRequest,
   createReadPowerOnTimeRequest,
   parseBatteryResponse,
+  parseBatteryPercentageResponse,
   parsePowerOnTimeResponse,
   type BatteryResponse,
   type PowerOnTimeResponse,
@@ -90,6 +92,13 @@ import {
   parseWriteIndicatorColorAck,
   type IndicatorColorResponse,
 } from '../protocol/indicator-color.ts'
+import {
+  createReadIndicatorLocationRequest,
+  createWriteIndicatorLocationRequest,
+  parseIndicatorLocationResponse,
+  parseWriteIndicatorLocationAck,
+  type IndicatorLocationResponse,
+} from '../protocol/indicator-location.ts'
 import { OBINSKIT_RETRY_MS, OBINSKIT_TIMEOUT_MS } from '../protocol/timing.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
@@ -180,6 +189,10 @@ export class AnneProHidTransport {
     return this.requestConfirmedRead(createReadBatteryRequest(), parseBatteryResponse, timeoutMs)
   }
 
+  async readBatteryPercentage(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<BatteryResponse> {
+    return this.requestConfirmedRead(createReadBatteryPercentageRequest(), parseBatteryPercentageResponse, timeoutMs)
+  }
+
   async readPowerOnTime(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<PowerOnTimeResponse> {
     return this.requestConfirmedRead(createReadPowerOnTimeRequest(), parsePowerOnTimeResponse, timeoutMs)
   }
@@ -204,6 +217,17 @@ export class AnneProHidTransport {
     await this.requestConfirmedRead(createWriteIndicatorColorRequest(hex), parseWriteIndicatorColorAck, timeoutMs)
     const readback = await this.readIndicatorColor(timeoutMs)
     if (readback.hex.toLowerCase() !== hex.toLowerCase()) throw new Error(`Indicator color readback ${readback.hex} does not match ${hex}`)
+    return readback
+  }
+
+  async readIndicatorLocation(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorLocationResponse> {
+    return this.requestConfirmedRead(createReadIndicatorLocationRequest(), parseIndicatorLocationResponse, timeoutMs)
+  }
+
+  async writeIndicatorLocation(location: number, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorLocationResponse> {
+    await this.requestConfirmedRead(createWriteIndicatorLocationRequest(location), parseWriteIndicatorLocationAck, timeoutMs)
+    const readback = await this.readIndicatorLocation(timeoutMs)
+    if (readback.location !== location) throw new Error(`Indicator location readback ${readback.location} does not match ${location}`)
     return readback
   }
 

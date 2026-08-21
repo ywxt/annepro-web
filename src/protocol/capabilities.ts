@@ -1,6 +1,6 @@
 import type { DeviceTypeResponse } from './device-info.ts'
 import type { FirmwareVersions } from './firmware-info.ts'
-import { hasConfigurationProfile } from '../device-registry.ts'
+import { getObinsModel, hasConfigurationProfile } from '../device-registry.ts'
 
 export interface DeviceCapabilities {
   profileKnown: boolean
@@ -11,7 +11,9 @@ export interface DeviceCapabilities {
   factoryReset: boolean
   hasLed: boolean | null
   hasIndicatorLed: boolean | null
+  indicatorLocation: boolean | null
   hasBattery: boolean | null
+  batteryPercentage: boolean | null
   audioVisualization: boolean | null
   modernTapSettings: boolean | null
   sleepTimeout: boolean | null
@@ -36,6 +38,7 @@ export function deriveDeviceCapabilities(
 ): DeviceCapabilities | null {
   if (!deviceType) return null
   const isAnnePro2 = hasConfigurationProfile(deviceType.model)
+  const model = getObinsModel(deviceType.model)
   const keyVersion = firmware?.key
   return {
     profileKnown: isAnnePro2,
@@ -46,7 +49,9 @@ export function deriveDeviceCapabilities(
     factoryReset: isAnnePro2,
     hasLed: isAnnePro2 ? true : null,
     hasIndicatorLed: isAnnePro2 ? false : null,
-    hasBattery: isAnnePro2 ? true : null,
+    indicatorLocation: model ? model.id === 7 : null,
+    hasBattery: model ? model.hardware.mcuBle : null,
+    batteryPercentage: model ? model.id === 14 : null,
     audioVisualization: isAnnePro2 ? true : null,
     modernTapSettings: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.11') >= 0 : null,
     sleepTimeout: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.14') > 0 : null,

@@ -4,7 +4,7 @@ function readUInt32Le(data: Uint8Array): number {
   return (data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24)) >>> 0
 }
 
-function readRequest(action: 0x02 | 0x05): Uint8Array {
+function readRequest(action: 0x02 | 0x05 | 0x11): Uint8Array {
   return new Uint8Array([0x7b, 0x12, 0x31, 0, 2, 0, 0, 0x7d, 0x01, action])
 }
 
@@ -15,8 +15,9 @@ export interface PowerOnTimeResponse {
 }
 
 export interface BatteryResponse {
-  adc: number
-  voltage: number
+  source: 'adc' | 'percentage'
+  adc: number | null
+  voltage: number | null
   percent: number
   reserved: number
   rawFrame: Uint8Array
@@ -25,6 +26,8 @@ export interface BatteryResponse {
 
 export function createReadPowerOnTimeRequest(): Uint8Array { return readRequest(0x02) }
 export function createReadBatteryRequest(): Uint8Array { return readRequest(0x05) }
+/** Anne Pro 2 Discovery uses a direct percentage byte instead of the ADC route. */
+export function createReadBatteryPercentageRequest(): Uint8Array { return readRequest(0x11) }
 
 export function batteryPercent(voltage: number): number {
   let value: number
@@ -59,8 +62,19 @@ export function parseBatteryResponse(data: Uint8Array): BatteryResponse {
   const adc = frame.payload[0] | (frame.payload[1] << 8)
   const voltage = adc * 2 * 3.1 / 4095
   return {
-    adc, voltage, percent: batteryPercent(voltage),
+    source: 'adc', adc, voltage, percent: batteryPercent(voltage),
     reserved: frame.payload[2] | (frame.payload[3] << 8),
+    rawFrame: data.slice(0, 8 + frame.payloadLength), trailingLength: frame.trailing.byteLength,
+  }
+}
+
+export function parseBatteryPercentageResponse(data: Uint8Array): BatteryResponse {
+  const frame = parseLianaFrame(data)
+  if (frame.command !== 0x01 || frame.action !== 0x11) throw new Error('Response is not the expected battery percentage')
+  if (frame.payload.byteLength !== 1) throw new Error(`Battery percentage payload must be 1 byte, got ${frame.payload.byteLength}`)
+  if (frame.payload[0] > 100) throw new Error(`Battery percentage is out of range: ${frame.payload[0]}`)
+  return {
+    source: 'percentage', adc: null, voltage: null, percent: frame.payload[0], reserved: 0,
     rawFrame: data.slice(0, 8 + frame.payloadLength), trailingLength: frame.trailing.byteLength,
   }
 }

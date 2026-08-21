@@ -10,7 +10,8 @@ describe('ObinsKit capability gates', () => {
   it('derives the captured C18 feature set', () => {
     expect(deriveDeviceCapabilities(device, firmware)).toEqual({
       profileKnown: true, keyboardLayers: true, macros: true, generalSettings: true,
-      bluetooth: true, factoryReset: true, hasLed: true, hasIndicatorLed: false, hasBattery: true,
+      bluetooth: true, factoryReset: true, hasLed: true, hasIndicatorLed: false, indicatorLocation: false, hasBattery: true,
+      batteryPercentage: false,
       audioVisualization: true, modernTapSettings: true, sleepTimeout: true,
       ledPowerMode: true, capslockColor: true,
     })
@@ -25,10 +26,25 @@ describe('ObinsKit capability gates', () => {
   it('does not invent capabilities for unknown models', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 99 }, firmware)).toEqual({
       profileKnown: false, keyboardLayers: false, macros: false, generalSettings: false,
-      bluetooth: false, factoryReset: false, hasLed: null, hasIndicatorLed: null, hasBattery: null,
+      bluetooth: false, factoryReset: false, hasLed: null, hasIndicatorLed: null, indicatorLocation: null, hasBattery: null,
+      batteryPercentage: null,
       audioVisualization: null, modernTapSettings: null, sleepTimeout: null,
       ledPowerMode: null, capslockColor: null,
     })
+  })
+
+  it('selects the direct battery-percentage route for Discovery', () => {
+    expect(deriveDeviceCapabilities({ ...device, model: 14 }, firmware)).toMatchObject({
+      profileKnown: false, hasBattery: true, batteryPercentage: true,
+    })
+    expect(deriveDeviceCapabilities({ ...device, model: 12 }, firmware)).toMatchObject({
+      hasBattery: false, batteryPercentage: false,
+    })
+  })
+
+  it('gates the native indicator-location route to D87', () => {
+    expect(deriveDeviceCapabilities({ ...device, model: 7 }, firmware)).toMatchObject({ indicatorLocation: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 33 }, firmware)).toMatchObject({ indicatorLocation: false })
   })
 
   it('gates firmware-dependent controls on older Anne Pro 2 firmware', () => {

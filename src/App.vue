@@ -240,6 +240,12 @@ async function confirmedRead<T>(name: string, read: () => Promise<T>, assign: (v
 const readDeviceType = () => transport.value && confirmedRead('readDeviceType', () => transport.value!.readDeviceType(), value => { deviceType.value = value })
 const readFirmware = () => transport.value && confirmedRead('readFirmwareVersion', () => transport.value!.readFirmwareVersion(), value => { firmware.value = value })
 const readIap = () => transport.value && confirmedRead('readIapMode', () => transport.value!.readIapMode(), value => { iap.value = value })
+function readBatteryForModel() {
+  if (!transport.value) return Promise.reject(new Error('No connected device'))
+  return capabilities.value?.batteryPercentage
+    ? transport.value.readBatteryPercentage()
+    : transport.value.readBattery()
+}
 async function readAll(): Promise<void> {
   if (!transport.value) return
   busy.value = 'read all'
@@ -248,6 +254,8 @@ async function readAll(): Promise<void> {
     if (!capabilities.value?.profileKnown) {
       firmware.value = await transport.value.readFirmwareVersion().catch(() => null)
       iap.value = await transport.value.readIapMode().catch(() => null)
+      powerOnTime.value = await transport.value.readPowerOnTime().catch(() => null)
+      if (capabilities.value?.hasBattery) battery.value = await readBatteryForModel().catch(() => null)
       message.value = t('notice.identificationOnly', { model: deviceType.value.modelName })
       return
     }
@@ -255,7 +263,7 @@ async function readAll(): Promise<void> {
     iap.value = await transport.value.readIapMode()
     powerOnTime.value = await transport.value.readPowerOnTime()
     udid.value = await transport.value.readUdid()
-    if (capabilities.value?.hasBattery) battery.value = await transport.value.readBattery()
+    if (capabilities.value?.hasBattery) battery.value = await readBatteryForModel()
     if (capabilities.value?.generalSettings) hardwareState.value = await transport.value.readHardwareState()
     if (capabilities.value?.bluetooth) bleMac.value = await transport.value.readBleMac()
     if (capabilities.value?.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
@@ -324,7 +332,7 @@ async function readRuntimeInfo(): Promise<void> {
   busy.value = 'runtime info'
   try {
     powerOnTime.value = await transport.value.readPowerOnTime()
-    battery.value = await transport.value.readBattery()
+    battery.value = await readBatteryForModel()
     message.value = t('notice.done', { name: t('runtime.title') })
   } catch (error) {
     message.value = t('notice.failed', { name: t('runtime.title'), error: error instanceof Error ? error.message : String(error) })
