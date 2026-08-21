@@ -51,7 +51,7 @@ export function deriveDeviceCapabilities(
     generalSettings: isAnnePro2,
     bluetooth: isAnnePro2,
     factoryReset: isAnnePro2,
-    hasLed: isAnnePro2 ? true : null,
+    hasLed: model ? isAnnePro2 || model.id === 13 : null,
     hasIndicatorLed: isAnnePro2 ? false : null,
     indicatorLocation: model ? model.id === 7 || model.id === 12 : null,
     hasBattery: model ? model.hardware.mcuBle : null,

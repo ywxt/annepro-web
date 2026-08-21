@@ -69,6 +69,12 @@ canvas conversion to two 4-bit grayscale pixels per byte and exactly 128 indexed
 pages. Transport is capability-gated and bounded, but product UI remains disabled
 until the acknowledgement shape and display result are captured on model 12.
 
+Fuji65 RGB (model 13) now selects the official bottom-light surface instead of the
+66-key RGB surface. Its 16 editable LEDs are expanded through `bottomLightBlank`
+into the 32-position wire strip and reuse the native light-list/download commands.
+The non-RGB Fuji65 (model 11) remains lighting-disabled, matching ObinsKit's
+`isHaveLed` gate.
+
 The key workspace now decodes raw layer bytes before rendering: 8-bit models show
 their profile row counts, while Tenet shows 73 keys instead of 146 individual bytes.
 Standalone layer backups store semantic keycodes and record their width; import

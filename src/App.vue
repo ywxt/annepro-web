@@ -36,7 +36,7 @@ import type { HardwareSettingKey } from './protocol/settings-write.ts'
 import { C18_LIGHTING_PROFILE, lightingProfileForModel, normalizeLightEffects, type LightEffect } from './protocol/lighting.ts'
 import { bytesToHex } from './protocol/packet.ts'
 import type { BatteryResponse, PowerOnTimeResponse } from './protocol/runtime-info.ts'
-import { audioRgbFromFrequencyData, type AudioVisualizeMode } from './protocol/audio-visualize.ts'
+import { audioRgbFromFrequencyData, type AudioSource, type AudioVisualizeMode } from './protocol/audio-visualize.ts'
 import type { BleMacAddress, DeviceUdid } from './protocol/device-identity.ts'
 import type { IndicatorColorResponse } from './protocol/indicator-color.ts'
 import type { IndicatorLocationResponse } from './protocol/indicator-location.ts'
@@ -72,8 +72,10 @@ const indicatorLocation = ref<IndicatorLocationResponse | null>(null)
 const indicatorLocationBackup = ref<number[] | null>(null)
 const audioRunning = ref(false)
 const audioMode = ref<AudioVisualizeMode>('pure')
+const audioSource = ref<AudioSource>('system')
 const audioColor = ref('#00ff80')
 const audioFrames = ref(0)
+const audioLevel = ref(0)
 type WorkspaceSection = 'device' | 'keys' | 'tester' | 'lighting' | 'macros'
 const activeSection = ref<WorkspaceSection>('device')
 const DEBUG_STORAGE_KEY = 'annepro-web-debug-mode'
@@ -120,16 +122,24 @@ let audioTimer: number | null = null
 let audioSending = false
 let audioFramePromise: Promise<void> | null = null
 
-function loadLightEffects(): LightEffect[] {
+function loadLightEffects(profile = C18_LIGHTING_PROFILE, storageKey = LIGHT_STORAGE_KEY): LightEffect[] {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(LIGHT_STORAGE_KEY) ?? 'null')
-    return normalizeLightEffects(parsed, C18_LIGHTING_PROFILE)
+    const parsed: unknown = JSON.parse(localStorage.getItem(storageKey) ?? 'null')
+    return normalizeLightEffects(parsed, profile)
   } catch {
-    return normalizeLightEffects([{ name: 'Red', type: 1, colors: ['#ff0000'] }], C18_LIGHTING_PROFILE)
+    return normalizeLightEffects([{ name: 'Red', type: 1, colors: ['#ff0000'] }], profile)
   }
 }
 
-watch(lightEffects, effects => localStorage.setItem(LIGHT_STORAGE_KEY, JSON.stringify(effects)), { deep: true })
+watch(deviceType, current => {
+  if (!current) return
+  const profile = lightingProfileForModel(current.model)
+  lightEffects.value = loadLightEffects(profile, `${LIGHT_STORAGE_KEY}-model-${current.model}`)
+})
+watch(lightEffects, effects => {
+  const storageKey = deviceType.value ? `${LIGHT_STORAGE_KEY}-model-${deviceType.value.model}` : LIGHT_STORAGE_KEY
+  localStorage.setItem(storageKey, JSON.stringify(effects))
+}, { deep: true })
 watch(debugMode, enabled => localStorage.setItem(DEBUG_STORAGE_KEY, String(enabled)))
 watch(navigation, items => {
   if (!items.some(item => item.id === activeSection.value)) activeSection.value = 'device'
@@ -807,7 +817,14 @@ async function startAudioVisualize(): Promise<void> {
   if (!transport.value || audioRunning.value) return
   busy.value = 'start audio visualize'
   try {
-    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    audioStream = audioSource.value === 'system'
+      ? await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+      : await navigator.mediaDevices.getUserMedia({ audio: true })
+    if (audioStream.getAudioTracks().length === 0) {
+      audioStream.getTracks().forEach(track => track.stop())
+      audioStream = null
+      throw new Error(t('audio.noAudioTrack'))
+    }
     audioContext = new AudioContext()
     const source = audioContext.createMediaStreamSource(audioStream)
     const analyser = audioContext.createAnalyser()
@@ -816,10 +833,12 @@ async function startAudioVisualize(): Promise<void> {
     source.connect(analyser)
     const frequencies = new Uint8Array(analyser.frequencyBinCount)
     audioFrames.value = 0
+    audioLevel.value = 0
     audioRunning.value = true
     audioTimer = window.setInterval(() => {
       if (!audioRunning.value || audioSending || !transport.value) return
       analyser.getByteFrequencyData(frequencies)
+      audioLevel.value = Math.round(frequencies.reduce((sum, value) => sum + value, 0) / frequencies.length / 255 * 100)
       const rgb = audioRgbFromFrequencyData(audioMode.value, frequencies, selectedAudioColor())
       audioSending = true
       const framePromise = transport.value.sendAudioVisualizeFrame(rgb)
@@ -847,6 +866,7 @@ async function stopAudioVisualize(restore = true): Promise<void> {
   audioStream = null
   if (audioContext) await audioContext.close().catch(() => undefined)
   audioContext = null
+  audioLevel.value = 0
   // The interval is single-flight, but its last ACK may still be pending when Stop is clicked.
   // Native ObinsKit serializes the restore behind that frame; do the same before previewing.
   if (restore && audioFramePromise) await audioFramePromise.catch(() => undefined)
@@ -885,7 +905,7 @@ onBeforeUnmount(() => {
         <div v-if="device && activeSection === 'device'" class="device-dashboard"><DevicePanel class="dashboard-primary" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" :debug="debugMode" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><ModelSupport v-if="deviceType && !capabilities?.profileKnown" class="dashboard-primary" :model-id="deviceType.model" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="dashboard-primary" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" class="dashboard-primary" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></div>
         <section v-if="activeSection === 'keys'" class="card keys-workspace"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="embedded-settings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><div v-if="allLayersLoaded" class="layer-workspace"><div class="layer-title"><p class="eyebrow">4 LAYERS · VERIFIED WRITE</p><h2>{{ t('app.keyboardLayers') }}</h2></div><div class="layer-toolbar-row"><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div><div class="actions layer-actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="busy !== null" @change="pickLayoutFile"></label><button class="secondary" @click="exportLayers">{{ t('app.exportLayers') }}</button><button v-if="layerBackups.every(layer => layer !== null)" class="secondary" :disabled="busy !== null" @click="restoreLayers">{{ t('layer.restoreAll') }}</button><button :disabled="busy !== null || layerDrafts.some(layer => !layer)" @click="applyLayers">{{ t('layer.applyAll') }}</button></div></div><div class="layout-meta"><span class="layout-status" :class="{ active: hardwareState?.userLayout === 1 }">{{ hardwareState?.userLayout === 1 ? t('layer.userActive') : t('layer.userInactive') }}</span><span>{{ t('layer.totalChanges', { count: layerChangeCount }) }}</span><span v-if="layoutNotice" role="status" aria-live="polite">{{ layoutNotice }}</span></div><KeyboardLayout v-if="layers[activeLayer] && layerDrafts[activeLayer]" :layer="layers[activeLayer]!" :draft="layerDrafts[activeLayer]!" :spec="keyboardLayoutSpec" :busy="busy !== null" @update="updateLayerDraft" /></div></section>
         <KeyTester v-if="device && protocolReady && activeSection === 'tester'" />
-        <div v-if="device && protocolReady && activeSection === 'lighting'" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :profile="lightingProfile" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" /></div>
+        <div v-if="device && protocolReady && activeSection === 'lighting'" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :profile="lightingProfile" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :source="audioSource" :color="audioColor" :busy="busy !== null" :frames="audioFrames" :level="audioLevel" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-source="audioSource = $event" @update-color="audioColor = $event" /></div>
         <div v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></div>
         <div v-if="device && debugMode" class="debug-workspace"><div class="debug-banner"><span>DEBUG</span>{{ t('app.developerHint') }}</div><ProtocolCoverage /><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></div>
       </div>

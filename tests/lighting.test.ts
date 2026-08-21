@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createDownloadLightRequests, createPreviewLightRequests, createWriteLightListRequest, encodeLightEffect, encodeLightRgb, normalizeLightEffect, parseLightWriteAck, parseWriteLightListAck, type LightEffect } from '../src/protocol/lighting.ts'
+import { createDownloadLightRequests, createPreviewLightRequests, createWriteLightListRequest, encodeLightEffect, encodeLightRgb, lightingProfileForModel, normalizeLightEffect, parseLightWriteAck, parseWriteLightListAck, type LightEffect } from '../src/protocol/lighting.ts'
 
 const light = (type: number, staticColors = Array(61).fill('#112233'), dynamicColors = ['#ff0000']): LightEffect => ({ name: 'Test', type, staticColors, dynamicColors })
 
@@ -41,6 +41,17 @@ describe('lighting protocol', () => {
     const migrated = normalizeLightEffect({ name: 'Legacy', type: 3, colors: ['#123456'] })
     expect(migrated.staticColors).toHaveLength(61)
     expect(migrated.dynamicColors).toEqual(['#123456'])
+  })
+
+  it('maps Fuji65 RGB bottom lighting as 16 LEDs in the official 32-position strip', () => {
+    const profile = lightingProfileForModel(13)
+    expect(profile).toMatchObject({ keycapCount: 16, rowLengths: [16], maxEffects: 16, surface: 'bottom' })
+    expect(profile.blankRgb).toHaveLength(16)
+    const colors = Array(16).fill('#112233'); colors[1] = '#445566'
+    const encoded = encodeLightEffect(light(2, colors), profile)
+    expect(encoded.type).toBe(2)
+    expect(encoded.rgb).toHaveLength(32 * 3)
+    expect(Array.from(encoded.rgb.slice(0, 3))).toEqual([0, 0, 0])
   })
 
   it('accepts native success status instead of treating it as a packet index', () => {

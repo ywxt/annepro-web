@@ -31,6 +31,7 @@ Evidence labels:
 | `previewLight` | transient write | MCU LED `20/03`; repeated slot `ff`/type prefix + up to 51 RGB bytes | native physical single/multipart traces | W1 | implemented with status `00` ACK per packet |
 | `downloadLight` | persistent multi-packet write | MCU main `20/02`; repeated slot/type prefix + up to 51 RGB bytes | renderer + native dispatch/trace | W1 | implemented as host-managed list; status `00` ACK per packet |
 | `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
+| Fuji65 RGB bottom light | persistent light list | reuses `20/04` + `20/02`; 16 physical LEDs expanded through `bottomLightBlank` to 32 RGB positions | renderer model-13 branch + official profile | W1/static | model-aware editor/codec/transport enabled for model 13; physical validation pending |
 | `writeSleepTimeout` | configuration write | command/action `01/0f`, UInt16LE seconds | native dispatch | W1 | implemented with readback |
 | `writeAudioVisualize` | transient stream | MCU LED `20/11`; repeated `ff 01/02` prefix + up to 51 RGB bytes | native physical single/multipart traces | W1 | status `00` ACK per packet, max 20 FPS |
 | `writeAudioVisualConfig` | other-model transient config | MCU_LED route, command/action `21/01`; one-byte `AudioLightType` 0–10 | native dispatch + advanced renderer path | W1/static | encoded and exposed through a model-gated transport API; no general UI |

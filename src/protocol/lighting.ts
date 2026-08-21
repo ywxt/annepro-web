@@ -3,11 +3,27 @@ import { parseLianaFrame } from './liana.ts'
 
 export const DEFAULT_LIGHT_PALETTE = ['#ff0000', '#ff8000', '#ffff00', '#80ff00', '#00ff00', '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff', '#ff00ff', '#ff0080'] as const
 export const MAX_LIGHT_PALETTE_COLORS = 16
-export interface LightingProfile { keycapCount: number; rowLengths: readonly number[]; blankRgb: readonly number[]; maxEffects: number }
-export const C18_LIGHTING_PROFILE: LightingProfile = { keycapCount: 61, rowLengths: [14, 14, 13, 12, 8], blankRgb: [41, 43, 55, 57, 60, 61, 63, 64, 69], maxEffects: 16 }
+export interface LightingProfile { keycapCount: number; rowLengths: readonly number[]; blankRgb: readonly number[]; maxEffects: number; surface: 'keys' | 'bottom' }
+export const C18_LIGHTING_PROFILE: LightingProfile = { keycapCount: 61, rowLengths: [14, 14, 13, 12, 8], blankRgb: [41, 43, 55, 57, 60, 61, 63, 64, 69], maxEffects: 16, surface: 'keys' }
 export function lightingProfileForModel(modelId: number): LightingProfile {
   const hardware = getObinsModel(modelId)?.hardware
-  return hardware ? { keycapCount: hardware.keycapCount, rowLengths: hardware.rowLengths, blankRgb: hardware.blankRgb, maxEffects: modelId === 1 || modelId === 2 ? 3 : 16 } : C18_LIGHTING_PROFILE
+  if (!hardware) return C18_LIGHTING_PROFILE
+  if (modelId === 13 && hardware.bottomLightCount && hardware.bottomLightBlank) {
+    return {
+      keycapCount: hardware.bottomLightCount,
+      rowLengths: [hardware.bottomLightCount],
+      blankRgb: hardware.bottomLightBlank,
+      maxEffects: 16,
+      surface: 'bottom',
+    }
+  }
+  return {
+    keycapCount: hardware.keycapCount,
+    rowLengths: hardware.rowLengths,
+    blankRgb: hardware.blankRgb,
+    maxEffects: modelId === 1 || modelId === 2 ? 3 : 16,
+    surface: 'keys',
+  }
 }
 
 export interface LightEffect { name: string; type: number; staticColors: string[]; dynamicColors: string[] }

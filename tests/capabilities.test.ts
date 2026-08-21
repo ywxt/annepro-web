@@ -49,6 +49,11 @@ describe('ObinsKit capability gates', () => {
     })
   })
 
+  it('exposes only the official Fuji65 RGB bottom-light workspace', () => {
+    expect(deriveDeviceCapabilities({ ...device, model: 13 }, firmware)).toMatchObject({ hasLed: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 11 }, firmware)).toMatchObject({ hasLed: false })
+  })
+
   it('gates the native indicator-location route to D87', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 7 }, firmware)).toMatchObject({ keyboardLayers: true, indicatorLocation: true })
     expect(deriveDeviceCapabilities({ ...device, model: 33 }, firmware)).toMatchObject({ indicatorLocation: false })
