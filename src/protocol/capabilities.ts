@@ -68,8 +68,13 @@ export function deriveDeviceCapabilities(
     oled: model ? model.id === 12 : null,
     combinationMode: model ? model.id === 12 : null,
     modernTapSettings: modernSettings,
-    sleepTimeout: model ? (model.hardware.mcuBle ? (keyVersion ? compareVersion(keyVersion, '2.14') > 0 : null) : false) : null,
-    ledPowerMode: model ? (keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null) : null,
-    capslockColor: model ? model.id === 12 || (keyVersion ? compareVersion(keyVersion, '2.35') > 0 : false) : null,
+    sleepTimeout: model ? (model.hardware.mcuBle
+      ? (usesLegacyAnneVersionGate ? (keyVersion ? compareVersion(keyVersion, '2.14') > 0 : null) : true)
+      : false) : null,
+    ledPowerMode: model ? (usesLegacyAnneVersionGate ? (keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null) : false) : null,
+    capslockColor: model ? model.id === 14
+      || (model.id === 7 && Boolean(keyVersion && compareVersion(keyVersion, '2.37') > 0))
+      || (usesLegacyAnneVersionGate && Boolean(keyVersion && compareVersion(keyVersion, '2.35') > 0))
+      : null,
   }
 }

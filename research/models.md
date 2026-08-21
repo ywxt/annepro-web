@@ -64,6 +64,12 @@ model/firmware gates. The renderer-wide Macro workspace and model-specific matri
 offsets are enabled for every known profile. C18-only full restore, factory reset,
 and Bluetooth mutation remain separately disabled.
 
+The shared renderer exceptions are preserved: non-Anne BLE profiles expose sleep
+timeout without waiting for an Anne firmware version, Discovery always exposes its
+CapsLock color, D87 requires key firmware newer than 2.37, and other profiles require
+key firmware newer than 2.35. Legacy Anne firmware retains the three-state Macro
+Trigger selector (Disabled/Fn1/Fn2).
+
 The layout codec no longer assumes 61 bytes. It derives 8-bit payload sizes from
 each official profile and reproduces ObinsKit's Tenet 70 conversion to 73 UInt16LE
 keycodes (146 bytes). Multipart downloads retain the native 52-byte data chunk and

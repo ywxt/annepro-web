@@ -69,8 +69,16 @@ describe('ObinsKit capability gates', () => {
 
   it('reproduces official general-settings gates for non-C18 profiles', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: true })
-    expect(deriveDeviceCapabilities({ ...device, model: 12 }, null)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false, capslockColor: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 12 }, null)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false, capslockColor: false })
     expect(deriveDeviceCapabilities({ ...device, model: 6 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false })
+  })
+
+  it('reproduces the renderer sleep and CapsLock-color model exceptions', () => {
+    expect(deriveDeviceCapabilities({ ...device, model: 4 }, null)).toMatchObject({ sleepTimeout: true, capslockColor: false })
+    expect(deriveDeviceCapabilities({ ...device, model: 10 }, null)).toMatchObject({ sleepTimeout: true, capslockColor: false })
+    expect(deriveDeviceCapabilities({ ...device, model: 14 }, null)).toMatchObject({ sleepTimeout: true, capslockColor: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 7 }, { ...firmware, key: '2.37' })).toMatchObject({ capslockColor: false })
+    expect(deriveDeviceCapabilities({ ...device, model: 7 }, { ...firmware, key: '2.38' })).toMatchObject({ capslockColor: true })
   })
 
   it('exposes the renderer-wide macro workspace for every known model', () => {
