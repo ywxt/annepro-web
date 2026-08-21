@@ -22,7 +22,8 @@ Evidence labels:
 | `deleteBleHost` | destructive config | BLE route, command/action `40/05`, status `00` | captured | W2 | implemented behind typed confirmation |
 | `uploadKbdLayout(layer)` | multi-packet read | command/action `10/02`, one-byte layer argument | captured for layers 0–3 | R1 | implemented |
 | `downloadKbdLayout(layer, data)` | multi-packet write | `10/01`; layer prefix repeated per packet, 61 keycodes split 52 + 9, followed by `writeKbdLayout(1)` | native `0x35 - prefix length` calculation + renderer sequence | W1 | four-layer transaction; ACK per packet, byte-level readback, User-layout readback |
-| ordinary setting writes | write + readback | native protocol `10`, marker `10`; `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native same-value round trip | W1 | strict status/echo ACK plus semantic readback; indicator brightness unsupported |
+| ordinary setting writes | write + readback | native protocol `10`, marker `10`; `10/03,05,06,07,11,13`; `20/0d,15,1f`; `30/03`; sleep `01/0f` | native same-value round trip | W1 | strict status/echo ACK plus semantic readback |
+| D87 indicator brightness | write + readback | MCU_LED `20/14`, one value from 1–10 | native dispatch + exact model-7 renderer gate | W1/static | D87-only slider, bounded ACK and `01/09` semantic readback; physical validation pending |
 | `prepare/clearMacro(length)` | write | native `10/31/10`, command/action `30/0a`; UInt32LE complete image length | renderer + native empty-state round trip | W1 | implemented |
 | `downloadMacro(offset, chunk)` | chunked write | native `10/31/10`, command/action `30/05`; UInt32LE offset + up to 49 image bytes | native staged 49-byte physical round trip | W1 | implemented with backup and semantic readback |
 | `readMacroConfig` | read | command/action `30/06`, two-byte response | captured | R1 | implemented |

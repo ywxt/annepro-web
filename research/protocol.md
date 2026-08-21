@@ -216,7 +216,9 @@ protocol `10` and marker `10` for every ordinary setting write. Layout, Magic Fn
 macro trigger, CapsLock, LED hold, Tap state/mode/timeout, and indicator color
 return status `00`; backlight brightness and LED power echo their written value.
 The parser now enforces those semantics. `writeIndicatorBrightness (20/14)` timed
-out in the native addon on this C18 and remains unsupported. Sleep timeout was
+out in the native addon on this C18 and remains excluded from C18; the official
+`isHaveIndicatorLed` gate enables it only for model 7 D87, where the web path uses
+immediate hardware-state readback. Sleep timeout was
 not physically rewritten because auto sleep was disabled and its raw readback
 `31744` is outside ObinsKit's valid 10–3600 second input range.
 

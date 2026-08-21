@@ -82,6 +82,7 @@ const combinationMode = ref<CombinationModeResponse | null>(null)
 const virtualMouseConfig = ref<VirtualMouseConfigResponse | null>(null)
 const mcuUuid = ref<McuUuidResponse | null>(null)
 const indicatorLocationBackup = ref<number[] | null>(null)
+const indicatorBrightnessBackup = ref<number | null>(null)
 const audioRunning = ref(false)
 const audioMode = ref<AudioVisualizeMode>('pure')
 const audioSource = ref<AudioSource>('system')
@@ -191,6 +192,7 @@ function resetDeviceSession(): void {
   indicatorColorBackup.value = null
   indicatorLocation.value = null
   indicatorLocationBackup.value = null
+  indicatorBrightnessBackup.value = null
   combinationMode.value = null
   virtualMouseConfig.value = null
   mcuUuid.value = null
@@ -386,11 +388,16 @@ async function restoreIndicatorColor(): Promise<void> {
   catch (error) { showWriteError(t('settings.restoreColor'), error) }
   finally { busy.value = null }
 }
-const readIndicatorLocation = () => transport.value && confirmedRead(
-  t('settings.capsLed'),
-  () => transport.value!.readIndicatorLocation(),
-  value => { indicatorLocation.value = value },
-)
+async function readIndicatorLocation(): Promise<void> {
+  if (!transport.value) return
+  busy.value = 'read indicator settings'
+  try {
+    indicatorLocation.value = await transport.value.readIndicatorLocation()
+    hardwareState.value = await transport.value.readHardwareState()
+    message.value = t('notice.done', { name: t('settings.capsLed') })
+  } catch (error) { message.value = t('notice.failed', { name: t('settings.capsLed'), error: error instanceof Error ? error.message : String(error) }) }
+  finally { busy.value = null }
+}
 async function applyIndicatorLocation(locations: number[]): Promise<void> {
   if (!transport.value || !indicatorLocation.value) return
   indicatorLocationBackup.value ??= Array.from(indicatorLocation.value.locations)
@@ -404,6 +411,21 @@ async function restoreIndicatorLocation(): Promise<void> {
   busy.value = 'restore indicator LED positions'
   try { indicatorLocation.value = await transport.value.writeIndicatorLocation(indicatorLocationBackup.value); indicatorLocationBackup.value = null; message.value = t('notice.settingsRestored') }
   catch (error) { showWriteError(t('settings.capsLed'), error) }
+  finally { busy.value = null }
+}
+async function applyIndicatorBrightness(value: number): Promise<void> {
+  if (!transport.value || !hardwareState.value || !capabilities.value?.hasIndicatorLed) return
+  indicatorBrightnessBackup.value ??= hardwareState.value.indicatorBrightness
+  busy.value = 'write indicator brightness'
+  try { hardwareState.value = await transport.value.writeIndicatorBrightness(value); message.value = t('notice.settingSaved', { name: t('settings.indicatorBrightness') }) }
+  catch (error) { showWriteError(t('settings.indicatorBrightness'), error) }
+  finally { busy.value = null }
+}
+async function restoreIndicatorBrightness(): Promise<void> {
+  if (!transport.value || indicatorBrightnessBackup.value === null) return
+  busy.value = 'restore indicator brightness'
+  try { hardwareState.value = await transport.value.writeIndicatorBrightness(indicatorBrightnessBackup.value); indicatorBrightnessBackup.value = null; message.value = t('notice.settingsRestored') }
+  catch (error) { showWriteError(t('settings.indicatorBrightness'), error) }
   finally { busy.value = null }
 }
 async function readRuntimeInfo(): Promise<void> {
@@ -959,7 +981,7 @@ onBeforeUnmount(() => {
       <PlatformRequirements v-if="!device" />
       <p v-if="message" id="message" role="status" aria-live="polite">{{ message }}</p>
       <div class="workspace-content">
-        <IndicatorLocationPanel v-if="device && activeSection === 'device' && capabilities?.indicatorLocation" :value="indicatorLocation" :busy="busy !== null" :has-backup="indicatorLocationBackup !== null" @read="readIndicatorLocation" @apply="applyIndicatorLocation" @restore="restoreIndicatorLocation" />
+        <IndicatorLocationPanel v-if="device && activeSection === 'device' && capabilities?.indicatorLocation" :value="indicatorLocation" :brightness="capabilities.hasIndicatorLed ? hardwareState?.indicatorBrightness ?? null : null" :busy="busy !== null" :has-backup="indicatorLocationBackup !== null" :has-brightness-backup="indicatorBrightnessBackup !== null" @read="readIndicatorLocation" @apply="applyIndicatorLocation" @restore="restoreIndicatorLocation" @apply-brightness="applyIndicatorBrightness" @restore-brightness="restoreIndicatorBrightness" />
         <VirtualMouseProbe v-if="device && activeSection === 'device' && debugMode && capabilities && !capabilities.profileKnown" :value="virtualMouseConfig" :busy="busy !== null" @read="readVirtualMouseConfig" />
         <McuUuidProbe v-if="device && activeSection === 'device' && debugMode && capabilities && !capabilities.profileKnown" :value="mcuUuid" :busy="busy !== null" @read="readMcuUuid" />
         <div v-if="device && activeSection === 'device'" class="device-dashboard"><DevicePanel class="dashboard-primary" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" :debug="debugMode" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><ModelSupport v-if="deviceType && capabilities && !capabilities.profileKnown" class="dashboard-primary" :model-id="deviceType.model" :capabilities="capabilities" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="dashboard-primary" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" class="dashboard-primary" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></div>

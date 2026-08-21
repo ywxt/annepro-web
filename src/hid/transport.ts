@@ -136,6 +136,7 @@ import {
 } from '../protocol/indicator-location.ts'
 import { OBINSKIT_RETRY_MS, OBINSKIT_TIMEOUT_MS } from '../protocol/timing.ts'
 import { createReadMcuUuidRequest, parseMcuUuidResponse, type McuUuidResponse } from '../protocol/mcu-uuid.ts'
+import { createWriteIndicatorBrightnessRequest, parseWriteIndicatorBrightnessAck } from '../protocol/indicator-brightness.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -315,6 +316,17 @@ export class AnneProHidTransport {
     if (readback.locations.length !== locations.length || !readback.locations.every((value, index) => value === locations[index])) {
       throw new Error('Indicator location readback does not match written values')
     }
+    return readback
+  }
+
+  async writeIndicatorBrightness(value: number, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<HardwareState> {
+    await this.requestConfirmedRead(
+      createWriteIndicatorBrightnessRequest(value),
+      response => parseWriteIndicatorBrightnessAck(value, response),
+      timeoutMs,
+    )
+    const readback = await this.readHardwareState(timeoutMs)
+    if (readback.indicatorBrightness !== value) throw new Error(`Indicator brightness read back ${readback.indicatorBrightness}; expected ${value}`)
     return readback
   }
 
