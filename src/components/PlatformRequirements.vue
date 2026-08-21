@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { OBINSKIT_DEVICE_FILTERS } from '../hid/discovery.ts'
 
 type Platform = 'linux' | 'windows' | 'macos'
 const { t } = useI18n({ useScope: 'global' })
@@ -8,11 +9,9 @@ const agent = navigator.userAgent.toLowerCase()
 const detected: Platform = agent.includes('win') ? 'windows' : agent.includes('mac') ? 'macos' : 'linux'
 const selected = ref<Platform>(detected)
 const copied = ref(false)
-const linuxRule = `# Anne Pro 2 WebHID access — one rule per product ID
-KERNEL=="hidraw*", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="a293", TAG+="uaccess"
-KERNEL=="hidraw*", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="a292", TAG+="uaccess"
-KERNEL=="hidraw*", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="8008", TAG+="uaccess"
-KERNEL=="hidraw*", ATTRS{idVendor}=="04d9", ATTRS{idProduct}=="8009", TAG+="uaccess"`
+const linuxRule = ['# ObinsKit keyboard WebHID access — exact known VID/PID pairs', ...OBINSKIT_DEVICE_FILTERS.map(({ vendorId, productId }) =>
+  `KERNEL=="hidraw*", ATTRS{idVendor}=="${vendorId!.toString(16).padStart(4, '0')}", ATTRS{idProduct}=="${productId!.toString(16).padStart(4, '0')}", TAG+="uaccess"`,
+)].join('\n')
 
 async function copyRule(): Promise<void> {
   await navigator.clipboard.writeText(linuxRule)

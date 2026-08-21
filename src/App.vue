@@ -187,7 +187,7 @@ function onHidDisconnect(event: HIDConnectionEvent): void {
 }
 
 function onHidConnect(event: HIDConnectionEvent): void {
-  if (event.device.vendorId === 0x04d9) message.value = t('notice.reinserted')
+  if ([0x000d, 0x0483, 0x04d9, 0x3311].includes(event.device.vendorId)) message.value = t('notice.reinserted')
 }
 
 onMounted(() => {
@@ -212,6 +212,10 @@ async function readAll(): Promise<void> {
   busy.value = 'read all'
   try {
     deviceType.value = await transport.value.readDeviceType()
+    if (!capabilities.value?.profileKnown) {
+      message.value = t('notice.identificationOnly', { model: deviceType.value.modelName })
+      return
+    }
     firmware.value = await transport.value.readFirmwareVersion()
     iap.value = await transport.value.readIapMode()
     powerOnTime.value = await transport.value.readPowerOnTime()

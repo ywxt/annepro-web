@@ -219,3 +219,20 @@ main#app { width: 100%; margin: 0; padding: 0; }
   .coverage-grid { grid-template-columns: 1fr; }
   .device-dashboard { grid-template-columns: 1fr; }.device-dashboard > .card { grid-column: 1; border-left: 0 !important; }
 }
+
+/* Flat editing surface: hierarchy comes from spacing and typography, not boxes. */
+.workspace-content > .card, .feature-surface, .device-dashboard { border: 0; border-radius: 0; background: transparent; }
+.workspace-content > .card { padding-inline: 0; }
+.device-dashboard { gap: 0 40px; overflow: visible; }
+.device-dashboard > .card { padding: 28px 0; border-top: 1px solid #26313e !important; border-left: 0 !important; }
+.device-dashboard > .card:first-child { padding-top: 8px; border-top: 0 !important; }
+.feature-surface { overflow: visible; }.feature-surface > .card { padding: 28px 0; border-top: 1px solid #26313e; }.feature-surface > .card:first-child { padding-top: 8px; border-top: 0; }
+.keys-workspace { overflow: visible; }.keys-workspace > .embedded-settings, .layer-workspace { padding-inline: 0; }.layer-workspace { border-top-color: #26313e; }
+.segmented-control { gap: 16px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.segmented-control button { padding: 4px 1px 7px; border-radius: 0; border-bottom: 2px solid transparent; }
+.segmented-control button:hover { background: transparent; }.segmented-control button.active { color: #8ef2ce; border-bottom-color: #62e5b4; background: transparent; box-shadow: none; }
+.key-picker-tabs { gap: 20px; }.key-picker-tabs button { padding-inline: 0; border-radius: 0; border-bottom: 2px solid transparent; }.key-picker-tabs button.active { color: #8ef2ce; border-bottom-color: #62e5b4; background: transparent; }
+.key-choice-grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 0 22px; }
+.key-choice { min-height: 52px; padding: 8px 0; border: 0; border-bottom: 1px solid #26313e; border-radius: 0; background: transparent; }
+.key-choice:hover { color: #e8fff6; border-color: #4b8e75; background: transparent; }.key-choice.active { color: #8ef2ce; border-color: #62e5b4; background: transparent; }
+.key-choice-icon, .key-choice.active .key-choice-icon { flex-basis: 30px; border: 0; background: transparent; }

@@ -51,6 +51,11 @@ Only model IDs 3 and 5 currently receive Anne Pro 2 configuration capabilities i
 the web app. All other identifiers are named for diagnostics but remain disabled
 until their descriptors, layout geometry, command responses, and writes are tested.
 
+The WebHID chooser now includes every exact VID/PID pair in the Electron discovery
+table. For models without a verified profile, connection performs only `01/01`
+identity discovery and exposes HID metadata/debugging; it deliberately stops before
+C18-specific firmware, layout, settings, or write requests.
+
 ## What “C18 support” means
 
 `AnnePro2C18` is exactly model ID 5 in this ObinsKit release; it is not a family of

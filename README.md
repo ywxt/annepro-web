@@ -77,6 +77,10 @@ browser storage and cannot back up a list already installed by another tool.
 | `04d9:a292` | Anne Pro 2 variant | Filtered and capability-detected; physical verification pending |
 | `04d9:8008` | Alternate Anne Pro mode | Filtered; physical verification pending |
 | `04d9:8009` | Alternate Anne Pro mode | Filtered; physical verification pending |
+| `0483:5710` | Anne Pro 1 | Read-only identification; configuration profile pending |
+| `3311:a294`–`a299` | Param68, D87, Slim, ISO, Discovery, W800 family | Read-only identification; model-specific profiles pending |
+| `3311:f000`–`f003`, `f005`, `f006` | F61, Returned Wing, Fuji65, Tenet 70 family | Read-only identification; model-specific profiles pending |
+| `000d:f0e0` | Special Anne Pro 2 discovery path | Read-only identification; profile pending |
 
 Unknown models remain visible for metadata inspection but configuration controls
 requiring an Anne Pro 2 profile stay capability-gated.
@@ -84,8 +88,8 @@ requiring an Anne Pro 2 profile stay capability-gated.
 ## Platform permissions
 
 Windows and macOS normally require only Chrome or Edge and permission through
-the browser chooser. Linux additionally needs a narrowly scoped udev rule for
-vendor `04d9` and the relevant product IDs (`a293`, `a292`, `8008`, `8009`).
+the browser chooser. Linux additionally needs narrowly scoped udev rules for the
+exact VID/PID pairs printed by the app's platform guide.
 Distribution policies differ; prefer `TAG+="uaccess"` over globally writable
 device permissions. Chrome protects standard keyboard collections, so the app
 only identifies and uses the vendor-defined collection exposed by WebHID.

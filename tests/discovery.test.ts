@@ -33,16 +33,17 @@ function protocolDevice(): HIDDevice {
 
 describe('Anne Pro discovery', () => {
   it('narrows every supported product filter to the observed protocol usage', () => {
-    expect(ANNE_PRO_PROTOCOL_FILTERS).toHaveLength(4)
+    expect(ANNE_PRO_PROTOCOL_FILTERS).toHaveLength(18)
     expect(ANNE_PRO_PROTOCOL_FILTERS.every(
-      ({ vendorId, usagePage, usage }) => vendorId === 0x04d9
-        && usagePage === 0x0001
+      ({ usagePage, usage }) => usagePage === 0x0001
         && usage === 0x0000,
     )).toBe(true)
   })
 
   it('accepts only known Anne Pro vendor/product pairs', () => {
     expect(isAnneProDevice(device(1))).toBe(true)
+    expect(isAnneProDevice(device(1, 0x3311, 0xf005))).toBe(true)
+    expect(isAnneProDevice(device(1, 0x0483, 0x5710))).toBe(true)
     expect(isAnneProDevice(device(1, 0x1234))).toBe(false)
     expect(isAnneProDevice(device(1, 0x04d9, 0xffff))).toBe(false)
   })
