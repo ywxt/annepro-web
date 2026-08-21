@@ -90,7 +90,7 @@ import {
   parseWriteIndicatorColorAck,
   type IndicatorColorResponse,
 } from '../protocol/indicator-color.ts'
-import { AUDIO_TIMEOUT_MS, INTER_LAYER_DELAY_MS, LAYOUT_ACTIVATION_DELAY_MS, LAYOUT_TRANSACTION_TIMEOUT_MS, MACRO_TIMEOUT_MS, MULTIPART_TIMEOUT_MS, OBINSKIT_TIMEOUT_MS } from '../protocol/timing.ts'
+import { OBINSKIT_RETRY_MS, OBINSKIT_TIMEOUT_MS } from '../protocol/timing.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -219,7 +219,7 @@ export class AnneProHidTransport {
     )
   }
 
-  async readMacroBackup(timeoutMs = MULTIPART_TIMEOUT_MS): Promise<MacroBackup> {
+  async readMacroBackup(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<MacroBackup> {
     const config = await this.readMacroConfig(timeoutMs)
     if (!config.hasMacros) return { config, map: [], macros: [], activeList: [] }
 
@@ -250,7 +250,7 @@ export class AnneProHidTransport {
   async writeMacros(
     macros: readonly Pick<StoredMacro, 'icon' | 'name' | 'events'>[],
     bindings: readonly ActiveMacroBinding[],
-    timeoutMs = MACRO_TIMEOUT_MS,
+    timeoutMs = OBINSKIT_TIMEOUT_MS,
   ): Promise<MacroBackup> {
     const image = macros.length === 0 && bindings.length === 0
       ? new Uint8Array()
@@ -293,15 +293,17 @@ export class AnneProHidTransport {
   }
 
   /** All four C18 layer indices have been independently confirmed on physical hardware. */
-  async readKeyboardLayer(layer: number, timeoutMs = MULTIPART_TIMEOUT_MS): Promise<KeyboardLayerResponse> {
+  async readKeyboardLayer(layer: number, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<KeyboardLayerResponse> {
     const request = createReadKeyboardLayerRequest(layer)
     if (this.confirmedReadPending) throw new Error('Another confirmed read is already pending')
     this.confirmedReadPending = true
     const reports: Uint8Array[] = []
 
     return new Promise<KeyboardLayerResponse>((resolve, reject) => {
+      let retry: ReturnType<typeof globalThis.setTimeout> | undefined
       const finish = (): void => {
         clearTimeout(timeout)
+        if (retry !== undefined) clearTimeout(retry)
         this.device.removeEventListener('inputreport', onInput)
         this.confirmedReadPending = false
       }
@@ -327,21 +329,23 @@ export class AnneProHidTransport {
       }, timeoutMs)
 
       this.device.addEventListener('inputreport', onInput)
-      this.device.sendReport(0, request).catch((error: unknown) => {
+      const send = (): void => { this.device.sendReport(0, request).catch((error: unknown) => {
         finish()
         reject(error)
-      })
+      }) }
+      send()
+      if (timeoutMs > OBINSKIT_RETRY_MS) retry = globalThis.setTimeout(send, OBINSKIT_RETRY_MS)
     })
   }
 
-  async readKeyboardLayer0(timeoutMs = MULTIPART_TIMEOUT_MS): Promise<KeyboardLayerResponse> {
+  async readKeyboardLayer0(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<KeyboardLayerResponse> {
     return this.readKeyboardLayer(0, timeoutMs)
   }
 
   async writeKeyboardLayer(
     layer: number,
     data: Uint8Array,
-    timeoutMs = MULTIPART_TIMEOUT_MS,
+    timeoutMs = OBINSKIT_TIMEOUT_MS,
   ): Promise<KeyboardLayerResponse> {
     const requests = createWriteKeyboardLayerRequests(layer, data)
     for (const [packet, request] of requests.entries()) {
@@ -361,7 +365,7 @@ export class AnneProHidTransport {
   /** Mirrors ObinsKit: download all four layers, then activate/reload User layout. */
   async writeKeyboardLayers(
     layers: readonly Uint8Array[],
-    timeoutMs = LAYOUT_TRANSACTION_TIMEOUT_MS,
+    timeoutMs = OBINSKIT_TIMEOUT_MS,
   ): Promise<{ layers: KeyboardLayerResponse[]; state: HardwareState }> {
     if (layers.length !== 4) throw new Error(`Expected four keyboard layers, got ${layers.length}`)
     let stage = 'preparing layout'
@@ -380,11 +384,9 @@ export class AnneProHidTransport {
         // two IPC hops before the renderer starts the next layer. Preserve a
         // small, bounded equivalent gap instead of starting the next layer in
         // the same JavaScript microtask.
-        if (layer < layers.length - 1) await new Promise(resolve => globalThis.setTimeout(resolve, INTER_LAYER_DELAY_MS))
       }
       stage = 'activating User layout'
       await this.writeHardwareSetting('userLayout', 1, timeoutMs)
-      await new Promise(resolve => globalThis.setTimeout(resolve, LAYOUT_ACTIVATION_DELAY_MS))
       stage = 'verifying User layout state'
       const state = await this.readHardwareState(timeoutMs)
       if (state.userLayout !== 1) throw new Error(`readback is ${state.userLayout}, expected 1`)
@@ -404,7 +406,7 @@ export class AnneProHidTransport {
   }
 
   /** Native ObinsKit advances each preview packet only after a success ACK. */
-  async previewLight(effect: LightEffect, timeoutMs = MULTIPART_TIMEOUT_MS): Promise<void> {
+  async previewLight(effect: LightEffect, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
     const requests = createPreviewLightRequests(effect)
     for (const [packet, request] of requests.entries()) {
       await this.requestConfirmedRead(
@@ -416,14 +418,14 @@ export class AnneProHidTransport {
   }
 
   /** Bounded native-style ACK queue; callers must still rate-limit each frame. */
-  async sendAudioVisualizeFrame(rgb: Uint8Array, timeoutMs = AUDIO_TIMEOUT_MS): Promise<void> {
+  async sendAudioVisualizeFrame(rgb: Uint8Array, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
     const requests = createAudioVisualizeRequests(rgb)
     for (const request of requests) {
       await this.requestConfirmedRead(request, parseAudioVisualizeAck, timeoutMs)
     }
   }
 
-  async installLights(effects: readonly LightEffect[], timeoutMs = MULTIPART_TIMEOUT_MS): Promise<void> {
+  async installLights(effects: readonly LightEffect[], timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
     await this.requestConfirmedRead(
       createWriteLightListRequest(effects.length),
       parseWriteLightListAck,
@@ -450,8 +452,10 @@ export class AnneProHidTransport {
     this.confirmedReadPending = true
 
     return new Promise<T>((resolve, reject) => {
+      let retry: ReturnType<typeof globalThis.setTimeout> | undefined
       const finish = (): void => {
         clearTimeout(timeout)
+        if (retry !== undefined) clearTimeout(retry)
         this.device.removeEventListener('inputreport', onInput)
         this.confirmedReadPending = false
       }
@@ -474,10 +478,12 @@ export class AnneProHidTransport {
       }, timeoutMs)
 
       this.device.addEventListener('inputreport', onInput)
-      this.device.sendReport(0, request).catch((error: unknown) => {
+      const send = (): void => { this.device.sendReport(0, request).catch((error: unknown) => {
         finish()
         reject(error)
-      })
+      }) }
+      send()
+      if (timeoutMs > OBINSKIT_RETRY_MS) retry = globalThis.setTimeout(send, OBINSKIT_RETRY_MS)
     })
   }
 
@@ -493,8 +499,10 @@ export class AnneProHidTransport {
     const reports: Uint8Array[] = []
 
     return new Promise<T>((resolve, reject) => {
+      let retry: ReturnType<typeof globalThis.setTimeout> | undefined
       const finish = (): void => {
         clearTimeout(timeout)
+        if (retry !== undefined) clearTimeout(retry)
         this.device.removeEventListener('inputreport', onInput)
         this.confirmedReadPending = false
       }
@@ -520,10 +528,12 @@ export class AnneProHidTransport {
       }, timeoutMs)
 
       this.device.addEventListener('inputreport', onInput)
-      this.device.sendReport(0, request).catch((error: unknown) => {
+      const send = (): void => { this.device.sendReport(0, request).catch((error: unknown) => {
         finish()
         reject(error)
-      })
+      }) }
+      send()
+      if (timeoutMs > OBINSKIT_RETRY_MS) retry = globalThis.setTimeout(send, OBINSKIT_RETRY_MS)
     })
   }
 }

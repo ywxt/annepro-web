@@ -78,3 +78,9 @@ Every exposed write is bounded and verified at the strongest level the device su
 - BLE-host deletion validates its returned zero status. There is no safe command that enumerates paired hosts afterward.
 - Lighting preview and audio visualization are transient operations for which the captured C18 firmware emits no acknowledgement. They are single-flight, size/rate bounded, and only treat `sendReport()` completion as transport success.
 - Factory restore composes the operations above and compares every readable setting, LED power, indicator color, and macro state after writing; lighting and deleted BLE pairings retain their documented device limitations.
+# Timing parity
+
+ObinsKit 1.2.11's native HID watchdog retries an unanswered report after 600 ms
+and ends the operation at 1200 ms. The web transport uses the same bounded
+timing for ordinary and multipart commands. Audio visualization follows the
+renderer cadence of 20 ms and keeps at most one acknowledged frame in flight.
