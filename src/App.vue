@@ -20,6 +20,7 @@ import ProtocolCoverage from './components/ProtocolCoverage.vue'
 import ModelSupport from './components/ModelSupport.vue'
 import IndicatorLocationPanel from './components/IndicatorLocationPanel.vue'
 import OledPanel from './components/OledPanel.vue'
+import VirtualMouseProbe from './components/VirtualMouseProbe.vue'
 import { appLocale } from './i18n.ts'
 import { collectMetadata } from './hid/device.ts'
 import { getPreferredGrantedAnneProDevice, isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
@@ -49,6 +50,7 @@ import { OBINSKIT_AUDIO_INTERVAL_MS } from './protocol/timing.ts'
 import { oledDateTimeFromDate } from './protocol/oled.ts'
 import type { CombinationModeResponse } from './protocol/combination-mode.ts'
 import { AdvancedAudioMode } from './protocol/advanced-audio.ts'
+import type { VirtualMouseConfigResponse } from './protocol/virtual-mouse.ts'
 
 const supported = isWebHidSupported()
 const { t } = useI18n({ useScope: 'global' })
@@ -75,6 +77,7 @@ const indicatorColor = ref<IndicatorColorResponse | null>(null)
 const indicatorColorBackup = ref<string | null>(null)
 const indicatorLocation = ref<IndicatorLocationResponse | null>(null)
 const combinationMode = ref<CombinationModeResponse | null>(null)
+const virtualMouseConfig = ref<VirtualMouseConfigResponse | null>(null)
 const indicatorLocationBackup = ref<number[] | null>(null)
 const audioRunning = ref(false)
 const audioMode = ref<AudioVisualizeMode>('pure')
@@ -186,6 +189,7 @@ function resetDeviceSession(): void {
   indicatorLocation.value = null
   indicatorLocationBackup.value = null
   combinationMode.value = null
+  virtualMouseConfig.value = null
   settingsBackup.value = null
   layers.value = [null, null, null, null]
   layerDrafts.value = [null, null, null, null]
@@ -342,6 +346,11 @@ const readCombinationMode = () => transport.value && confirmedRead(
   t('oled.combination'),
   () => transport.value!.readCombinationMode(),
   value => { combinationMode.value = value },
+)
+const readVirtualMouseConfig = () => transport.value && confirmedRead(
+  t('virtualMouse.title'),
+  () => transport.value!.readVirtualMouseConfig(),
+  value => { virtualMouseConfig.value = value },
 )
 const readLedPowerMode = () => transport.value && confirmedRead(
   t('settings.ledPower'),
@@ -914,6 +923,7 @@ const syncOledDate = () => runOledWrite(t('oled.syncDate'), () => transport.valu
 const writeOledImage = (packed: Uint8Array) => runOledWrite(t('oled.writeImage'), () => transport.value!.writeOledImage(packed), true)
 const writeOledText = (packed: Uint8Array) => runOledWrite(t('oled.writeText'), () => transport.value!.writeOledCharacter(packed), true)
 const writeOledScroll = (enabled: boolean) => runOledWrite(t('oled.scroll'), () => transport.value!.writeOledScroll(enabled))
+const writeOledMonitor = (values: Uint8Array) => runOledWrite(t('oled.monitor'), () => transport.value!.writeOledMonitor(values), true)
 
 onBeforeUnmount(() => {
   void stopAudioVisualize(false)
@@ -941,12 +951,13 @@ onBeforeUnmount(() => {
       <p v-if="message" id="message" role="status" aria-live="polite">{{ message }}</p>
       <div class="workspace-content">
         <IndicatorLocationPanel v-if="device && activeSection === 'device' && capabilities?.indicatorLocation" :value="indicatorLocation" :busy="busy !== null" :has-backup="indicatorLocationBackup !== null" @read="readIndicatorLocation" @apply="applyIndicatorLocation" @restore="restoreIndicatorLocation" />
+        <VirtualMouseProbe v-if="device && activeSection === 'device' && debugMode && capabilities && !capabilities.profileKnown" :value="virtualMouseConfig" :busy="busy !== null" @read="readVirtualMouseConfig" />
         <div v-if="device && activeSection === 'device'" class="device-dashboard"><DevicePanel class="dashboard-primary" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" :debug="debugMode" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><ModelSupport v-if="deviceType && capabilities && !capabilities.profileKnown" class="dashboard-primary" :model-id="deviceType.model" :capabilities="capabilities" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="dashboard-primary" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" class="dashboard-primary" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></div>
         <section v-if="activeSection === 'keys'" class="card keys-workspace"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="embedded-settings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><div v-if="allLayersLoaded" class="layer-workspace"><div class="layer-title"><p class="eyebrow">4 LAYERS · VERIFIED WRITE</p><h2>{{ t('app.keyboardLayers') }}</h2></div><div class="layer-toolbar-row"><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div><div class="actions layer-actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="busy !== null" @change="pickLayoutFile"></label><button class="secondary" @click="exportLayers">{{ t('app.exportLayers') }}</button><button v-if="layerBackups.every(layer => layer !== null)" class="secondary" :disabled="busy !== null" @click="restoreLayers">{{ t('layer.restoreAll') }}</button><button :disabled="busy !== null || layerDrafts.some(layer => !layer)" @click="applyLayers">{{ t('layer.applyAll') }}</button></div></div><div class="layout-meta"><span class="layout-status" :class="{ active: hardwareState?.userLayout === 1 }">{{ hardwareState?.userLayout === 1 ? t('layer.userActive') : t('layer.userInactive') }}</span><span>{{ t('layer.totalChanges', { count: layerChangeCount }) }}</span><span v-if="layoutNotice" role="status" aria-live="polite">{{ layoutNotice }}</span></div><KeyboardLayout v-if="layers[activeLayer] && layerDrafts[activeLayer]" :layer="layers[activeLayer]!" :draft="layerDrafts[activeLayer]!" :spec="keyboardLayoutSpec" :busy="busy !== null" @update="updateLayerDraft" /></div></section>
         <KeyTester v-if="device && protocolReady && activeSection === 'tester'" />
         <div v-if="device && protocolReady && activeSection === 'lighting'" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :profile="lightingProfile" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :source="audioSource" :color="audioColor" :busy="busy !== null" :frames="audioFrames" :level="audioLevel" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-source="audioSource = $event" @update-color="audioColor = $event" /><AdvancedAudioPanel v-if="debugMode && capabilities?.advancedAudioProtocol" :busy="busy !== null" @configure="configureAdvancedAudio" /></div>
         <div v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></div>
-        <OledPanel v-if="device && protocolReady && activeSection === 'oled' && capabilities?.oled" :busy="busy !== null" :combination-mode="combinationMode" @read-combination="readCombinationMode" @sync-date="syncOledDate" @write-image="writeOledImage" @write-text="writeOledText" @scroll="writeOledScroll" />
+        <OledPanel v-if="device && protocolReady && activeSection === 'oled' && capabilities?.oled" :busy="busy !== null" :debug="debugMode" :combination-mode="combinationMode" @read-combination="readCombinationMode" @sync-date="syncOledDate" @write-image="writeOledImage" @write-text="writeOledText" @scroll="writeOledScroll" @monitor="writeOledMonitor" />
         <div v-if="device && debugMode" class="debug-workspace"><div class="debug-banner"><span>DEBUG</span>{{ t('app.developerHint') }}</div><ProtocolCoverage /><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></div>
       </div>
       <footer>{{ t('app.footer') }}</footer>

@@ -50,7 +50,9 @@ describe('Tenet 70 OLED protocol', () => {
   })
 
   it('bounds monitor data and validates acknowledgements', () => {
-    expect(createOledMonitorRequest(new Uint8Array([40, 50, 60]))[9]).toBe(0x09)
+    expect(Array.from(createOledMonitorRequest(new Uint8Array([40, 50, 60])))).toEqual([
+      0x7b, 0x10, 0x31, 0x10, 5, 0, 0, 0x7d, 0x70, 0x09, 40, 50, 60,
+    ])
     expect(() => createOledMonitorRequest(new Uint8Array(54))).toThrow('exceeds')
     const ack = new Uint8Array([0x7b, 0x10, 0x13, 0x10, 3, 0, 0, 0x7d, 0x70, 0x07, 0])
     expect(parseOledAck(0x07, ack)).toBeUndefined()

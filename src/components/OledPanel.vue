@@ -4,12 +4,13 @@ import { useI18n } from 'vue-i18n'
 import { OLED_HEIGHT, OLED_WIDTH, packOledRgba } from '../protocol/oled.ts'
 import type { CombinationModeResponse } from '../protocol/combination-mode.ts'
 
-defineProps<{ busy: boolean; combinationMode: CombinationModeResponse | null }>()
-const emit = defineEmits<{ readCombination: []; syncDate: []; writeImage: [packed: Uint8Array]; writeText: [packed: Uint8Array]; scroll: [enabled: boolean] }>()
+defineProps<{ busy: boolean; debug: boolean; combinationMode: CombinationModeResponse | null }>()
+const emit = defineEmits<{ readCombination: []; syncDate: []; writeImage: [packed: Uint8Array]; writeText: [packed: Uint8Array]; scroll: [enabled: boolean]; monitor: [values: Uint8Array] }>()
 const { t } = useI18n({ useScope: 'global' })
 const canvas = ref<HTMLCanvasElement | null>(null)
 const text = ref('TENET 70')
 const scroll = ref(false)
+const monitor = ref({ cpu: 40, gpu: 40, disk: 40 })
 
 function context(): CanvasRenderingContext2D {
   const value = canvas.value?.getContext('2d', { willReadFrequently: true })
@@ -32,6 +33,11 @@ async function pickImage(event: Event): Promise<void> {
   ctx.drawImage(bitmap, (OLED_WIDTH - width) / 2, (OLED_HEIGHT - height) / 2, width, height); bitmap.close()
 }
 function toggleScroll(event: Event): void { scroll.value = (event.target as HTMLInputElement).checked; emit('scroll', scroll.value) }
+function writeMonitor(): void {
+  const values = [monitor.value.cpu, monitor.value.gpu, monitor.value.disk]
+  if (!values.every(value => Number.isInteger(value) && value >= 0 && value <= 255)) return
+  emit('monitor', Uint8Array.from(values))
+}
 </script>
 
 <template>
@@ -47,6 +53,10 @@ function toggleScroll(event: Event): void { scroll.value = (event.target as HTML
       <label>{{ t('oled.image') }} <input type="file" accept="image/*" :disabled="busy" @change="pickImage"></label><button :disabled="busy" @click="$emit('writeImage', packedCanvas())">{{ t('oled.writeImage') }}</button>
       <label>{{ t('oled.text') }} <input v-model="text" maxlength="40" :disabled="busy" @input="drawText"></label><button :disabled="busy || !text" @click="writeText">{{ t('oled.writeText') }}</button>
       <label><input type="checkbox" :checked="scroll" :disabled="busy" @change="toggleScroll"> {{ t('oled.scroll') }}</label>
+    </div>
+    <div v-if="debug" class="oled-monitor debug-feature">
+      <div><p class="eyebrow">DEBUG · 70/09</p><h3>{{ t('oled.monitor') }}</h3><p>{{ t('oled.monitorHelp') }}</p></div>
+      <div class="oled-monitor-values"><label>CPU °C<input v-model.number="monitor.cpu" type="number" min="0" max="255" :disabled="busy"></label><label>GPU °C<input v-model.number="monitor.gpu" type="number" min="0" max="255" :disabled="busy"></label><label>{{ t('oled.disk') }} °C<input v-model.number="monitor.disk" type="number" min="0" max="255" :disabled="busy"></label><button :disabled="busy" @click="writeMonitor">{{ t('oled.writeMonitor') }}</button></div>
     </div>
   </section>
 </template>
