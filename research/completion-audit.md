@@ -42,3 +42,5 @@ state. They are deliberately not exposed merely to make the native symbol list m
 The C18 command surface is complete for the available hardware. Product IDs and
 firmware families that are not physically available remain unverified; their
 model-specific commands must stay capability-gated until tested on matching devices.
+The complete ObinsKit enum, USB discovery families, and known protocol splits are
+recorded in `models.md`.

@@ -14,8 +14,22 @@ export interface DeviceTypeResponse {
 }
 
 const MODEL_NAMES: Readonly<Record<number, string>> = {
+  1: 'Anne',
+  2: 'AnnePro',
   3: 'AnnePro2',
+  4: 'AnneProISO',
   5: 'AnnePro2C18',
+  6: 'Param68',
+  7: 'AnneClassicD87',
+  8: 'ApxF61',
+  9: 'ReturnedWing',
+  10: 'AnnePro2Slim',
+  11: 'ApxFuji65',
+  12: 'ApxTenet70',
+  13: 'ApxFuji65Rgb',
+  14: 'AnnePro2Discovery',
+  17: 'ApxF61V2',
+  33: 'W800',
 }
 
 const TYPE_NAMES: Readonly<Record<number, string>> = {

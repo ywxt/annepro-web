@@ -22,7 +22,7 @@ export const messages = {
     layer: {
       0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer',
       keys: '{count} 個按鍵', changes: '{count} 項變更', totalChanges: '四層共 {count} 項變更', restore: '復原原層', apply: '套用 {name}', restoreAll: '復原四層', applyAll: '寫入四層', userActive: 'User layout 已啟用', userInactive: 'User layout 未啟用',
-      selected: '按鍵 {index}', raw: '原始鍵位資料',
+      selected: '按鍵 {index}', raw: '原始鍵位資料', changeKey: '更改按鍵', searchKey: '搜尋按鍵名稱或代碼', noKeyResult: '沒有符合的按鍵。',
     },
     keyGroup: { Basic: '一般按鍵', Function: '功能鍵', Media: '媒體與系統', 'Anne Pro': 'Anne Pro 功能', Modifiers: '修飾鍵' },
     requirements: { eyebrow: '開始前', title: '平台與瀏覽器要求', linux: 'Linux', windows: 'Windows', macos: 'macOS', common: '使用最新版 Chrome 或 Edge，透過 USB 連接鍵盤，並先完全關閉 ObinsKit 或其他可能獨占 HID 裝置的程式。網站必須在 HTTPS 或 localhost 開啟。', linuxIntro: 'Linux 通常需要 udev 權限才能讓瀏覽器開啟 hidraw。請只安裝一份對應規則，不要使用對所有 input 裝置開放 MODE="0666" 的寬泛規則。', udevTitle: '建議的 udev 規則', copy: '複製規則', copied: '已複製', linuxStep1: '將規則儲存為 /etc/udev/rules.d/70-anne-pro-web.rules。', linuxStep2: '執行 sudo udevadm control --reload-rules && sudo udevadm trigger。', linuxStep3: '拔除並重新接上鍵盤，然後重新啟動瀏覽器。', windowsHelp: 'Windows 不需要 udev 或額外驅動。使用 Chrome／Edge，允許網站存取裝置；若選擇器看不到鍵盤，關閉 ObinsKit、拔插 USB，並確認使用資料傳輸線。', macosHelp: 'macOS 不需要 udev 或額外驅動。使用 Chrome／Edge，允許網站存取裝置；若無法開啟，先完全退出 ObinsKit，再拔插鍵盤。Safari 和 Firefox 不支援 WebHID。' },
@@ -64,7 +64,7 @@ export const messages = {
     layer: {
       0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer',
       keys: '{count} keys', changes: '{count} changes', totalChanges: '{count} changes across four layers', restore: 'Restore original', apply: 'Apply {name}', restoreAll: 'Restore four layers', applyAll: 'Write four layers', userActive: 'User layout active', userInactive: 'User layout inactive',
-      selected: 'Key {index}', raw: 'Raw key data',
+      selected: 'Key {index}', raw: 'Raw key data', changeKey: 'Change key', searchKey: 'Search key name or code', noKeyResult: 'No matching keys.',
     },
     keyGroup: { Basic: 'Basic keys', Function: 'Function keys', Media: 'Media and system', 'Anne Pro': 'Anne Pro functions', Modifiers: 'Modifiers' },
     requirements: { eyebrow: 'BEFORE YOU START', title: 'Platform and browser requirements', linux: 'Linux', windows: 'Windows', macos: 'macOS', common: 'Use the latest Chrome or Edge, connect the keyboard over USB, and fully quit ObinsKit or any other program that may hold the HID device. Open this site over HTTPS or localhost.', linuxIntro: 'Linux usually needs a udev permission rule before the browser can open hidraw. Install only one matching rule set; avoid broad MODE="0666" rules that expose every input device.', udevTitle: 'Recommended udev rules', copy: 'Copy rules', copied: 'Copied', linuxStep1: 'Save the rules as /etc/udev/rules.d/70-anne-pro-web.rules.', linuxStep2: 'Run sudo udevadm control --reload-rules && sudo udevadm trigger.', linuxStep3: 'Unplug and reconnect the keyboard, then restart the browser.', windowsHelp: 'Windows needs no udev rule or additional driver. Use Chrome or Edge and grant device access. If the chooser cannot see the keyboard, quit ObinsKit, reconnect USB, and verify that the cable supports data.', macosHelp: 'macOS needs no udev rule or additional driver. Use Chrome or Edge and grant device access. If opening fails, fully quit ObinsKit and reconnect the keyboard. Safari and Firefox do not support WebHID.' },

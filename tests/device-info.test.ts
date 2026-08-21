@@ -26,6 +26,14 @@ describe('readDeviceType protocol', () => {
     })
   })
 
+  it('names other model identifiers from the ObinsKit model enum', () => {
+    const response = parseDeviceTypeResponse(new Uint8Array([
+      0x7b, 0x12, 0x13, 0x00, 0x04, 0x00, 0x00, 0x7d, 0x01, 0x01, 0x0c, 0x01,
+    ]))
+    expect(response.modelName).toBe('ApxTenet70')
+    expect(response.typeName).toBe('Keyboard')
+  })
+
   it('rejects other commands and invalid payload lengths', () => {
     expect(() => parseDeviceTypeResponse(new Uint8Array([
       0x7b, 0x12, 0x13, 0x00, 0x02, 0x00, 0x00, 0x7d, 0x01, 0x02,
