@@ -16,6 +16,8 @@ export interface DeviceCapabilities {
   batteryPercentage: boolean | null
   audioVisualization: boolean | null
   advancedAudioProtocol: boolean | null
+  oled: boolean | null
+  combinationMode: boolean | null
   modernTapSettings: boolean | null
   sleepTimeout: boolean | null
   ledPowerMode: boolean | null
@@ -56,6 +58,8 @@ export function deriveDeviceCapabilities(
     batteryPercentage: model ? model.id === 14 : null,
     audioVisualization: isAnnePro2 ? true : null,
     advancedAudioProtocol: model ? model.hardware.mcuLed && !usesAnnePro2Audio : null,
+    oled: model ? model.id === 12 : null,
+    combinationMode: model ? model.id === 12 : null,
     modernTapSettings: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.11') >= 0 : null,
     sleepTimeout: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.14') > 0 : null,
     ledPowerMode: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null,

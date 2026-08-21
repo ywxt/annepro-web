@@ -35,12 +35,14 @@ Evidence labels:
 | `writeAudioVisualize` | transient stream | MCU LED `20/11`; repeated `ff 01/02` prefix + up to 51 RGB bytes | native physical single/multipart traces | W1 | status `00` ACK per packet, max 20 FPS |
 | `writeAudioVisualConfig` | other-model transient config | MCU_LED route, command/action `21/01`; one-byte `AudioLightType` 0–10 | native dispatch + advanced renderer path | W1/static | encoded and exposed through a model-gated transport API; no general UI |
 | `writeAudioVisualData` | other-model transient stream | MCU_LED route, command/action `21/02`; renderer constructs 18-byte analyser frames | native dispatch; shipped renderer sender is a no-op | W1/static | bounded single-report API for hardware validation; no general UI |
+| Tenet OLED image/character | model-12 display write | MCU_MAIN `70/01` image, `70/08` character; 128 × (page index + 32 packed 4-bit grayscale bytes) | native dispatch + renderer transfer loop | W1/static | exact codec and bounded acknowledged transport; UI/physical validation pending |
+| Tenet OLED scroll/date/monitor | model-12 display write | MCU_MAIN `70/05`, `70/07`, `70/09` | native dispatch + renderer payload construction | W1/static | typed codec and bounded acknowledged transport; UI/physical validation pending |
 | indicator color | read/write/readback | `20/1a` read RGB, `20/1b` write RGB | captured same-value round trip | W1 | implemented with backup/restore |
 | indicator location | D87/Tenet read/write/readback | `20/18` reads the complete location byte array; `20/19` writes the complete array | native dispatch + renderer model branch | W1 | editor, first backup, bounded ACK, and exact array readback; 3 values on D87 and 2 on Tenet |
 | factory reset | composed write | ObinsKit defaults + empty macro + final 14-effect model-5 light group + BLE clear | renderer/SQL defaults | W2 | implemented behind typed confirmation |
 | `writeMacro` (legacy) | multi-packet write | `30/01`; index, trigger, event records + separator | native + renderer | W1 | not used; full image path supersedes it |
 | virtual mouse config | other-model read/write | command `60`, actions `01/02/03/05` | native dispatch; C18 no response | N/A | intentionally capability-excluded |
-| combination/OLED/indicator location | other-model operations | model-specific | renderer capability gates | N/A | intentionally capability-excluded |
+| `getCombinationMode` | Tenet read | MCU_MAIN `01/f1`, one raw mode byte interpreted by renderer as truthy/falsey | native dispatch + renderer consumer | R1/static | exact parser and model-12 transport; UI/physical validation pending |
 | `writeIapMode` | mode switch | unresolved | static symbol | X | forbidden/deferred |
 | `writeIapMemory` | firmware write | unresolved | observed name | X | forbidden/deferred |
 | `writeEraseMemory` | flash erase | unresolved | static symbol | X | forbidden/deferred |

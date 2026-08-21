@@ -236,7 +236,8 @@ describe('typed Anne Pro HID transport', () => {
   it('waits for every native light-preview packet acknowledgement', async () => {
     const device = new LightPreviewHidDevice()
     const transport = new AnneProHidTransport(device as unknown as HIDDevice)
-    await transport.previewLight({ name: 'Keys', type: 2, colors: Array(61).fill('#112233') }, 100)
+    const staticColors = Array(61).fill('#112233'); staticColors[1] = '#445566'
+    await transport.previewLight({ name: 'Keys', type: 2, staticColors, dynamicColors: ['#ff0000'] }, 100)
     expect(device.sent).toHaveLength(5)
     expect(device.sent.map(({ data }) => data[3])).toEqual([0x50, 0x51, 0x52, 0x53, 0x54])
     expect(device.sent.every(({ data }) => data[1] === 0x10 && data[2] === 0x41

@@ -1,5 +1,5 @@
 import { decodeMacroEvents, type ActiveMacroBinding, type StoredMacro } from './macro-info.ts'
-import { encodeLightRgb, type LightEffect } from './lighting.ts'
+import { lightingProfileForModel, normalizeLightEffects, type LightEffect } from './lighting.ts'
 import { createWriteHardwareSettingRequest, type HardwareSettingKey } from './settings-write.ts'
 import { hasConfigurationProfile, isKnownObinsUsbDevice } from '../device-registry.ts'
 
@@ -108,14 +108,6 @@ export function parseFullBackup(value: unknown): ParsedFullBackup {
   })
   if (macros.some((_, index) => !bindings.some(binding => binding.macroIndex === index))) throw new Error('Every stored macro must have at least one binding')
 
-  if (!Array.isArray(root.lights) || root.lights.length > 32) throw new Error('lights must contain at most 32 effects')
-  const lights = root.lights.map((item, index): LightEffect => {
-    const effect = object(item, `Light ${index}`)
-    if (typeof effect.name !== 'string' || typeof effect.type !== 'number' || !Array.isArray(effect.colors) || !effect.colors.every(color => typeof color === 'string')) throw new Error(`Light ${index} is malformed`)
-    if (effect.name.length > 40) throw new Error(`Light ${index} name is longer than 40 characters`)
-    const result = { name: effect.name, type: effect.type, colors: [...effect.colors] as string[] }
-    encodeLightRgb(result)
-    return result
-  })
+  const lights = normalizeLightEffects(root.lights, lightingProfileForModel(device.model))
   return { device, settings, layers, macros, bindings, lights }
 }

@@ -63,6 +63,12 @@ keycodes (146 bytes). Multipart downloads retain the native 52-byte data chunk a
 therefore use three reports for Tenet. Product UI remains gated until model-specific
 physical key widths and write readbacks can be verified on matching hardware.
 
+The Tenet OLED protocol layer now covers the native `70/01`, `70/05`, `70/07`,
+`70/08`, and `70/09` actions. Image and text transfers use the renderer's 256x32
+canvas conversion to two 4-bit grayscale pixels per byte and exactly 128 indexed
+pages. Transport is capability-gated and bounded, but product UI remains disabled
+until the acknowledgement shape and display result are captured on model 12.
+
 The key workspace now decodes raw layer bytes before rendering: 8-bit models show
 their profile row counts, while Tenet shows 73 keys instead of 146 individual bytes.
 Standalone layer backups store semantic keycodes and record their width; import

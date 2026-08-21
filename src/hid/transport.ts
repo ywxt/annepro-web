@@ -65,7 +65,10 @@ import {
   createWriteLightListRequest,
   parseLightWriteAck,
   parseWriteLightListAck,
+  C18_LIGHTING_PROFILE,
+  lightingProfileForModel,
   type LightEffect,
+  type LightingProfile,
 } from '../protocol/lighting.ts'
 import {
   createReadBatteryRequest,
@@ -84,6 +87,20 @@ import {
   parseAdvancedAudioAck,
   type AdvancedAudioMode,
 } from '../protocol/advanced-audio.ts'
+import {
+  createOledCharacterRequests,
+  createOledDateTimeRequest,
+  createOledImageRequests,
+  createOledMonitorRequest,
+  createOledScrollRequest,
+  parseOledAck,
+  type OledDateTime,
+} from '../protocol/oled.ts'
+import {
+  createReadCombinationModeRequest,
+  parseCombinationModeResponse,
+  type CombinationModeResponse,
+} from '../protocol/combination-mode.ts'
 import {
   createDeleteBleHostRequest,
   createReadBleMacRequest,
@@ -117,6 +134,7 @@ export class AnneProHidTransport {
   private listener: ((event: HIDInputReportEvent) => void) | null = null
   private confirmedReadPending = false
   private layoutSpec: KeyboardLayoutSpec = C18_LAYOUT_SPEC
+  private lightingProfile: LightingProfile = C18_LIGHTING_PROFILE
 
   constructor(readonly device: HIDDevice) {}
 
@@ -154,6 +172,7 @@ export class AnneProHidTransport {
       timeoutMs,
     )
     this.layoutSpec = keyboardLayoutSpecForModel(response.model) ?? C18_LAYOUT_SPEC
+    this.lightingProfile = lightingProfileForModel(response.model)
     return response
   }
 
@@ -207,6 +226,14 @@ export class AnneProHidTransport {
 
   async readPowerOnTime(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<PowerOnTimeResponse> {
     return this.requestConfirmedRead(createReadPowerOnTimeRequest(), parsePowerOnTimeResponse, timeoutMs)
+  }
+
+  async readCombinationMode(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<CombinationModeResponse> {
+    return this.requestConfirmedRead(
+      createReadCombinationModeRequest(),
+      parseCombinationModeResponse,
+      timeoutMs,
+    )
   }
 
   async readUdid(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<DeviceUdid> {
@@ -445,7 +472,7 @@ export class AnneProHidTransport {
 
   /** Native ObinsKit advances each preview packet only after a success ACK. */
   async previewLight(effect: LightEffect, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
-    const requests = createPreviewLightRequests(effect)
+    const requests = createPreviewLightRequests(effect, this.lightingProfile)
     for (const [packet, request] of requests.entries()) {
       await this.requestConfirmedRead(
         request,
@@ -481,14 +508,64 @@ export class AnneProHidTransport {
     )
   }
 
+  async writeOledDateTime(value: OledDateTime, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.requestConfirmedRead(
+      createOledDateTimeRequest(value),
+      response => parseOledAck(0x07, response),
+      timeoutMs,
+    )
+  }
+
+  async writeOledScroll(enabled: boolean, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.requestConfirmedRead(
+      createOledScrollRequest(enabled),
+      response => parseOledAck(0x05, response),
+      timeoutMs,
+    )
+  }
+
+  async writeOledMonitor(values: Uint8Array, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.requestConfirmedRead(
+      createOledMonitorRequest(values),
+      response => parseOledAck(0x09, response),
+      timeoutMs,
+    )
+  }
+
+  private async writeOledBitmap(
+    kind: 'image' | 'character',
+    packed: Uint8Array,
+    timeoutMs: number,
+  ): Promise<void> {
+    const action = kind === 'image' ? 0x01 : 0x08
+    const requests = kind === 'image' ? createOledImageRequests(packed) : createOledCharacterRequests(packed)
+    for (const request of requests) {
+      await this.requestConfirmedRead(
+        request,
+        response => parseOledAck(action, response),
+        timeoutMs,
+      )
+    }
+  }
+
+  /** Exactly 128 acknowledged pages, matching ObinsKit's bounded 256x32 transfer. */
+  async writeOledImage(packed: Uint8Array, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.writeOledBitmap('image', packed, timeoutMs)
+  }
+
+  /** Text is rendered by the browser; the device receives the same packed bitmap shape as an image. */
+  async writeOledCharacter(packed: Uint8Array, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.writeOledBitmap('character', packed, timeoutMs)
+  }
+
   async installLights(effects: readonly LightEffect[], timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
     await this.requestConfirmedRead(
-      createWriteLightListRequest(effects.length),
+      createWriteLightListRequest(effects.length, this.lightingProfile),
       parseWriteLightListAck,
       timeoutMs,
     )
     for (const [slot, effect] of effects.entries()) {
-      const requests = createDownloadLightRequests(slot, effect)
+      const requests = createDownloadLightRequests(slot, effect, this.lightingProfile)
       for (const [packet, request] of requests.entries()) {
         await this.requestConfirmedRead(
           request,

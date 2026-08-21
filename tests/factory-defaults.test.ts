@@ -8,14 +8,14 @@ describe('Anne Pro 2 factory defaults', () => {
   })
   it('contains the final ordered fourteen-effect ObinsKit 1.2.11 default group', () => {
     const effects = annePro2FactoryLights()
-    expect(effects.map(effect => effect.type)).toEqual([1, 1, 1, 1, 2, 1, 2, 3, 4, 6, 7, 5, 10, 11])
+    expect(effects.map(effect => effect.type)).toEqual([1, 1, 1, 1, 1, 1, 2, 3, 4, 6, 7, 5, 10, 11])
     expect(effects).toHaveLength(14)
-    expect(effects[6].colors).toHaveLength(61)
+    expect(effects[6].staticColors).toHaveLength(61)
     effects.forEach(effect => expect(() => encodeLightRgb(effect)).not.toThrow())
   })
   it('returns independent mutable copies', () => {
     const first = annePro2FactoryLights()
-    first[0].colors[0] = '#000000'
-    expect(annePro2FactoryLights()[0].colors[0]).toBe('#ff0000')
+    first[0].staticColors[0] = '#000000'
+    expect(annePro2FactoryLights()[0].staticColors[0]).toBe('#ff0000')
   })
 })

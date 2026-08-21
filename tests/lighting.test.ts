@@ -1,21 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { createDownloadLightRequests, createPreviewLightRequests, createWriteLightListRequest, encodeLightRgb, parseLightWriteAck, parseWriteLightListAck } from '../src/protocol/lighting.ts'
+import { createDownloadLightRequests, createPreviewLightRequests, createWriteLightListRequest, encodeLightEffect, encodeLightRgb, normalizeLightEffect, parseLightWriteAck, parseWriteLightListAck, type LightEffect } from '../src/protocol/lighting.ts'
+
+const light = (type: number, staticColors = Array(61).fill('#112233'), dynamicColors = ['#ff0000']): LightEffect => ({ name: 'Test', type, staticColors, dynamicColors })
 
 describe('lighting protocol', () => {
   it('encodes a single-color preview exactly', () => {
-    expect(Array.from(createPreviewLightRequests({ name: 'Green', type: 1, colors: ['#00ff00'] })[0])).toEqual([
+    expect(Array.from(createPreviewLightRequests(light(1, Array(61).fill('#00ff00')))[0])).toEqual([
       0x7b, 0x10, 0x41, 0x10, 7, 0, 0, 0x7d, 0x20, 0x03, 0xff, 1, 0, 255, 0,
     ])
   })
 
   it('inserts nine C18 blank LEDs into per-key static RGB', () => {
-    const rgb = encodeLightRgb({ name: 'Keys', type: 2, colors: Array(61).fill('#112233') })
+    const colors = Array(61).fill('#112233'); colors[1] = '#445566'
+    const rgb = encodeLightRgb(light(2, colors))
     expect(rgb).toHaveLength(70 * 3)
     expect(Array.from(rgb.slice(41 * 3, 42 * 3))).toEqual([0, 0, 0])
   })
 
   it('splits a per-key download like the native five-packet queue', () => {
-    const requests = createDownloadLightRequests(2, { name: 'Keys', type: 2, colors: Array(61).fill('#ffffff') })
+    const colors = Array(61).fill('#ffffff'); colors[1] = '#000000'
+    const requests = createDownloadLightRequests(2, light(2, colors))
     expect(requests.map(request => request.length)).toEqual([63, 63, 63, 63, 18])
     expect(requests.map(request => request[3])).toEqual([0x50, 0x51, 0x52, 0x53, 0x54])
     expect(requests.every(request => request[1] === 0x10 && request[2] === 0x31
@@ -27,8 +31,16 @@ describe('lighting protocol', () => {
     expect(Array.from(createWriteLightListRequest(3))).toEqual([
       0x7b, 0x10, 0x31, 0x10, 3, 0, 0, 0x7d, 0x20, 0x04, 3,
     ])
-    expect(() => createWriteLightListRequest(33)).toThrow(RangeError)
-    expect(() => encodeLightRgb({ name: 'Bad', type: 3, colors: ['#ffffff'] })).toThrow('requires 12 colors')
+    expect(() => createWriteLightListRequest(17)).toThrow(RangeError)
+    expect(() => encodeLightRgb(light(3, undefined, []))).toThrow('requires 1–16 colors')
+    expect(() => encodeLightRgb(light(3, undefined, Array(17).fill('#ffffff')))).toThrow('requires 1–16 colors')
+  })
+
+  it('derives the native static wire type and migrates old profiles', () => {
+    expect(encodeLightEffect(light(2, Array(61).fill('#ffffff'))).type).toBe(1)
+    const migrated = normalizeLightEffect({ name: 'Legacy', type: 3, colors: ['#123456'] })
+    expect(migrated.staticColors).toHaveLength(61)
+    expect(migrated.dynamicColors).toEqual(['#123456'])
   })
 
   it('accepts native success status instead of treating it as a packet index', () => {

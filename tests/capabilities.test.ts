@@ -12,7 +12,7 @@ describe('ObinsKit capability gates', () => {
       profileKnown: true, keyboardLayers: true, macros: true, generalSettings: true,
       bluetooth: true, factoryReset: true, hasLed: true, hasIndicatorLed: false, indicatorLocation: false, hasBattery: true,
       batteryPercentage: false,
-      audioVisualization: true, advancedAudioProtocol: false, modernTapSettings: true, sleepTimeout: true,
+      audioVisualization: true, advancedAudioProtocol: false, oled: false, combinationMode: false, modernTapSettings: true, sleepTimeout: true,
       ledPowerMode: true, capslockColor: true,
     })
   })
@@ -28,7 +28,7 @@ describe('ObinsKit capability gates', () => {
       profileKnown: false, keyboardLayers: false, macros: false, generalSettings: false,
       bluetooth: false, factoryReset: false, hasLed: null, hasIndicatorLed: null, indicatorLocation: null, hasBattery: null,
       batteryPercentage: null,
-      audioVisualization: null, advancedAudioProtocol: null, modernTapSettings: null, sleepTimeout: null,
+      audioVisualization: null, advancedAudioProtocol: null, oled: null, combinationMode: null, modernTapSettings: null, sleepTimeout: null,
       ledPowerMode: null, capslockColor: null,
     })
   })
@@ -53,6 +53,7 @@ describe('ObinsKit capability gates', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 7 }, firmware)).toMatchObject({ keyboardLayers: true, indicatorLocation: true })
     expect(deriveDeviceCapabilities({ ...device, model: 33 }, firmware)).toMatchObject({ indicatorLocation: false })
     expect(deriveDeviceCapabilities({ ...device, model: 12 }, firmware)).toMatchObject({ indicatorLocation: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 12 }, firmware)).toMatchObject({ oled: true, combinationMode: true })
   })
 
   it('gates firmware-dependent controls on older Anne Pro 2 firmware', () => {

@@ -23,24 +23,19 @@ export function annePro2FactoryLights(): LightEffect[] {
     ['Red', '#ff0000'], ['Yellow', '#ffff00'], ['Green', '#00ff00'],
     ['Cyan', '#00ffff'],
   ] as const
+  const effect = (name: string, type: number, staticColors: string[], dynamicColors = [...RAINBOW]): LightEffect => ({
+    name, type, staticColors, dynamicColors,
+  })
   return [
-    ...staticColors.map(([name, color]) => ({ name, type: 1, colors: [color] })),
-    { name: 'Blue', type: 2, colors: Array<string>(61).fill('#0000ff') },
-    { name: 'Purple', type: 1, colors: ['#ff00ff'] },
-    {
-      name: 'Static multi', type: 2,
-      colors: [
+    ...staticColors.map(([name, color]) => effect(name, 1, Array<string>(61).fill(color))),
+    effect('Blue', 1, Array<string>(61).fill('#0000ff')),
+    effect('Purple', 1, Array<string>(61).fill('#ff00ff')),
+    effect('Static multi', 2, [
         ...Array<string>(14).fill('#ff0000'), ...Array<string>(14).fill('#ffff00'),
         ...Array<string>(13).fill('#00ff00'), ...Array<string>(12).fill('#00ffff'),
         ...Array<string>(8).fill('#ff00ff'),
-      ],
-    },
-    { name: 'Breath', type: 3, colors: [...RAINBOW] },
-    { name: 'Gradient breath', type: 4, colors: [...RAINBOW] },
-    { name: 'Rainbow', type: 6, colors: [...RAINBOW] },
-    { name: 'Single breath', type: 7, colors: [...RAINBOW] },
-    { name: 'Poptang', type: 5, colors: [...RAINBOW] },
-    { name: 'Trigger breath', type: 10, colors: [...RAINBOW] },
-    { name: 'Trigger rainbow', type: 11, colors: [...RAINBOW] },
+      ]),
+    ...[['Breath', 3], ['Gradient breath', 4], ['Rainbow', 6], ['Single breath', 7], ['Poptang', 5], ['Trigger breath', 10], ['Trigger rainbow', 11]]
+      .map(([name, type]) => effect(String(name), Number(type), Array<string>(61).fill('#000000'))),
   ]
 }

@@ -18,7 +18,8 @@ describe('full backup parser', () => {
     expect(parsed.device).toEqual({ vendorId: 0x04d9, productId: 0xa293, model: 5, type: 1 })
     expect(parsed.layers).toHaveLength(4)
     expect(parsed.settings.indicatorColor).toBe('#ff9800')
-    expect(parsed.lights[0]).toEqual({ name: 'Red', type: 1, colors: ['#ff0000'] })
+    expect(parsed.lights[0]).toMatchObject({ name: 'Red', type: 1, dynamicColors: expect.any(Array) })
+    expect(parsed.lights[0].staticColors).toEqual(Array(61).fill('#ff0000'))
   })
   it('rejects missing, duplicated, malformed, or out-of-range device data', () => {
     const missing = validBackup(); missing.layers = [{ index: 0, keycodes: Array(61).fill(0) }]
