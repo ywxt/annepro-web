@@ -3,6 +3,7 @@ import { parseLianaFrame } from './liana.ts'
 const LED_COUNT = 64
 
 export type AudioVisualizeMode = 'pure' | 'colorful'
+export type AudioSource = 'system' | 'microphone'
 
 function byte(value: number): number {
   if (!Number.isFinite(value)) throw new RangeError('Audio value must be finite')

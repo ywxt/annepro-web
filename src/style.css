@@ -99,6 +99,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .key { display: grid; place-items: center; width: calc(52px * var(--key-width) + 8px * (var(--key-width) - 1)); min-width: calc(52px * var(--key-width) + 8px * (var(--key-width) - 1)); height: 52px; padding: 0; color: #e8ecf2; border: 1px solid #354252; border-radius: 7px; background: #111923; font-family: ui-monospace, monospace; }
 .key.selected { border-color: #62e5b4; } .key.changed { background: #25372f; }
 .key strong { max-width: 50px; overflow: hidden; font-size: 10px; font-weight: 700; text-align: center; text-overflow: ellipsis; white-space: nowrap; }.key.symbolic strong { overflow: visible; font-size: 17px; }
+.key.symbolic.text-icon strong { font-size: 11px; letter-spacing: -.02em; }
 .key small { color: #7e8998; font-size: 10px; }
 .key-editor { display: flex; align-items: end; gap: 16px; margin-top: 14px; padding: 14px; border: 1px solid #39765f; border-radius: 8px; }
 .key-editor label { display: grid; flex: 1; gap: 7px; color: #aab4c1; }
@@ -120,6 +121,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .key-picker-tabs button { padding: 7px 10px; color: #929dac; background: transparent; font-size: 11px; white-space: nowrap; }.key-picker-tabs button.active { color: #07120e; background: #62e5b4; }
 .key-choice { justify-content: flex-start; }.key-choice > span:last-child { display: grid; min-width: 0; gap: 2px; }.key-choice-icon { display: grid; flex: 0 0 32px; place-items: center; height: 32px; color: #9debcf; border: 1px solid #3a4a58; border-radius: 6px; background: #0d141c; font-size: 15px; }
 .key-choice.active .key-choice-icon { color: #07120e; border-color: rgba(7, 18, 14, .3); background: rgba(255, 255, 255, .25); }.key-picker-hint { position: relative; z-index: 1; flex: 0 0 auto; margin: 12px 0 0; padding-top: 10px; color: #7f8b99; border-top: 1px solid #293340; background: #121923; font-size: 11px; }
+.key-choice-icon.text-icon { font-size: 11px; }
 .layout-raw { display: block; margin-top: 18px; overflow-wrap: anywhere; line-height: 1.6; }
 .macro-item { display: grid; gap: 5px; margin-top: 12px; padding: 12px; border: 1px solid #293340; border-radius: 8px; }
 .macro-item span { color: #929dac; font-size: 12px; }

@@ -27,7 +27,10 @@ function replace(index: number, patch: Partial<LightEffect>): void {
   emit('update', next)
 }
 function changeType(index: number, type: number): void {
-  replace(index, { type })
+  const effect = props.effects[index]
+  replace(index, type === 1
+    ? { type, staticColors: effect.staticColors.map(() => effect.staticColors[0] ?? '#ff0000') }
+    : { type })
 }
 function changePrimary(index: number, color: string): void {
   const effect = props.effects[index]
@@ -70,12 +73,12 @@ function pickFile(event: Event): void {
     <div v-for="(effect, index) in effects" :key="index" class="light-item" :class="{ selected: selected === index }" @click="selected = index">
       <input :value="effect.name" maxlength="40" @change="replace(index, { name: ($event.target as HTMLInputElement).value })">
       <select :value="effect.type" @change="changeType(index, Number(($event.target as HTMLSelectElement).value))"><option v-for="(name, type) in typeNames" :key="type" :value="Number(type)">{{ name }} ({{ type }})</option></select>
-      <input type="color" :value="effect.type <= 2 ? effect.staticColors[0] : effect.dynamicColors[0]" @input="changePrimary(index, ($event.target as HTMLInputElement).value)">
-      <span>{{ t('lighting.colors', { count: effect.type <= 2 ? effect.staticColors.length : effect.dynamicColors.length }) }}</span>
-      <button class="secondary" :disabled="busy" @click="expanded = expanded === index ? null : index">{{ expanded === index ? t('lighting.collapse') : (effect.type <= 2 ? t('lighting.perKey') : t('lighting.palette')) }}</button>
+      <label v-if="effect.type <= 2" :title="effect.type === 2 ? t('lighting.fillAllHelp') : t('lighting.singleHelp')">{{ effect.type === 2 ? t('lighting.fillAll') : t('common.color') }} <input type="color" :value="effect.staticColors[0]" @input="changePrimary(index, ($event.target as HTMLInputElement).value)"></label>
+      <span v-if="effect.type !== 1">{{ t('lighting.colors', { count: effect.type === 2 ? effect.staticColors.length : effect.dynamicColors.length }) }}</span>
+      <button v-if="effect.type !== 1" class="secondary" :disabled="busy" @click="expanded = expanded === index ? null : index">{{ expanded === index ? t('lighting.collapse') : (effect.type === 2 ? t('lighting.perKey') : t('lighting.palette')) }}</button>
       <button class="secondary" :disabled="busy" @click="$emit('preview', effect)">{{ t('lighting.preview') }}</button>
       <button class="danger" :disabled="busy" @click="remove(index)">{{ t('lighting.remove') }}</button>
-      <div v-if="expanded === index && effect.type <= 2" class="light-color-editor per-key-colors">
+      <div v-if="expanded === index && effect.type === 2" class="light-color-editor per-key-colors">
         <div v-for="(length, row) in rowLengths" :key="row" class="color-row">
           <label v-for="column in length" :key="column" :title="`Key ${rowOffsets[row] + column - 1}: ${effect.staticColors[rowOffsets[row] + column - 1]}`">
             <input type="color" :value="effect.staticColors[rowOffsets[row] + column - 1]" @input="changeColor(index, rowOffsets[row] + column - 1, ($event.target as HTMLInputElement).value)">
