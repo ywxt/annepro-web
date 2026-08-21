@@ -36,7 +36,7 @@ Evidence labels:
 | `writeAudioVisualConfig` | other-model transient config | MCU_LED route, command/action `21/01` | native dispatch + advanced renderer path | N/A | intentionally capability-excluded on C18 |
 | `writeAudioVisualData` | other-model transient stream | MCU_LED route, command/action `21/02` | native dispatch + advanced renderer path | N/A | intentionally capability-excluded on C18 |
 | indicator color | read/write/readback | `20/1a` read RGB, `20/1b` write RGB | captured same-value round trip | W1 | implemented with backup/restore |
-| indicator location | D87 read/write/readback | `20/18` read byte, `20/19` write byte | native dispatch + renderer model branch | W1 | typed transport implemented and capability-gated to model 7; UI pending |
+| indicator location | D87/Tenet read/write/readback | `20/18` reads the complete location byte array; `20/19` writes the complete array | native dispatch + renderer model branch | W1 | editor, first backup, bounded ACK, and exact array readback; 3 values on D87 and 2 on Tenet |
 | factory reset | composed write | ObinsKit defaults + empty macro + final 14-effect model-5 light group + BLE clear | renderer/SQL defaults | W2 | implemented behind typed confirmation |
 | `writeMacro` (legacy) | multi-packet write | `30/01`; index, trigger, event records + separator | native + renderer | W1 | not used; full image path supersedes it |
 | virtual mouse config | other-model read/write | command `60`, actions `01/02/03/05` | native dispatch; C18 no response | N/A | intentionally capability-excluded |

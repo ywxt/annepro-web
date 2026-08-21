@@ -230,10 +230,12 @@ export class AnneProHidTransport {
     return this.requestConfirmedRead(createReadIndicatorLocationRequest(), parseIndicatorLocationResponse, timeoutMs)
   }
 
-  async writeIndicatorLocation(location: number, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorLocationResponse> {
-    await this.requestConfirmedRead(createWriteIndicatorLocationRequest(location), parseWriteIndicatorLocationAck, timeoutMs)
+  async writeIndicatorLocation(locations: readonly number[], timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorLocationResponse> {
+    await this.requestConfirmedRead(createWriteIndicatorLocationRequest(locations), parseWriteIndicatorLocationAck, timeoutMs)
     const readback = await this.readIndicatorLocation(timeoutMs)
-    if (readback.location !== location) throw new Error(`Indicator location readback ${readback.location} does not match ${location}`)
+    if (readback.locations.length !== locations.length || !readback.locations.every((value, index) => value === locations[index])) {
+      throw new Error('Indicator location readback does not match written values')
+    }
     return readback
   }
 

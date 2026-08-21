@@ -45,6 +45,7 @@ describe('ObinsKit capability gates', () => {
   it('gates the native indicator-location route to D87', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 7 }, firmware)).toMatchObject({ keyboardLayers: true, indicatorLocation: true })
     expect(deriveDeviceCapabilities({ ...device, model: 33 }, firmware)).toMatchObject({ indicatorLocation: false })
+    expect(deriveDeviceCapabilities({ ...device, model: 12 }, firmware)).toMatchObject({ indicatorLocation: true })
   })
 
   it('gates firmware-dependent controls on older Anne Pro 2 firmware', () => {

@@ -49,7 +49,7 @@ export function deriveDeviceCapabilities(
     factoryReset: isAnnePro2,
     hasLed: isAnnePro2 ? true : null,
     hasIndicatorLed: isAnnePro2 ? false : null,
-    indicatorLocation: model ? model.id === 7 : null,
+    indicatorLocation: model ? model.id === 7 || model.id === 12 : null,
     hasBattery: model ? model.hardware.mcuBle : null,
     batteryPercentage: model ? model.id === 14 : null,
     audioVisualization: isAnnePro2 ? true : null,

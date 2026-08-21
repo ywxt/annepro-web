@@ -17,6 +17,7 @@ import PlatformRequirements from './components/PlatformRequirements.vue'
 import KeyTester from './components/KeyTester.vue'
 import ProtocolCoverage from './components/ProtocolCoverage.vue'
 import ModelSupport from './components/ModelSupport.vue'
+import IndicatorLocationPanel from './components/IndicatorLocationPanel.vue'
 import { appLocale } from './i18n.ts'
 import { collectMetadata } from './hid/device.ts'
 import { getPreferredGrantedAnneProDevice, isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
@@ -38,6 +39,7 @@ import type { BatteryResponse, PowerOnTimeResponse } from './protocol/runtime-in
 import { audioRgbFromFrequencyData, type AudioVisualizeMode } from './protocol/audio-visualize.ts'
 import type { BleMacAddress, DeviceUdid } from './protocol/device-identity.ts'
 import type { IndicatorColorResponse } from './protocol/indicator-color.ts'
+import type { IndicatorLocationResponse } from './protocol/indicator-location.ts'
 import { annePro2FactoryLights, ANNE_PRO_2_FACTORY_SETTINGS } from './protocol/factory-defaults.ts'
 import { parseFullBackup } from './protocol/full-backup.ts'
 import { isKnownObinsVendor } from './device-registry.ts'
@@ -66,6 +68,8 @@ const udid = ref<DeviceUdid | null>(null)
 const bleMac = ref<BleMacAddress | null>(null)
 const indicatorColor = ref<IndicatorColorResponse | null>(null)
 const indicatorColorBackup = ref<string | null>(null)
+const indicatorLocation = ref<IndicatorLocationResponse | null>(null)
+const indicatorLocationBackup = ref<number[] | null>(null)
 const audioRunning = ref(false)
 const audioMode = ref<AudioVisualizeMode>('pure')
 const audioColor = ref('#00ff80')
@@ -163,6 +167,8 @@ function resetDeviceSession(): void {
   bleMac.value = null
   indicatorColor.value = null
   indicatorColorBackup.value = null
+  indicatorLocation.value = null
+  indicatorLocationBackup.value = null
   settingsBackup.value = null
   layers.value = [null, null, null, null]
   layerDrafts.value = [null, null, null, null]
@@ -260,6 +266,7 @@ async function readAll(): Promise<void> {
       powerOnTime.value = await transport.value.readPowerOnTime().catch(() => null)
       hardwareState.value = await transport.value.readHardwareState().catch(() => null)
       if (capabilities.value?.hasBattery) battery.value = await readBatteryForModel().catch(() => null)
+      if (capabilities.value?.indicatorLocation) indicatorLocation.value = await transport.value.readIndicatorLocation().catch(() => null)
       if (capabilities.value?.keyboardLayers) {
         const nextLayers: KeyboardLayerResponse[] = []
         for (let layer = 0; layer < 4; layer += 1) nextLayers.push(await transport.value.readKeyboardLayer(layer))
@@ -335,6 +342,26 @@ async function restoreIndicatorColor(): Promise<void> {
   busy.value = 'restore indicator color'
   try { indicatorColor.value = await transport.value.writeIndicatorColor(indicatorColorBackup.value); indicatorColorBackup.value = null; message.value = t('notice.layerRestored', { name: t('settings.capsColor') }) }
   catch (error) { showWriteError(t('settings.restoreColor'), error) }
+  finally { busy.value = null }
+}
+const readIndicatorLocation = () => transport.value && confirmedRead(
+  t('settings.capsLed'),
+  () => transport.value!.readIndicatorLocation(),
+  value => { indicatorLocation.value = value },
+)
+async function applyIndicatorLocation(locations: number[]): Promise<void> {
+  if (!transport.value || !indicatorLocation.value) return
+  indicatorLocationBackup.value ??= Array.from(indicatorLocation.value.locations)
+  busy.value = 'write indicator LED positions'
+  try { indicatorLocation.value = await transport.value.writeIndicatorLocation(locations); message.value = t('notice.settingSaved', { name: t('settings.capsLed') }) }
+  catch (error) { showWriteError(t('settings.capsLed'), error) }
+  finally { busy.value = null }
+}
+async function restoreIndicatorLocation(): Promise<void> {
+  if (!transport.value || !indicatorLocationBackup.value) return
+  busy.value = 'restore indicator LED positions'
+  try { indicatorLocation.value = await transport.value.writeIndicatorLocation(indicatorLocationBackup.value); indicatorLocationBackup.value = null; message.value = t('notice.settingsRestored') }
+  catch (error) { showWriteError(t('settings.capsLed'), error) }
   finally { busy.value = null }
 }
 async function readRuntimeInfo(): Promise<void> {
@@ -848,6 +875,7 @@ onBeforeUnmount(() => {
       <PlatformRequirements v-if="!device" />
       <p v-if="message" id="message" role="status" aria-live="polite">{{ message }}</p>
       <div class="workspace-content">
+        <IndicatorLocationPanel v-if="device && activeSection === 'device' && capabilities?.indicatorLocation" :value="indicatorLocation" :busy="busy !== null" :has-backup="indicatorLocationBackup !== null" @read="readIndicatorLocation" @apply="applyIndicatorLocation" @restore="restoreIndicatorLocation" />
         <div v-if="device && activeSection === 'device'" class="device-dashboard"><DevicePanel class="dashboard-primary" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" :debug="debugMode" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><ModelSupport v-if="deviceType && !capabilities?.profileKnown" class="dashboard-primary" :model-id="deviceType.model" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="dashboard-primary" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" class="dashboard-primary" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></div>
         <section v-if="activeSection === 'keys'" class="card keys-workspace"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="embedded-settings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><div v-if="allLayersLoaded" class="layer-workspace"><div class="layer-title"><p class="eyebrow">4 LAYERS · VERIFIED WRITE</p><h2>{{ t('app.keyboardLayers') }}</h2></div><div class="layer-toolbar-row"><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div><div class="actions layer-actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="busy !== null" @change="pickLayoutFile"></label><button class="secondary" @click="exportLayers">{{ t('app.exportLayers') }}</button><button v-if="layerBackups.every(layer => layer !== null)" class="secondary" :disabled="busy !== null" @click="restoreLayers">{{ t('layer.restoreAll') }}</button><button :disabled="busy !== null || layerDrafts.some(layer => !layer)" @click="applyLayers">{{ t('layer.applyAll') }}</button></div></div><div class="layout-meta"><span class="layout-status" :class="{ active: hardwareState?.userLayout === 1 }">{{ hardwareState?.userLayout === 1 ? t('layer.userActive') : t('layer.userInactive') }}</span><span>{{ t('layer.totalChanges', { count: layerChangeCount }) }}</span><span v-if="layoutNotice" role="status" aria-live="polite">{{ layoutNotice }}</span></div><KeyboardLayout v-if="layers[activeLayer] && layerDrafts[activeLayer]" :layer="layers[activeLayer]!" :draft="layerDrafts[activeLayer]!" :spec="keyboardLayoutSpec" :busy="busy !== null" @update="updateLayerDraft" /></div></section>
         <KeyTester v-if="device && protocolReady && activeSection === 'tester'" />
