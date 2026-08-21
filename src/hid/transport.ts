@@ -19,6 +19,9 @@ import {
   createWriteKeyboardLayerRequests,
   parseKeyboardLayerResponse,
   parseWriteKeyboardLayerAck,
+  keyboardLayoutSpecForModel,
+  C18_LAYOUT_SPEC,
+  type KeyboardLayoutSpec,
   type KeyboardLayerResponse,
 } from '../protocol/layout.ts'
 import { tryParseLianaFrame } from '../protocol/liana.ts'
@@ -107,6 +110,7 @@ export type InputReportListener = (report: InputReportRecord) => void
 export class AnneProHidTransport {
   private listener: ((event: HIDInputReportEvent) => void) | null = null
   private confirmedReadPending = false
+  private layoutSpec: KeyboardLayoutSpec = C18_LAYOUT_SPEC
 
   constructor(readonly device: HIDDevice) {}
 
@@ -138,11 +142,13 @@ export class AnneProHidTransport {
 
   /** Captured, independently verified read-only query. */
   async readDeviceType(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<DeviceTypeResponse> {
-    return this.requestConfirmedRead(
+    const response = await this.requestConfirmedRead(
       createReadDeviceTypeRequest(),
       parseDeviceTypeResponse,
       timeoutMs,
     )
+    this.layoutSpec = keyboardLayoutSpecForModel(response.model) ?? C18_LAYOUT_SPEC
+    return response
   }
 
   async readFirmwareVersion(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<FirmwareVersions> {
@@ -340,7 +346,7 @@ export class AnneProHidTransport {
         if (!frame || frame.command !== 0x10 || frame.action !== 0x02) return
         reports.push(bytes)
         try {
-          const result = parseKeyboardLayerResponse(layer, reports)
+          const result = parseKeyboardLayerResponse(layer, reports, this.layoutSpec)
           finish()
           resolve(result)
         } catch {
@@ -371,7 +377,7 @@ export class AnneProHidTransport {
     data: Uint8Array,
     timeoutMs = OBINSKIT_TIMEOUT_MS,
   ): Promise<KeyboardLayerResponse> {
-    const requests = createWriteKeyboardLayerRequests(layer, data)
+    const requests = createWriteKeyboardLayerRequests(layer, data, this.layoutSpec)
     for (const [packet, request] of requests.entries()) {
       await this.requestConfirmedRead(
         request,
@@ -395,7 +401,7 @@ export class AnneProHidTransport {
     let stage = 'preparing layout'
     try {
       for (const [layer, data] of layers.entries()) {
-        const requests = createWriteKeyboardLayerRequests(layer, data)
+        const requests = createWriteKeyboardLayerRequests(layer, data, this.layoutSpec)
         for (const [packet, request] of requests.entries()) {
           stage = `downloading Layer ${layer}, packet ${packet + 1}/${requests.length}`
           await this.requestConfirmedRead(

@@ -1,8 +1,24 @@
 import { assembleLianaPayload } from './multipart.ts'
 import { parseLianaFrame } from './liana.ts'
+import { getObinsModel } from '../device-registry.ts'
 
 const LAYER_COUNT = 4
 const ROW_LENGTHS = [14, 14, 13, 12, 8] as const
+
+export interface KeyboardLayoutSpec {
+  keycapCount: number
+  rowLengths: readonly number[]
+  keycodeWidth: 8 | 16
+}
+
+export const C18_LAYOUT_SPEC: KeyboardLayoutSpec = { keycapCount: 61, rowLengths: ROW_LENGTHS, keycodeWidth: 8 }
+
+export function keyboardLayoutSpecForModel(modelId: number): KeyboardLayoutSpec | null {
+  const hardware = getObinsModel(modelId)?.hardware
+  return hardware ? { keycapCount: hardware.keycapCount, rowLengths: hardware.rowLengths, keycodeWidth: hardware.keycodeWidth } : null
+}
+
+function layoutByteLength(spec: KeyboardLayoutSpec): number { return spec.keycapCount * (spec.keycodeWidth / 8) }
 
 /** ANSI 60% physical key widths in the same matrix order as the 61-byte C18 layout. */
 export const KEY_WIDTHS: readonly (readonly number[])[] = [
@@ -70,10 +86,11 @@ export function createReadKeyboardLayerRequest(layer: number): Uint8Array {
   ])
 }
 
-export function createWriteKeyboardLayerRequests(layer: number, data: Uint8Array): Uint8Array[] {
+export function createWriteKeyboardLayerRequests(layer: number, data: Uint8Array, spec = C18_LAYOUT_SPEC): Uint8Array[] {
   createReadKeyboardLayerRequest(layer)
-  if (data.byteLength !== 61) {
-    throw new Error(`Keyboard layer payload must be 61 bytes, got ${data.byteLength}`)
+  const expected = layoutByteLength(spec)
+  if (data.byteLength !== expected) {
+    throw new Error(`Keyboard layer payload must be ${expected} bytes, got ${data.byteLength}`)
   }
   const requests: Uint8Array[] = []
   // Native multi_package_create receives the layer as a separate prefix vector.
@@ -116,20 +133,47 @@ export function parseWriteKeyboardLayerAck(packet: number, data: Uint8Array): Ke
 export function parseKeyboardLayerResponse(
   layer: number,
   reports: readonly Uint8Array[],
+  spec = C18_LAYOUT_SPEC,
 ): KeyboardLayerResponse {
   createReadKeyboardLayerRequest(layer)
   const assembled = assembleLianaPayload(reports)
   if (assembled.command !== 0x10 || assembled.action !== 0x02) {
     throw new Error('Response is not uploadKbdLayout (10/02)')
   }
-  if (assembled.payload.byteLength !== 61) {
-    throw new Error(`Keyboard layer payload must be 61 bytes, got ${assembled.payload.byteLength}`)
+  const expected = layoutByteLength(spec)
+  if (assembled.payload.byteLength !== expected) {
+    throw new Error(`Keyboard layer payload must be ${expected} bytes, got ${assembled.payload.byteLength}`)
   }
   return {
     layer,
     data: assembled.payload,
     packetCount: assembled.packetCount,
   }
+}
+
+/** ObinsKit flattens Tenet 70 keycodes as UInt16LE before download. */
+export function encodeLayoutKeycodes(keycodes: Uint16Array, spec: KeyboardLayoutSpec): Uint8Array {
+  if (keycodes.length !== spec.keycapCount) throw new Error(`Keyboard layout must contain ${spec.keycapCount} keycodes, got ${keycodes.length}`)
+  if (spec.keycodeWidth === 8) {
+    if (keycodes.some(value => value > 0xff)) throw new Error('8-bit keyboard layout contains a keycode above 0xff')
+    return Uint8Array.from(keycodes)
+  }
+  const bytes = new Uint8Array(keycodes.length * 2)
+  keycodes.forEach((value, index) => { bytes[index * 2] = value & 0xff; bytes[index * 2 + 1] = value >> 8 })
+  return bytes
+}
+
+export function decodeLayoutKeycodes(data: Uint8Array, spec: KeyboardLayoutSpec): Uint16Array {
+  const expected = layoutByteLength(spec)
+  if (data.byteLength !== expected) throw new Error(`Keyboard layer payload must be ${expected} bytes, got ${data.byteLength}`)
+  if (spec.keycodeWidth === 8) return Uint16Array.from(data)
+  return Uint16Array.from({ length: spec.keycapCount }, (_, index) => data[index * 2] | (data[index * 2 + 1] << 8))
+}
+
+export function keyboardKeycodeRows(keycodes: Uint16Array, spec: KeyboardLayoutSpec): Uint16Array[] {
+  if (keycodes.length !== spec.keycapCount) throw new Error(`Keyboard layout must contain ${spec.keycapCount} keycodes, got ${keycodes.length}`)
+  let offset = 0
+  return spec.rowLengths.map(length => { const row = keycodes.slice(offset, offset + length); offset += length; return row })
 }
 
 export function keyboardLayerRows(data: Uint8Array): Uint8Array[] {

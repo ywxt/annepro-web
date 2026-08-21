@@ -57,6 +57,12 @@ but remain out of the product UI until the rest of the D87 settings workspace is
 available. Other model-specific writes remain capability-disabled rather than
 falling through to the C18 implementation.
 
+The layout codec no longer assumes 61 bytes. It derives 8-bit payload sizes from
+each official profile and reproduces ObinsKit's Tenet 70 conversion to 73 UInt16LE
+keycodes (146 bytes). Multipart downloads retain the native 52-byte data chunk and
+therefore use three reports for Tenet. Product UI remains gated until model-specific
+physical key widths and write readbacks can be verified on matching hardware.
+
 The WebHID chooser now includes every exact VID/PID pair in the Electron discovery
 table. For models without a verified profile, connection performs only `01/01`
 identity discovery and exposes HID metadata/debugging; it deliberately stops before

@@ -71,6 +71,7 @@ device trial, and only then product UI.
 
 - [ ] Test currently unavailable PIDs and firmware families on physical hardware.
 - [x] Import all ObinsKit hardware profiles and implement the Discovery battery and D87 indicator-location protocol branches.
+- [x] Generalize layout packet sizing for every official 8-bit profile and add the Tenet 70 UInt16LE codec.
 - [x] Add a compatibility matrix, udev guidance, disconnect recovery, and browser diagnostics.
 - [x] Add fixture-based regression tests for every implemented protocol variant.
 - [x] Package as a static HTTPS-capable site with no backend requirement.

@@ -9,6 +9,10 @@ import {
   keycodeOptions,
   parseKeyboardLayerResponse,
   parseWriteKeyboardLayerAck,
+  decodeLayoutKeycodes,
+  encodeLayoutKeycodes,
+  keyboardKeycodeRows,
+  keyboardLayoutSpecForModel,
 } from '../src/protocol/layout.ts'
 
 function response(packet: number, payload: number[]): Uint8Array {
@@ -44,6 +48,23 @@ describe('keyboard layout read protocol', () => {
       0x7b, 0x10, 0x31, 0x21, 12, 0, 0, 0x7d, 0x10, 0x01, 2,
       ...Array.from(data.slice(52)),
     ])
+  })
+
+  it('encodes Tenet 70 as 73 UInt16LE keycodes over three bounded packets', () => {
+    const spec = keyboardLayoutSpecForModel(12)!
+    const keycodes = Uint16Array.from({ length: 73 }, (_, index) => 0x100 + index)
+    const bytes = encodeLayoutKeycodes(keycodes, spec)
+    expect(bytes.byteLength).toBe(146)
+    expect(Array.from(bytes.slice(0, 6))).toEqual([0, 1, 1, 1, 2, 1])
+    expect(Array.from(decodeLayoutKeycodes(bytes, spec))).toEqual(Array.from(keycodes))
+    expect(createWriteKeyboardLayerRequests(0, bytes, spec).map(request => request.byteLength)).toEqual([63, 63, 53])
+    expect(keyboardKeycodeRows(keycodes, spec).map(row => row.length)).toEqual([17, 17, 13, 16, 10])
+  })
+
+  it('uses each official model key count and rejects width mismatches', () => {
+    expect(keyboardLayoutSpecForModel(6)).toMatchObject({ keycapCount: 67, keycodeWidth: 8 })
+    expect(keyboardLayoutSpecForModel(99)).toBeNull()
+    expect(() => encodeLayoutKeycodes(Uint16Array.of(0x100), { keycapCount: 1, rowLengths: [1], keycodeWidth: 8 })).toThrow('above 0xff')
   })
 
   it('validates per-packet layout write acknowledgements', () => {
