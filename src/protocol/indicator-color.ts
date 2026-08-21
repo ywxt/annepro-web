@@ -7,12 +7,13 @@ const READ_INDICATOR_COLOR_REQUEST = new Uint8Array([
 export interface IndicatorColorResponse {
   rgb: readonly [number, number, number]
   hex: string
+  colors: readonly string[]
   rawFrame: Uint8Array
   trailingLength: number
 }
 
-function formatColor(rgb: readonly number[]): string {
-  return `#${rgb.map(value => value.toString(16).padStart(2, '0')).join('')}`
+function formatColor(rgb: ArrayLike<number>): string {
+  return `#${Array.from(rgb, value => value.toString(16).padStart(2, '0')).join('')}`
 }
 
 export function parseColorHex(hex: string): readonly [number, number, number] {
@@ -30,8 +31,13 @@ export function createReadCapslockColorRequest(): Uint8Array {
 }
 
 export function createWriteIndicatorColorRequest(hex: string): Uint8Array {
-  const rgb = parseColorHex(hex)
-  return new Uint8Array([0x7b, 0x10, 0x31, 0x10, 5, 0, 0, 0x7d, 0x20, 0x1b, ...rgb])
+  return createWriteIndicatorColorsRequest([hex])
+}
+
+export function createWriteIndicatorColorsRequest(colors: readonly string[]): Uint8Array {
+  if (colors.length < 1 || colors.length > 2) throw new Error('Indicator color write requires one or two RGB colors')
+  const rgb = colors.flatMap(color => [...parseColorHex(color)])
+  return new Uint8Array([0x7b, 0x10, 0x31, 0x10, rgb.length + 2, 0, 0, 0x7d, 0x20, 0x1b, ...rgb])
 }
 
 export function createWriteCapslockColorRequest(hex: string): Uint8Array {
@@ -39,16 +45,21 @@ export function createWriteCapslockColorRequest(hex: string): Uint8Array {
   return new Uint8Array([0x7b, 0x10, 0x31, 0x10, 5, 0, 0, 0x7d, 0x20, 0x1c, ...rgb])
 }
 
-function parseColorResponse(data: Uint8Array, action: 0x1a | 0x1d, name: string): IndicatorColorResponse {
+function parseColorResponse(data: Uint8Array, action: 0x1a | 0x1d, name: string, colorCount = 1): IndicatorColorResponse {
   const frame = parseLianaFrame(data)
   if (frame.command !== 0x20 || frame.action !== action) throw new Error(`Response is not ${name} (20/${action.toString(16)})`)
-  if (frame.payload.byteLength !== 3) throw new Error(`Indicator color payload must be 3 bytes, got ${frame.payload.byteLength}`)
-  const rgb = Array.from(frame.payload) as [number, number, number]
-  return { rgb, hex: formatColor(rgb), rawFrame: data.slice(0, 8 + frame.payloadLength), trailingLength: frame.trailing.byteLength }
+  if (frame.payload.byteLength !== colorCount * 3) throw new Error(`Indicator color payload must be ${colorCount * 3} bytes, got ${frame.payload.byteLength}`)
+  const colors = Array.from({ length: colorCount }, (_, index) => formatColor(frame.payload.slice(index * 3, index * 3 + 3)))
+  const rgb = Array.from(frame.payload.slice(0, 3)) as [number, number, number]
+  return { rgb, hex: colors[0], colors, rawFrame: data.slice(0, 8 + frame.payloadLength), trailingLength: frame.trailing.byteLength }
 }
 
 export function parseIndicatorColorResponse(data: Uint8Array): IndicatorColorResponse {
   return parseColorResponse(data, 0x1a, 'readLedIndicatorColor')
+}
+
+export function parseTenetIndicatorColorResponse(data: Uint8Array): IndicatorColorResponse {
+  return parseColorResponse(data, 0x1a, 'readLedIndicatorColor', 2)
 }
 
 export function parseCapslockColorResponse(data: Uint8Array): IndicatorColorResponse {

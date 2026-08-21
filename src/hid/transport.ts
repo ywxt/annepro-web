@@ -125,8 +125,10 @@ import {
   createReadIndicatorColorRequest,
   createWriteCapslockColorRequest,
   createWriteIndicatorColorRequest,
+  createWriteIndicatorColorsRequest,
   parseCapslockColorResponse,
   parseIndicatorColorResponse,
+  parseTenetIndicatorColorResponse,
   parseWriteCapslockColorAck,
   parseWriteIndicatorColorAck,
   type IndicatorColorResponse,
@@ -305,12 +307,23 @@ export class AnneProHidTransport {
     const capslockRoute = this.modelId === 7 || this.modelId === 14
     return this.requestConfirmedRead(
       capslockRoute ? createReadCapslockColorRequest() : createReadIndicatorColorRequest(),
-      capslockRoute ? parseCapslockColorResponse : parseIndicatorColorResponse,
+      capslockRoute ? parseCapslockColorResponse : this.modelId === 12 ? parseTenetIndicatorColorResponse : parseIndicatorColorResponse,
       timeoutMs,
     )
   }
 
+  async writeTenetIndicatorColors(colors: readonly [string, string], timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorColorResponse> {
+    if (this.modelId !== 12) throw new Error('Dual indicator colors are supported only by Tenet 70')
+    await this.requestConfirmedRead(createWriteIndicatorColorsRequest(colors), parseWriteIndicatorColorAck, timeoutMs)
+    const readback = await this.readIndicatorColor(timeoutMs)
+    if (readback.colors.length !== 2 || readback.colors.some((color, index) => color.toLowerCase() !== colors[index].toLowerCase())) {
+      throw new Error('Tenet indicator color readback does not match written colors')
+    }
+    return readback
+  }
+
   async writeIndicatorColor(hex: string, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorColorResponse> {
+    if (this.modelId === 12) throw new Error('Tenet 70 requires both indicator colors in one write')
     const capslockRoute = this.modelId === 7 || this.modelId === 14
     await this.requestConfirmedRead(
       capslockRoute ? createWriteCapslockColorRequest(hex) : createWriteIndicatorColorRequest(hex),

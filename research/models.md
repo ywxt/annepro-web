@@ -70,6 +70,11 @@ CapsLock color, D87 requires key firmware newer than 2.37, and other profiles re
 key firmware newer than 2.35. Legacy Anne firmware retains the three-state Macro
 Trigger selector (Disabled/Fn1/Fn2).
 
+Tenet 70's indicator editor preserves both independent RGB triples returned by
+`readLedIndicatorColor`. Its left/right colors are always written together through
+the six-byte `writeLedIndicatorColor` payload and verified by a six-byte readback;
+D87 and Discovery instead use the separate CapsLock-color command pair.
+
 The layout codec no longer assumes 61 bytes. It derives 8-bit payload sizes from
 each official profile and reproduces ObinsKit's Tenet 70 conversion to 73 UInt16LE
 keycodes (146 bytes). Multipart downloads retain the native 52-byte data chunk and

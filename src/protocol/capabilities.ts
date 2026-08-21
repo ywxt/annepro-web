@@ -22,6 +22,7 @@ export interface DeviceCapabilities {
   sleepTimeout: boolean | null
   ledPowerMode: boolean | null
   capslockColor: boolean | null
+  indicatorColors: boolean | null
 }
 
 function compareVersion(left: string, right: string): number {
@@ -76,5 +77,6 @@ export function deriveDeviceCapabilities(
       || (model.id === 7 && Boolean(keyVersion && compareVersion(keyVersion, '2.37') > 0))
       || (usesLegacyAnneVersionGate && Boolean(keyVersion && compareVersion(keyVersion, '2.35') > 0))
       : null,
+    indicatorColors: model ? model.id === 12 : null,
   }
 }

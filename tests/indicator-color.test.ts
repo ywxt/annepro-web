@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createReadCapslockColorRequest, createReadIndicatorColorRequest, createWriteCapslockColorRequest, createWriteIndicatorColorRequest, parseCapslockColorResponse, parseIndicatorColorResponse, parseWriteCapslockColorAck, parseWriteIndicatorColorAck } from '../src/protocol/indicator-color.ts'
+import { createReadCapslockColorRequest, createReadIndicatorColorRequest, createWriteCapslockColorRequest, createWriteIndicatorColorRequest, createWriteIndicatorColorsRequest, parseCapslockColorResponse, parseIndicatorColorResponse, parseTenetIndicatorColorResponse, parseWriteCapslockColorAck, parseWriteIndicatorColorAck } from '../src/protocol/indicator-color.ts'
 
 describe('indicator color protocol', () => {
   it('encodes the physically verified C18 commands', () => {
@@ -15,7 +15,14 @@ describe('indicator color protocol', () => {
   it('parses the physical read response', () => {
     const parsed = parseIndicatorColorResponse(new Uint8Array([0x7b,0x12,0x13,0,5,0,0,0x7d,0x20,0x1a,0xff,0x98,0,0xaa]))
     expect(parsed.hex).toBe('#ff9800')
+    expect(parsed.colors).toEqual(['#ff9800'])
     expect(parsed.trailingLength).toBe(1)
+  })
+  it('handles Tenet 70 left/right colors as one six-byte transaction', () => {
+    expect(Array.from(createWriteIndicatorColorsRequest(['#ff0000', '#00ffff'])).slice(-8)).toEqual([0x20,0x1b,0xff,0,0,0,0xff,0xff])
+    const parsed = parseTenetIndicatorColorResponse(new Uint8Array([0x7b,0x12,0x13,0,8,0,0,0x7d,0x20,0x1a,0xff,0,0,0,0xff,0xff]))
+    expect(parsed.colors).toEqual(['#ff0000', '#00ffff'])
+    expect(() => parseIndicatorColorResponse(parsed.rawFrame)).toThrow('must be 3 bytes')
   })
   it('requires a successful write acknowledgement', () => {
     expect(parseWriteIndicatorColorAck(new Uint8Array([0x7b,0x12,0x13,0,3,0,0,0x7d,0x20,0x1b,0]))).toBeUndefined()

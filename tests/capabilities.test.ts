@@ -14,6 +14,7 @@ describe('ObinsKit capability gates', () => {
       batteryPercentage: false,
       audioVisualization: true, advancedAudioProtocol: false, oled: false, combinationMode: false, modernTapSettings: true, sleepTimeout: true,
       ledPowerMode: true, capslockColor: true,
+      indicatorColors: false,
     })
   })
 
@@ -30,6 +31,7 @@ describe('ObinsKit capability gates', () => {
       batteryPercentage: null,
       audioVisualization: null, advancedAudioProtocol: null, oled: null, combinationMode: null, modernTapSettings: null, sleepTimeout: null,
       ledPowerMode: null, capslockColor: null,
+      indicatorColors: null,
     })
   })
 
@@ -69,7 +71,7 @@ describe('ObinsKit capability gates', () => {
 
   it('reproduces official general-settings gates for non-C18 profiles', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: true })
-    expect(deriveDeviceCapabilities({ ...device, model: 12 }, null)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false, capslockColor: false })
+    expect(deriveDeviceCapabilities({ ...device, model: 12 }, null)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false, capslockColor: false, indicatorColors: true })
     expect(deriveDeviceCapabilities({ ...device, model: 6 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false })
   })
 
