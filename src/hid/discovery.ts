@@ -1,17 +1,11 @@
 import { collectMetadata } from './device.ts'
 import type { DeviceSelection } from './types.ts'
+import { isKnownObinsUsbDevice, OBINS_USB_DEVICES } from '../device-registry.ts'
 
 /** VID/PID table reproduced from ObinsKit 1.2.11's Electron HID discovery. */
-export const OBINSKIT_DEVICE_FILTERS: HIDDeviceFilter[] = [
-  { vendorId: 0x0483, productId: 0x5710 },
-  { vendorId: 0x04d9, productId: 0xa293 },
-  { vendorId: 0x04d9, productId: 0xa292 },
-  { vendorId: 0x04d9, productId: 0x8008 },
-  { vendorId: 0x04d9, productId: 0x8009 },
-  ...[0xa294, 0xa295, 0xa296, 0xa297, 0xa298, 0xa299, 0xf000, 0xf001, 0xf002, 0xf003, 0xf005, 0xf006]
-    .map(productId => ({ vendorId: 0x3311, productId })),
-  { vendorId: 0x000d, productId: 0xf0e0 },
-]
+export const OBINSKIT_DEVICE_FILTERS: HIDDeviceFilter[] = OBINS_USB_DEVICES.map(
+  ({ vendorId, productId }) => ({ vendorId, productId }),
+)
 
 /** Public compatibility alias retained for callers of the original API. */
 export const ANNE_PRO_FILTERS = OBINSKIT_DEVICE_FILTERS
@@ -24,10 +18,8 @@ export function isWebHidSupported(): boolean {
   return 'hid' in navigator
 }
 
-const supportedDevices = new Set(OBINSKIT_DEVICE_FILTERS.map(({ vendorId, productId }) => `${vendorId}:${productId}`))
-
 export function isAnneProDevice(device: Pick<HIDDevice, 'vendorId' | 'productId'>): boolean {
-  return supportedDevices.has(`${device.vendorId}:${device.productId}`)
+  return isKnownObinsUsbDevice(device.vendorId, device.productId)
 }
 
 function hasProtocolCollection(device: Pick<HIDDevice, 'collections'>): boolean {

@@ -39,6 +39,7 @@ import type { BleMacAddress, DeviceUdid } from './protocol/device-identity.ts'
 import type { IndicatorColorResponse } from './protocol/indicator-color.ts'
 import { annePro2FactoryLights, ANNE_PRO_2_FACTORY_SETTINGS } from './protocol/factory-defaults.ts'
 import { parseFullBackup } from './protocol/full-backup.ts'
+import { isKnownObinsVendor } from './device-registry.ts'
 
 const supported = isWebHidSupported()
 const { t } = useI18n({ useScope: 'global' })
@@ -187,7 +188,7 @@ function onHidDisconnect(event: HIDConnectionEvent): void {
 }
 
 function onHidConnect(event: HIDConnectionEvent): void {
-  if ([0x000d, 0x0483, 0x04d9, 0x3311].includes(event.device.vendorId)) message.value = t('notice.reinserted')
+  if (isKnownObinsVendor(event.device.vendorId)) message.value = t('notice.reinserted')
 }
 
 onMounted(() => {

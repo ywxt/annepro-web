@@ -1,4 +1,5 @@
 import { parseLianaFrame } from './liana.ts'
+import { getObinsModel } from '../device-registry.ts'
 
 const READ_DEVICE_TYPE_REQUEST = new Uint8Array([
   0x7b, 0x12, 0x31, 0x00, 0x02, 0x00, 0x00, 0x7d, 0x01, 0x01,
@@ -11,25 +12,6 @@ export interface DeviceTypeResponse {
   typeName: string
   rawFrame: Uint8Array
   trailingLength: number
-}
-
-const MODEL_NAMES: Readonly<Record<number, string>> = {
-  1: 'Anne',
-  2: 'AnnePro',
-  3: 'AnnePro2',
-  4: 'AnneProISO',
-  5: 'AnnePro2C18',
-  6: 'Param68',
-  7: 'AnneClassicD87',
-  8: 'ApxF61',
-  9: 'ReturnedWing',
-  10: 'AnnePro2Slim',
-  11: 'ApxFuji65',
-  12: 'ApxTenet70',
-  13: 'ApxFuji65Rgb',
-  14: 'AnnePro2Discovery',
-  17: 'ApxF61V2',
-  33: 'W800',
 }
 
 const TYPE_NAMES: Readonly<Record<number, string>> = {
@@ -54,7 +36,7 @@ export function parseDeviceTypeResponse(data: Uint8Array): DeviceTypeResponse {
   const type = frame.payload[1]
   return {
     model,
-    modelName: MODEL_NAMES[model] ?? 'Unknown',
+    modelName: getObinsModel(model)?.name ?? 'Unknown',
     type,
     typeName: TYPE_NAMES[type] ?? 'Unknown',
     rawFrame: data.slice(0, 8 + frame.payloadLength),

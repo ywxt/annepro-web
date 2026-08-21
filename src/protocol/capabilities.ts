@@ -1,5 +1,6 @@
 import type { DeviceTypeResponse } from './device-info.ts'
 import type { FirmwareVersions } from './firmware-info.ts'
+import { hasConfigurationProfile } from '../device-registry.ts'
 
 export interface DeviceCapabilities {
   profileKnown: boolean
@@ -34,7 +35,7 @@ export function deriveDeviceCapabilities(
   firmware: FirmwareVersions | null,
 ): DeviceCapabilities | null {
   if (!deviceType) return null
-  const isAnnePro2 = deviceType.model === 3 || deviceType.model === 5
+  const isAnnePro2 = hasConfigurationProfile(deviceType.model)
   const keyVersion = firmware?.key
   return {
     profileKnown: isAnnePro2,
