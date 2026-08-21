@@ -56,6 +56,13 @@ and `20/19` write are implemented as typed product operations with backup and wr
 readback. Other model-specific settings remain capability-disabled rather than
 falling through to the C18 implementation.
 
+The ordinary General workspace follows the renderer's shared model path for every
+known profile. Base layout/Tap/CapsLock/macro-trigger controls use the common
+hardware-state transaction, while modern Tap fields, battery sleep timeout, LED
+power, D87 indicator brightness, and indicator color retain the exact official
+model/firmware gates. C18-only full restore, factory reset, macro image management,
+and Bluetooth mutation remain separately disabled.
+
 The layout codec no longer assumes 61 bytes. It derives 8-bit payload sizes from
 each official profile and reproduces ObinsKit's Tenet 70 conversion to 73 UInt16LE
 keycodes (146 bytes). Multipart downloads retain the native 52-byte data chunk and

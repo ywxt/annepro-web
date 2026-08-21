@@ -43,12 +43,16 @@ export function deriveDeviceCapabilities(
   const isAnnePro2 = hasConfigurationProfile(deviceType.model)
   const model = getObinsModel(deviceType.model)
   const keyVersion = firmware?.key
+  const usesLegacyAnneVersionGate = model ? [2, 3, 5].includes(model.id) : false
+  const modernSettings = model
+    ? usesLegacyAnneVersionGate ? keyVersion ? compareVersion(keyVersion, '2.11') >= 0 : null : true
+    : null
   const usesAnnePro2Audio = model ? [3, 4, 5].includes(model.id) : false
   return {
     profileKnown: isAnnePro2,
     keyboardLayers: model !== null,
     macros: isAnnePro2,
-    generalSettings: isAnnePro2,
+    generalSettings: model !== null,
     bluetooth: isAnnePro2,
     factoryReset: isAnnePro2,
     // ObinsKit's isHaveLed getter excludes only the non-RGB Fuji65 (model 11).
@@ -61,9 +65,9 @@ export function deriveDeviceCapabilities(
     advancedAudioProtocol: model ? model.hardware.mcuLed && !usesAnnePro2Audio : null,
     oled: model ? model.id === 12 : null,
     combinationMode: model ? model.id === 12 : null,
-    modernTapSettings: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.11') >= 0 : null,
-    sleepTimeout: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.14') > 0 : null,
-    ledPowerMode: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null,
-    capslockColor: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null,
+    modernTapSettings: modernSettings,
+    sleepTimeout: model ? (model.hardware.mcuBle ? (keyVersion ? compareVersion(keyVersion, '2.14') > 0 : null) : false) : null,
+    ledPowerMode: model ? (keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null) : null,
+    capslockColor: model ? model.id === 12 || (keyVersion ? compareVersion(keyVersion, '2.35') > 0 : false) : null,
   }
 }

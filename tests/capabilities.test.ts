@@ -61,10 +61,16 @@ describe('ObinsKit capability gates', () => {
   })
 
   it('gates the native indicator-location route to D87', () => {
-    expect(deriveDeviceCapabilities({ ...device, model: 7 }, firmware)).toMatchObject({ keyboardLayers: true, hasIndicatorLed: true, indicatorLocation: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 7 }, firmware)).toMatchObject({ profileKnown: false, generalSettings: true, keyboardLayers: true, hasIndicatorLed: true, indicatorLocation: true, modernTapSettings: true })
     expect(deriveDeviceCapabilities({ ...device, model: 33 }, firmware)).toMatchObject({ indicatorLocation: false })
     expect(deriveDeviceCapabilities({ ...device, model: 12 }, firmware)).toMatchObject({ indicatorLocation: true })
     expect(deriveDeviceCapabilities({ ...device, model: 12 }, firmware)).toMatchObject({ oled: true, combinationMode: true })
+  })
+
+  it('reproduces official general-settings gates for non-C18 profiles', () => {
+    expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ generalSettings: true, modernTapSettings: true, sleepTimeout: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 12 }, null)).toMatchObject({ generalSettings: true, modernTapSettings: true, sleepTimeout: false, capslockColor: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 6 }, firmware)).toMatchObject({ generalSettings: true, modernTapSettings: true, sleepTimeout: false })
   })
 
   it('gates firmware-dependent controls on older Anne Pro 2 firmware', () => {

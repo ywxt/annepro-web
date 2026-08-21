@@ -292,6 +292,8 @@ async function readAll(): Promise<void> {
       iap.value = await transport.value.readIapMode().catch(() => null)
       powerOnTime.value = await transport.value.readPowerOnTime().catch(() => null)
       hardwareState.value = await transport.value.readHardwareState().catch(() => null)
+      if (capabilities.value?.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode().catch(() => null)
+      if (capabilities.value?.capslockColor) indicatorColor.value = await transport.value.readIndicatorColor().catch(() => null)
       if (capabilities.value?.combinationMode) combinationMode.value = await transport.value.readCombinationMode().catch(() => null)
       if (capabilities.value?.hasBattery) battery.value = await readBatteryForModel().catch(() => null)
       if (capabilities.value?.indicatorLocation) indicatorLocation.value = await transport.value.readIndicatorLocation().catch(() => null)
@@ -517,6 +519,13 @@ function settingName(key: HardwareSettingKey): string {
   }
   return names[key]
 }
+function supportsSetting(key: Exclude<HardwareSettingKey, 'ledPowerMode'>): boolean {
+  if (!capabilities.value) return false
+  if (key === 'ledHold') return capabilities.value.hasBattery === true
+  if (key === 'sleepTimeoutRaw') return capabilities.value.sleepTimeout === true
+  if (key === 'backlightBrightness' || key === 'tapActMode' || key === 'tapTimeoutValue') return capabilities.value.modernTapSettings === true
+  return true
+}
 
 async function applySettings(changes: Array<{ key: HardwareSettingKey; value: number }>): Promise<void> {
   if (!transport.value || !hardwareState.value || changes.length === 0) return
@@ -551,6 +560,7 @@ async function restoreSettings(): Promise<void> {
   const backup = settingsBackup.value
   try {
     for (const key of STATE_KEYS) {
+      if (!supportsSetting(key)) continue
       if (key === 'sleepTimeoutRaw' && (
         !capabilities.value?.sleepTimeout
         || backup.state.sleepTimeoutRaw < 10
@@ -563,6 +573,7 @@ async function restoreSettings(): Promise<void> {
     }
     const readback = await transport.value.readHardwareState()
     for (const key of STATE_KEYS) {
+      if (!supportsSetting(key)) continue
       if (key === 'sleepTimeoutRaw' && (
         !capabilities.value?.sleepTimeout
         || backup.state.sleepTimeoutRaw < 10
