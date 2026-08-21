@@ -18,6 +18,7 @@ import KeyTester from './components/KeyTester.vue'
 import ProtocolCoverage from './components/ProtocolCoverage.vue'
 import ModelSupport from './components/ModelSupport.vue'
 import IndicatorLocationPanel from './components/IndicatorLocationPanel.vue'
+import OledPanel from './components/OledPanel.vue'
 import { appLocale } from './i18n.ts'
 import { collectMetadata } from './hid/device.ts'
 import { getPreferredGrantedAnneProDevice, isWebHidSupported, requestAnneProDevice } from './hid/discovery.ts'
@@ -44,6 +45,7 @@ import { annePro2FactoryLights, ANNE_PRO_2_FACTORY_SETTINGS } from './protocol/f
 import { parseFullBackup } from './protocol/full-backup.ts'
 import { isKnownObinsVendor } from './device-registry.ts'
 import { OBINSKIT_AUDIO_INTERVAL_MS } from './protocol/timing.ts'
+import { oledDateTimeFromDate } from './protocol/oled.ts'
 
 const supported = isWebHidSupported()
 const { t } = useI18n({ useScope: 'global' })
@@ -76,7 +78,7 @@ const audioSource = ref<AudioSource>('system')
 const audioColor = ref('#00ff80')
 const audioFrames = ref(0)
 const audioLevel = ref(0)
-type WorkspaceSection = 'device' | 'keys' | 'tester' | 'lighting' | 'macros'
+type WorkspaceSection = 'device' | 'keys' | 'tester' | 'lighting' | 'macros' | 'oled'
 const activeSection = ref<WorkspaceSection>('device')
 const DEBUG_STORAGE_KEY = 'annepro-web-debug-mode'
 const debugMode = ref(localStorage.getItem(DEBUG_STORAGE_KEY) === 'true')
@@ -108,6 +110,7 @@ const navigation = computed<Array<{ id: WorkspaceSection; label: string }>>(() =
   if (capabilities.value?.keyboardLayers) items.push({ id: 'tester', label: t('nav.tester') })
   if (capabilities.value?.hasLed) items.push({ id: 'lighting', label: t('nav.lighting') })
   if (capabilities.value?.macros) items.push({ id: 'macros', label: t('nav.macros') })
+  if (capabilities.value?.oled) items.push({ id: 'oled', label: t('nav.oled') })
   return items
 })
 const fullBackupReady = computed(() => Boolean(
@@ -876,6 +879,18 @@ async function stopAudioVisualize(restore = true): Promise<void> {
   }
 }
 
+async function runOledWrite(name: string, write: () => Promise<void>, replaceDisplay = false): Promise<void> {
+  if (!transport.value || replaceDisplay && !window.confirm(t('oled.confirm'))) return
+  busy.value = name
+  try { await write(); message.value = t('notice.done', { name }) }
+  catch (error) { showWriteError(name, error) }
+  finally { busy.value = null }
+}
+const syncOledDate = () => runOledWrite(t('oled.syncDate'), () => transport.value!.writeOledDateTime(oledDateTimeFromDate(new Date())))
+const writeOledImage = (packed: Uint8Array) => runOledWrite(t('oled.writeImage'), () => transport.value!.writeOledImage(packed), true)
+const writeOledText = (packed: Uint8Array) => runOledWrite(t('oled.writeText'), () => transport.value!.writeOledCharacter(packed), true)
+const writeOledScroll = (enabled: boolean) => runOledWrite(t('oled.scroll'), () => transport.value!.writeOledScroll(enabled))
+
 onBeforeUnmount(() => {
   void stopAudioVisualize(false)
   stopListening?.()
@@ -891,7 +906,7 @@ onBeforeUnmount(() => {
   <div :key="appLocale" class="app-shell">
     <aside class="app-sidebar">
       <div class="brand-mark"><span>OB</span><div><strong>ObinsLab</strong><small>Configurator</small></div></div>
-      <nav v-if="device && protocolReady" class="workspace-nav" :aria-label="t('app.title')"><button v-for="item in navigation" :key="item.id" class="nav-button" :class="{ active: activeSection === item.id }" @click="activeSection = item.id"><span class="nav-icon" aria-hidden="true">{{ ({ device: '⌨', keys: '⌘', tester: '✓', lighting: '✦', macros: '◆' } as const)[item.id] }}</span>{{ item.label }}</button></nav>
+      <nav v-if="device && protocolReady" class="workspace-nav" :aria-label="t('app.title')"><button v-for="item in navigation" :key="item.id" class="nav-button" :class="{ active: activeSection === item.id }" @click="activeSection = item.id"><span class="nav-icon" aria-hidden="true">{{ ({ device: '⌨', keys: '⌘', tester: '✓', lighting: '✦', macros: '◆', oled: '▰' } as const)[item.id] }}</span>{{ item.label }}</button></nav>
       <div v-else class="sidebar-empty">{{ t('shell.connectHint') }}</div>
       <div class="sidebar-footer"><label class="debug-switch"><input v-model="debugMode" type="checkbox"><span>{{ t('shell.debug') }}</span></label><LanguageSwitcher /></div>
     </aside>
@@ -907,6 +922,7 @@ onBeforeUnmount(() => {
         <KeyTester v-if="device && protocolReady && activeSection === 'tester'" />
         <div v-if="device && protocolReady && activeSection === 'lighting'" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :profile="lightingProfile" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :source="audioSource" :color="audioColor" :busy="busy !== null" :frames="audioFrames" :level="audioLevel" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-source="audioSource = $event" @update-color="audioColor = $event" /></div>
         <div v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></div>
+        <OledPanel v-if="device && protocolReady && activeSection === 'oled' && capabilities?.oled" :busy="busy !== null" @sync-date="syncOledDate" @write-image="writeOledImage" @write-text="writeOledText" @scroll="writeOledScroll" />
         <div v-if="device && debugMode" class="debug-workspace"><div class="debug-banner"><span>DEBUG</span>{{ t('app.developerHint') }}</div><ProtocolCoverage /><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></div>
       </div>
       <footer>{{ t('app.footer') }}</footer>

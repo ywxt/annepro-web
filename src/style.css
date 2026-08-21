@@ -123,6 +123,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .key-choice.active .key-choice-icon { color: #07120e; border-color: rgba(7, 18, 14, .3); background: rgba(255, 255, 255, .25); }.key-picker-hint { position: relative; z-index: 1; flex: 0 0 auto; margin: 12px 0 0; padding-top: 10px; color: #7f8b99; border-top: 1px solid #293340; background: #121923; font-size: 11px; }
 .key-choice-icon.text-icon { font-size: 11px; }
 .layout-raw { display: block; margin-top: 18px; overflow-wrap: anywhere; line-height: 1.6; }
+.oled-panel { display: grid; gap: 16px; }.oled-preview { width: min(100%, 768px); image-rendering: pixelated; border: 1px solid #405064; border-radius: 8px; background: #000; box-shadow: 0 0 24px rgba(98, 229, 180, .08); }.oled-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }.oled-controls label { display: grid; gap: 6px; color: #aab4c1; font-size: 12px; }.oled-controls label:last-child { display: flex; align-items: center; }
 .macro-item { display: grid; gap: 5px; margin-top: 12px; padding: 12px; border: 1px solid #293340; border-radius: 8px; }
 .macro-item span { color: #929dac; font-size: 12px; }
 .macro-item code { overflow-wrap: anywhere; }
