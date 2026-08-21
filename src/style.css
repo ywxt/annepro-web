@@ -130,6 +130,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .debug-feature { border-color: #574a2a; background: linear-gradient(135deg, #1b1d1d, #1c1913); }.advanced-audio-mode { display: grid; max-width: 320px; gap: 7px; color: #aab4c1; font-size: 12px; }
 .oled-monitor { display: grid; gap: 14px; padding: 16px; border: 1px solid #574a2a; border-radius: 10px; }.oled-monitor h3 { margin: 3px 0; }.oled-monitor p { margin: 0; color: #9caaba; }.oled-monitor-values { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }.oled-monitor-values label { display: grid; gap: 5px; color: #aab4c1; font-size: 12px; }.oled-monitor-values input { width: 92px; }
 .virtual-mouse-probe { margin-bottom: 18px; }.raw-probe-result { display: grid; gap: 10px; }.raw-probe-result > span { color: #aab4c1; }.raw-probe-result code { overflow-wrap: anywhere; color: #9ed7ff; }
+.mcu-uuid-probe { margin-bottom: 18px; }.identity-probe { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }.identity-probe code { overflow-wrap: anywhere; color: #9ed7ff; letter-spacing: .06em; }
 .macro-item { display: grid; gap: 5px; margin-top: 12px; padding: 12px; border: 1px solid #293340; border-radius: 8px; }
 .macro-item span { color: #929dac; font-size: 12px; }
 .macro-item code { overflow-wrap: anywhere; }

@@ -135,6 +135,7 @@ import {
   type IndicatorLocationResponse,
 } from '../protocol/indicator-location.ts'
 import { OBINSKIT_RETRY_MS, OBINSKIT_TIMEOUT_MS } from '../protocol/timing.ts'
+import { createReadMcuUuidRequest, parseMcuUuidResponse, type McuUuidResponse } from '../protocol/mcu-uuid.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -191,6 +192,10 @@ export class AnneProHidTransport {
       parseFirmwareVersionResponse,
       timeoutMs,
     )
+  }
+
+  async readMcuUuid(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<McuUuidResponse> {
+    return this.requestConfirmedRead(createReadMcuUuidRequest(), parseMcuUuidResponse, timeoutMs)
   }
 
   async readIapMode(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IapModeResponse> {

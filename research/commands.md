@@ -10,6 +10,7 @@ Evidence labels:
 | --- | --- | --- | --- | --- | --- |
 | `readDeviceType` | read | command/action `01/01`, report ID 0 | captured | R1 | implemented |
 | `readFirmwareVersion(MCU_MAIN)` | read | command/action `01/03`, report ID 0 | captured | R1 | implemented |
+| `readMcuUUID` | read sensitive | MCU_MAIN command/action `01/04`; response remains opaque pending hardware fixture | native dispatch | R1/private/static | strict non-empty parser and non-C18 Debug probe; masked and excluded from export |
 | `readPowerOnTime` | read | command/action `01/02`, UInt32LE hours | captured | R1 | implemented |
 | `readBattery` | read | command/action `01/05`, UInt16LE ADC + two reserved bytes | captured | R1 | implemented with ObinsKit voltage/percent curve |
 | `readBatteryPercentage` | Discovery read | command/action `01/11`, one percentage byte | native dispatch + renderer model branch | R1 | implemented and selected only for model 14 |
