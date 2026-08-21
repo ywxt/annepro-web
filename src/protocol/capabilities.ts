@@ -23,6 +23,7 @@ export interface DeviceCapabilities {
   ledPowerMode: boolean | null
   capslockColor: boolean | null
   indicatorColors: boolean | null
+  isoCharacterLayout: boolean | null
 }
 
 function compareVersion(left: string, right: string): number {
@@ -56,7 +57,7 @@ export function deriveDeviceCapabilities(
     // shipped hardware profile supplies its model-specific macro matrix offsets.
     macros: model !== null,
     generalSettings: model !== null,
-    bluetooth: isAnnePro2,
+    bluetooth: model ? model.hardware.mcuBle : false,
     factoryReset: isAnnePro2,
     // ObinsKit's isHaveLed getter excludes only the non-RGB Fuji65 (model 11).
     hasLed: model ? model.id !== 11 : null,
@@ -64,7 +65,7 @@ export function deriveDeviceCapabilities(
     indicatorLocation: model ? model.id === 7 || model.id === 12 : null,
     hasBattery: model ? model.hardware.mcuBle : null,
     batteryPercentage: model ? model.id === 14 : null,
-    audioVisualization: isAnnePro2 ? true : null,
+    audioVisualization: model ? usesAnnePro2Audio : null,
     advancedAudioProtocol: model ? model.hardware.mcuLed && !usesAnnePro2Audio : null,
     oled: model ? model.id === 12 : null,
     combinationMode: model ? model.id === 12 : null,
@@ -78,5 +79,6 @@ export function deriveDeviceCapabilities(
       || (usesLegacyAnneVersionGate && Boolean(keyVersion && compareVersion(keyVersion, '2.35') > 0))
       : null,
     indicatorColors: model ? model.id === 12 : null,
+    isoCharacterLayout: model ? model.id === 4 : null,
   }
 }

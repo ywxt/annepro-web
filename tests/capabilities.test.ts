@@ -15,6 +15,7 @@ describe('ObinsKit capability gates', () => {
       audioVisualization: true, advancedAudioProtocol: false, oled: false, combinationMode: false, modernTapSettings: true, sleepTimeout: true,
       ledPowerMode: true, capslockColor: true,
       indicatorColors: false,
+      isoCharacterLayout: false,
     })
   })
 
@@ -32,6 +33,7 @@ describe('ObinsKit capability gates', () => {
       audioVisualization: null, advancedAudioProtocol: null, oled: null, combinationMode: null, modernTapSettings: null, sleepTimeout: null,
       ledPowerMode: null, capslockColor: null,
       indicatorColors: null,
+      isoCharacterLayout: null,
     })
   })
 
@@ -44,11 +46,17 @@ describe('ObinsKit capability gates', () => {
 
   it('selects the direct battery-percentage route for Discovery', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 14 }, firmware)).toMatchObject({
-      profileKnown: false, hasBattery: true, batteryPercentage: true,
+      profileKnown: false, hasBattery: true, batteryPercentage: true, bluetooth: true,
     })
     expect(deriveDeviceCapabilities({ ...device, model: 12 }, firmware)).toMatchObject({
       hasBattery: false, batteryPercentage: false,
     })
+  })
+
+  it('uses the official ISO audio and MCU-BLE feature gates', () => {
+    expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ audioVisualization: true, bluetooth: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 10 }, firmware)).toMatchObject({ audioVisualization: false, bluetooth: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 6 }, firmware)).toMatchObject({ audioVisualization: false, bluetooth: false })
   })
 
   it('exposes only the official Fuji65 RGB bottom-light workspace', () => {
@@ -70,7 +78,7 @@ describe('ObinsKit capability gates', () => {
   })
 
   it('reproduces official general-settings gates for non-C18 profiles', () => {
-    expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: true, isoCharacterLayout: true })
     expect(deriveDeviceCapabilities({ ...device, model: 12 }, null)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false, capslockColor: false, indicatorColors: true })
     expect(deriveDeviceCapabilities({ ...device, model: 6 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false })
   })

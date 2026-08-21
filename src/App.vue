@@ -299,6 +299,10 @@ async function readAll(): Promise<void> {
       if (capabilities.value?.capslockColor || capabilities.value?.indicatorColors) indicatorColor.value = await transport.value.readIndicatorColor().catch(() => null)
       if (capabilities.value?.combinationMode) combinationMode.value = await transport.value.readCombinationMode().catch(() => null)
       if (capabilities.value?.hasBattery) battery.value = await readBatteryForModel().catch(() => null)
+      if (capabilities.value?.bluetooth) {
+        udid.value = await transport.value.readUdid().catch(() => null)
+        bleMac.value = await transport.value.readBleMac().catch(() => null)
+      }
       if (capabilities.value?.indicatorLocation) indicatorLocation.value = await transport.value.readIndicatorLocation().catch(() => null)
       if (capabilities.value?.keyboardLayers) {
         const nextLayers: KeyboardLayerResponse[] = []

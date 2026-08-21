@@ -75,6 +75,11 @@ Tenet 70's indicator editor preserves both independent RGB triples returned by
 the six-byte `writeLedIndicatorColor` payload and verified by a six-byte readback;
 D87 and Discovery instead use the separate CapsLock-color command pair.
 
+The official MCU gates are also applied independently of the C18 product profile:
+Anne Pro 2 ISO shares the Anne `20/11` audio-visualization route, while every known
+`mcuBle` profile exposes BLE identity and the explicitly confirmed clear-host action.
+Factory restore remains C18-only because it composes model-specific defaults.
+
 The layout codec no longer assumes 61 bytes. It derives 8-bit payload sizes from
 each official profile and reproduces ObinsKit's Tenet 70 conversion to 73 UInt16LE
 keycodes (146 bytes). Multipart downloads retain the native 52-byte data chunk and
