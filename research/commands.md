@@ -41,7 +41,7 @@ Evidence labels:
 | indicator location | D87/Tenet read/write/readback | `20/18` reads the complete location byte array; `20/19` writes the complete array | native dispatch + renderer model branch | W1 | editor, first backup, bounded ACK, and exact array readback; 3 values on D87 and 2 on Tenet |
 | factory reset | composed write | ObinsKit defaults + empty macro + final 14-effect model-5 light group + BLE clear | renderer/SQL defaults | W2 | implemented behind typed confirmation |
 | `writeMacro` (legacy) | multi-packet write | `30/01`; index, trigger, event records + separator | native + renderer | W1 | not used; full image path supersedes it |
-| virtual mouse config | other-model read/write | command `60`, actions `01/02/03/05` | native dispatch; C18 no response | N/A | intentionally capability-excluded |
+| virtual mouse config | other-model read/write | MCU_MAIN command `60`: cursor buffer `01`, wheel byte `02`, pan byte `03`, config read `05` | native dispatch; no renderer consumer; C18 no response | static | bounded raw codec/transport only; capability and UI pending matching-device capture |
 | `getCombinationMode` | Tenet read | MCU_MAIN `01/f1`, one raw mode byte interpreted by renderer as truthy/falsey | native dispatch + renderer consumer | R1/static | exact parser and model-12 transport; UI/physical validation pending |
 | `writeIapMode` | mode switch | unresolved | static symbol | X | forbidden/deferred |
 | `writeIapMemory` | firmware write | unresolved | observed name | X | forbidden/deferred |

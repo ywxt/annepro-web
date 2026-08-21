@@ -102,6 +102,15 @@ import {
   type CombinationModeResponse,
 } from '../protocol/combination-mode.ts'
 import {
+  createReadVirtualMouseConfigRequest,
+  createWriteVirtualMouseCursorSpeedRequest,
+  createWriteVirtualMousePanSpeedRequest,
+  createWriteVirtualMouseWheelSpeedRequest,
+  parseVirtualMouseConfigResponse,
+  parseVirtualMouseWriteAck,
+  type VirtualMouseConfigResponse,
+} from '../protocol/virtual-mouse.ts'
+import {
   createDeleteBleHostRequest,
   createReadBleMacRequest,
   createReadUdidRequest,
@@ -232,6 +241,38 @@ export class AnneProHidTransport {
     return this.requestConfirmedRead(
       createReadCombinationModeRequest(),
       parseCombinationModeResponse,
+      timeoutMs,
+    )
+  }
+
+  async readVirtualMouseConfig(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<VirtualMouseConfigResponse> {
+    return this.requestConfirmedRead(
+      createReadVirtualMouseConfigRequest(),
+      parseVirtualMouseConfigResponse,
+      timeoutMs,
+    )
+  }
+
+  async writeVirtualMouseCursorSpeed(curve: Uint8Array, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.requestConfirmedRead(
+      createWriteVirtualMouseCursorSpeedRequest(curve),
+      response => parseVirtualMouseWriteAck(0x01, response),
+      timeoutMs,
+    )
+  }
+
+  async writeVirtualMouseWheelSpeed(value: number, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.requestConfirmedRead(
+      createWriteVirtualMouseWheelSpeedRequest(value),
+      response => parseVirtualMouseWriteAck(0x02, response),
+      timeoutMs,
+    )
+  }
+
+  async writeVirtualMousePanSpeed(value: number, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.requestConfirmedRead(
+      createWriteVirtualMousePanSpeedRequest(value),
+      response => parseVirtualMouseWriteAck(0x03, response),
       timeoutMs,
     )
   }
