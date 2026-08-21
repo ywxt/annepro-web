@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appLocale, i18n, messages, setAppLocale } from '../src/i18n.ts'
+import { appLocale, detectAppLocale, i18n, messages, setAppLocale } from '../src/i18n.ts'
 
 function paths(value: object, prefix = ''): string[] {
   return Object.entries(value).flatMap(([key, child]) => {
@@ -16,6 +16,13 @@ describe('user interface translations', () => {
   it('uses the product-facing names for all four layers', () => {
     expect(messages['zh-TW'].layer).toMatchObject({ 0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer' })
     expect(messages.en.layer).toMatchObject({ 0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer' })
+  })
+
+  it('defaults to Chinese only for zh-* browser locales', () => {
+    expect(detectAppLocale('zh-TW')).toBe('zh-TW')
+    expect(detectAppLocale('zh-CN')).toBe('zh-TW')
+    expect(detectAppLocale('en-US')).toBe('en')
+    expect(detectAppLocale('ja-JP')).toBe('en')
   })
 
   it('switches the global translator immediately', () => {

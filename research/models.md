@@ -52,22 +52,23 @@ workspace. The official lazy profile data is now represented for every listed
 model, including key count, row geometry, RGB holes, macro matrix offsets, MCU
 routes, bottom-light metadata, and Tenet's 16-bit keycode width. Discovery uses its
 native `01/11` direct battery-percentage read. D87's `20/18` indicator-location read
-and `20/19` write are implemented as typed transport operations with write readback,
-but remain out of the product UI until the rest of the D87 settings workspace is
-available. Other model-specific writes remain capability-disabled rather than
+and `20/19` write are implemented as typed product operations with backup and write
+readback. Other model-specific settings remain capability-disabled rather than
 falling through to the C18 implementation.
 
 The layout codec no longer assumes 61 bytes. It derives 8-bit payload sizes from
 each official profile and reproduces ObinsKit's Tenet 70 conversion to 73 UInt16LE
 keycodes (146 bytes). Multipart downloads retain the native 52-byte data chunk and
-therefore use three reports for Tenet. Product UI remains gated until model-specific
-physical key widths and write readbacks can be verified on matching hardware.
+therefore use three reports for Tenet. The product renders these model-specific
+layouts, while clearly marking non-C18 profiles as partially supported until write
+readbacks can be verified on matching hardware.
 
 The Tenet OLED protocol layer now covers the native `70/01`, `70/05`, `70/07`,
 `70/08`, and `70/09` actions. Image and text transfers use the renderer's 256x32
 canvas conversion to two 4-bit grayscale pixels per byte and exactly 128 indexed
-pages. Transport is capability-gated and bounded, but product UI remains disabled
-until the acknowledgement shape and display result are captured on model 12.
+pages. The Tenet-only product workspace exposes these bounded operations and the
+read-only combination-mode status; acknowledgement shape and display output still
+need verification on model 12 hardware.
 
 Fuji65 RGB (model 13) now selects the official bottom-light surface instead of the
 66-key RGB surface. Its 16 editable LEDs are expanded through `bottomLightBlank`
@@ -88,9 +89,9 @@ validates the connected model's key count and range before re-encoding. A hardwa
 state preflight is required before the four-layer write transaction can begin.
 
 The WebHID chooser now includes every exact VID/PID pair in the Electron discovery
-table. For models without a verified profile, connection performs only `01/01`
-identity discovery and exposes HID metadata/debugging; it deliberately stops before
-C18-specific firmware, layout, settings, or write requests.
+table. Known non-C18 models use their own geometry and explicitly gated protocol
+branches; C18-only settings, macros, Bluetooth mutations, factory reset and full
+restore never fall through to them. Unknown model IDs remain metadata-only.
 
 ## What “C18 support” means
 

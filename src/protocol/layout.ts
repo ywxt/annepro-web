@@ -199,18 +199,22 @@ export function keycodeName(keycode: number): string {
 
 /** Label rendered on a physical keycap. Transparent intentionally appears blank. */
 export function keycapLabel(keycode: number): string {
-  return keycode === 0x01 ? '' : keycodeName(keycode)
+  if (keycode === 0x01) return ''
+  const textLabels: Readonly<Record<number, string>> = {
+    0xe0: 'Ctrl', 0xe1: 'Shift', 0xe2: 'Alt', 0xe3: 'Super',
+    0xe4: 'Ctrl', 0xe5: 'Shift', 0xe6: 'Alt', 0xe7: 'Super',
+  }
+  return textLabels[keycode] ?? keycodeName(keycode)
 }
 
 /** Compact symbols shared by the key picker and the physical key preview. */
 export function keycodeIcon(keycode: number): string | null {
   const icons: Record<number, string> = {
-    0x00: '⊘', 0x28: '↵', 0x29: '⎋', 0x2a: '⟵', 0x2b: '⇥', 0x2c: '␣', 0x39: '⇪',
+    0x00: '⊘', 0x28: '↵', 0x2a: '⌫', 0x2c: '␣',
     0x46: '⧉', 0x4f: '→', 0x50: '←', 0x51: '↓', 0x52: '↑', 0x65: '☰',
     0xa8: '🔇', 0xa9: '🔊', 0xaa: '🔉', 0xab: '▶', 0xac: '⏭', 0xad: '⏮',
     0xae: '☀+', 0xaf: '☀−', 0xc0: 'Fn1', 0xc1: 'Fn2',
     0xc8: '🛜₁', 0xc9: '🛜₂', 0xca: '🛜₃', 0xcb: '🛜₄', 0xcc: '🛜', 0xcf: 'Fn↻',
-    0xe0: '⌃', 0xe1: '⇧', 0xe2: '⌥', 0xe3: '◆', 0xe4: '⌃', 0xe5: '⇧', 0xe6: '⌥', 0xe7: '◆',
     0xf0: '☼', 0xf1: '◉', 0xf2: '◐', 0xf3: '☀+', 0xf4: '☀−', 0xf5: '⏱', 0xf6: '🔋',
     0xf8: '🖱₁', 0xf9: '🖱₂', 0xfa: '🖱₃', 0xfb: '🖱↑', 0xfc: '🖱↓', 0xfd: '🖱←', 0xfe: '🖱→',
   }

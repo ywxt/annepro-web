@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { OBINSKIT_DEVICE_FILTERS } from '../hid/discovery.ts'
+import { OBINS_USB_DEVICES } from '../device-registry.ts'
 
 type Platform = 'linux' | 'windows' | 'macos'
 const { t } = useI18n({ useScope: 'global' })
@@ -9,8 +9,8 @@ const agent = navigator.userAgent.toLowerCase()
 const detected: Platform = agent.includes('win') ? 'windows' : agent.includes('mac') ? 'macos' : 'linux'
 const selected = ref<Platform>(detected)
 const copied = ref(false)
-const linuxRule = ['# ObinsKit keyboard WebHID access — exact known VID/PID pairs', ...OBINSKIT_DEVICE_FILTERS.map(({ vendorId, productId }) =>
-  `KERNEL=="hidraw*", ATTRS{idVendor}=="${vendorId!.toString(16).padStart(4, '0')}", ATTRS{idProduct}=="${productId!.toString(16).padStart(4, '0')}", TAG+="uaccess"`,
+const linuxRule = ['# ObinsLab keyboard WebHID access — exact known VID/PID pairs', ...OBINS_USB_DEVICES.map(({ vendorId, productId, family }) =>
+  `# ${family} (${vendorId.toString(16).padStart(4, '0')}:${productId.toString(16).padStart(4, '0')})\nKERNEL=="hidraw*", ATTRS{idVendor}=="${vendorId.toString(16).padStart(4, '0')}", ATTRS{idProduct}=="${productId.toString(16).padStart(4, '0')}", TAG+="uaccess"`,
 )].join('\n')
 
 async function copyRule(): Promise<void> {

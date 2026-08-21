@@ -35,9 +35,17 @@ const layerName = computed(() => t(`layer.${props.layer.layer}`))
 function selectKey(row: number, column: number): void { selected.value = rowOffsets.value[row] + column; query.value = '' }
 function closeEditor(): void { selected.value = null; query.value = '' }
 function keyIcon(value: number): string {
-  return keycodeIcon(value) ?? keycapLabel(value).slice(0, 3)
+  const pickerLabels: Readonly<Record<number, string>> = {
+    0x29: 'Esc', 0x2b: 'Tab', 0x39: 'Caps',
+    0xe0: 'Ctrl', 0xe1: 'Shift', 0xe2: 'Alt', 0xe3: 'Super',
+    0xe4: 'Ctrl', 0xe5: 'Shift', 0xe6: 'Alt', 0xe7: 'Super',
+  }
+  return keycodeIcon(value) ?? pickerLabels[value] ?? keycapLabel(value).slice(0, 3)
 }
-function isTextIcon(value: number): boolean { return value === 0xc0 || value === 0xc1 }
+function isTextIcon(value: number): boolean {
+  return value === 0xc0 || value === 0xc1 || value === 0x29 || value === 0x2b || value === 0x39
+    || (value >= 0xe0 && value <= 0xe7)
+}
 function setSelected(value: number): void {
   const maximum = layoutSpec.value.keycodeWidth === 16 ? 0xffff : 0xff
   if (selected.value === null || !Number.isInteger(value) || value < 0 || value > maximum) return

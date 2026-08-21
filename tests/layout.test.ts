@@ -161,7 +161,9 @@ describe('keyboard layout read protocol', () => {
 
   it('uses compact icons for long special-key names', () => {
     expect(keycodeIcon(0x00)).toBe('⊘')
-    expect(keycodeIcon(0x2a)).toBe('⟵')
+    expect(keycodeIcon(0x2a)).toBe('⌫')
+    expect([0x29, 0x2b, 0x39, 0xe0, 0xe1, 0xe2, 0xe3].map(keycodeIcon)).toEqual(Array(7).fill(null))
+    expect([0xe0, 0xe1, 0xe2, 0xe3].map(keycapLabel)).toEqual(['Ctrl', 'Shift', 'Alt', 'Super'])
     expect(keycodeIcon(0x4c)).toBeNull()
     expect(keycodeIcon(0x46)).toBe('⧉')
     expect(keycodeIcon(0x65)).toBe('☰')
