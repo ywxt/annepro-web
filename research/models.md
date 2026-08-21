@@ -63,6 +63,12 @@ keycodes (146 bytes). Multipart downloads retain the native 52-byte data chunk a
 therefore use three reports for Tenet. Product UI remains gated until model-specific
 physical key widths and write readbacks can be verified on matching hardware.
 
+The key workspace now decodes raw layer bytes before rendering: 8-bit models show
+their profile row counts, while Tenet shows 73 keys instead of 146 individual bytes.
+Standalone layer backups store semantic keycodes and record their width; import
+validates the connected model's key count and range before re-encoding. A hardware
+state preflight is required before the four-layer write transaction can begin.
+
 The WebHID chooser now includes every exact VID/PID pair in the Electron discovery
 table. For models without a verified profile, connection performs only `01/01`
 identity discovery and exposes HID metadata/debugging; it deliberately stops before

@@ -42,7 +42,7 @@ export function deriveDeviceCapabilities(
   const keyVersion = firmware?.key
   return {
     profileKnown: isAnnePro2,
-    keyboardLayers: isAnnePro2,
+    keyboardLayers: model !== null,
     macros: isAnnePro2,
     generalSettings: isAnnePro2,
     bluetooth: isAnnePro2,

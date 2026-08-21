@@ -28,7 +28,7 @@ import type { DeviceTypeResponse } from './protocol/device-info.ts'
 import type { FirmwareVersions } from './protocol/firmware-info.ts'
 import type { IapModeResponse } from './protocol/iap-info.ts'
 import type { HardwareState } from './protocol/hardware-state.ts'
-import type { KeyboardLayerResponse } from './protocol/layout.ts'
+import { C18_LAYOUT_SPEC, decodeLayoutKeycodes, encodeLayoutKeycodes, keyboardLayoutSpecForModel, type KeyboardLayerResponse } from './protocol/layout.ts'
 import type { ActiveMacroBinding, MacroBackup, StoredMacro } from './protocol/macro-info.ts'
 import type { LedPowerModeResponse } from './protocol/led-power.ts'
 import type { HardwareSettingKey } from './protocol/settings-write.ts'
@@ -92,6 +92,9 @@ const layerChangeCount = computed(() => layerDrafts.value.reduce((total, draft, 
   return total + draft.reduce((count, value, index) => count + (value === saved[index] ? 0 : 1), 0)
 }, 0))
 const capabilities = computed(() => deriveDeviceCapabilities(deviceType.value, firmware.value))
+const keyboardLayoutSpec = computed(() => deviceType.value
+  ? keyboardLayoutSpecForModel(deviceType.value.model) ?? C18_LAYOUT_SPEC
+  : C18_LAYOUT_SPEC)
 const navigation = computed<Array<{ id: WorkspaceSection; label: string }>>(() => {
   const items: Array<{ id: WorkspaceSection; label: string }> = [{ id: 'device', label: t('nav.device') }]
   if (capabilities.value?.keyboardLayers) items.push({ id: 'keys', label: t('nav.keys') })
@@ -255,8 +258,15 @@ async function readAll(): Promise<void> {
       firmware.value = await transport.value.readFirmwareVersion().catch(() => null)
       iap.value = await transport.value.readIapMode().catch(() => null)
       powerOnTime.value = await transport.value.readPowerOnTime().catch(() => null)
+      hardwareState.value = await transport.value.readHardwareState().catch(() => null)
       if (capabilities.value?.hasBattery) battery.value = await readBatteryForModel().catch(() => null)
-      message.value = t('notice.identificationOnly', { model: deviceType.value.modelName })
+      if (capabilities.value?.keyboardLayers) {
+        const nextLayers: KeyboardLayerResponse[] = []
+        for (let layer = 0; layer < 4; layer += 1) nextLayers.push(await transport.value.readKeyboardLayer(layer))
+        layers.value = nextLayers
+        layerDrafts.value = nextLayers.map(layer => layer.data.slice())
+      }
+      message.value = t('notice.loaded')
       return
     }
     firmware.value = await transport.value.readFirmwareVersion()
@@ -492,7 +502,9 @@ function exportLayers(): void {
     version: 1,
     capturedAt: new Date().toISOString(),
     device: device.value ? { vendorId: device.value.vendorId, productId: device.value.productId, productName: device.value.productName } : null,
-    layers: layerDrafts.value.map((data, index) => ({ index, keycodes: Array.from(data!), rawHex: bytesToHex(data!) })),
+    model: deviceType.value?.model,
+    keycodeWidth: keyboardLayoutSpec.value.keycodeWidth,
+    layers: layerDrafts.value.map((data, index) => ({ index, keycodes: Array.from(decodeLayoutKeycodes(data!, keyboardLayoutSpec.value)), rawHex: bytesToHex(data!) })),
   })
 }
 function exportMacros(): void {
@@ -665,8 +677,9 @@ async function importLayout(file: File): Promise<void> {
     if (parsed.format !== 'annepro-web-layout-backup' || !Array.isArray(parsed.layers) || parsed.layers.length !== 4) throw new Error(t('validation.layout'))
     const imported = Array.from({ length: 4 }, (_, index) => {
       const layer = parsed.layers!.find(candidate => candidate.index === index)
-      if (!layer || !Array.isArray(layer.keycodes) || layer.keycodes.length !== 61 || !layer.keycodes.every(value => Number.isInteger(value) && value >= 0 && value <= 255)) throw new Error(t('validation.layer', { name: t(`layer.${index}`) }))
-      return new Uint8Array(layer.keycodes)
+      const maximum = keyboardLayoutSpec.value.keycodeWidth === 16 ? 0xffff : 0xff
+      if (!layer || !Array.isArray(layer.keycodes) || layer.keycodes.length !== keyboardLayoutSpec.value.keycapCount || !layer.keycodes.every(value => Number.isInteger(value) && value >= 0 && value <= maximum)) throw new Error(t('validation.layer', { name: t(`layer.${index}`) }))
+      return encodeLayoutKeycodes(Uint16Array.from(layer.keycodes), keyboardLayoutSpec.value)
     })
     layerDrafts.value = imported
     message.value = t('notice.layersImported')
@@ -686,6 +699,7 @@ function updateLayerDraft(layer: number, data: Uint8Array): void {
 
 async function applyLayers(): Promise<void> {
   if (!transport.value || !allLayersLoaded.value || layerDrafts.value.some(layer => !layer)) return
+  if (!hardwareState.value) { showWriteError(t('app.keyboardLayers'), new Error('Hardware state preflight is unavailable')); return }
   const drafts = layerDrafts.value as Uint8Array[]
   layerBackups.value = layers.value.map((layer, index) => layerBackups.value[index] ?? layer!.data.slice())
   busy.value = 'write all layers'
@@ -835,7 +849,7 @@ onBeforeUnmount(() => {
       <p v-if="message" id="message" role="status" aria-live="polite">{{ message }}</p>
       <div class="workspace-content">
         <div v-if="device && activeSection === 'device'" class="device-dashboard"><DevicePanel class="dashboard-primary" :device="device" :device-type="deviceType" :firmware="firmware" :iap="iap" :capabilities="capabilities" :busy="busy" :protocol-ready="protocolReady" :full-backup-ready="fullBackupReady" :debug="debugMode" @read-all="readAll" @export-full-backup="exportFullBackup" @import-full-backup="importFullBackup" @read-device-type="readDeviceType" @read-firmware="readFirmware" @read-iap="readIap" @read-layer="readLayer" /><ModelSupport v-if="deviceType && !capabilities?.profileKnown" class="dashboard-primary" :model-id="deviceType.model" /><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="dashboard-primary" section="device" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><RuntimeInfoPanel v-if="protocolReady && capabilities?.hasBattery" :battery="battery" :power-on-time="powerOnTime" :busy="busy !== null" @read="readRuntimeInfo" /><IdentityPanel v-if="protocolReady && capabilities?.bluetooth" :udid="udid" :ble-mac="bleMac" :busy="busy !== null" @read="readIdentity" @delete-ble-hosts="deleteBleHosts" /><FactoryResetPanel v-if="protocolReady && capabilities?.factoryReset" class="dashboard-primary" :busy="busy !== null" :ready="hardwareState !== null" @reset="factoryReset" /></div>
-        <section v-if="activeSection === 'keys'" class="card keys-workspace"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="embedded-settings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><div v-if="allLayersLoaded" class="layer-workspace"><div class="layer-title"><p class="eyebrow">4 LAYERS · VERIFIED WRITE</p><h2>{{ t('app.keyboardLayers') }}</h2></div><div class="layer-toolbar-row"><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div><div class="actions layer-actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="busy !== null" @change="pickLayoutFile"></label><button class="secondary" @click="exportLayers">{{ t('app.exportLayers') }}</button><button v-if="layerBackups.every(layer => layer !== null)" class="secondary" :disabled="busy !== null" @click="restoreLayers">{{ t('layer.restoreAll') }}</button><button :disabled="busy !== null || layerDrafts.some(layer => !layer)" @click="applyLayers">{{ t('layer.applyAll') }}</button></div></div><div class="layout-meta"><span class="layout-status" :class="{ active: hardwareState?.userLayout === 1 }">{{ hardwareState?.userLayout === 1 ? t('layer.userActive') : t('layer.userInactive') }}</span><span>{{ t('layer.totalChanges', { count: layerChangeCount }) }}</span><span v-if="layoutNotice" role="status" aria-live="polite">{{ layoutNotice }}</span></div><KeyboardLayout v-if="layers[activeLayer] && layerDrafts[activeLayer]" :layer="layers[activeLayer]!" :draft="layerDrafts[activeLayer]!" :busy="busy !== null" @update="updateLayerDraft" /></div></section>
+        <section v-if="activeSection === 'keys'" class="card keys-workspace"><SettingsPanel v-if="protocolReady && capabilities?.generalSettings" class="embedded-settings" section="keys" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><div v-if="allLayersLoaded" class="layer-workspace"><div class="layer-title"><p class="eyebrow">4 LAYERS · VERIFIED WRITE</p><h2>{{ t('app.keyboardLayers') }}</h2></div><div class="layer-toolbar-row"><div class="layer-tabs"><button v-for="index in 4" :key="index" class="secondary" :class="{ active: activeLayer === index - 1 }" @click="activeLayer = index - 1">{{ t(`layer.${index - 1}`) }}</button></div><div class="actions layer-actions"><label class="file-button">{{ t('app.importLayers') }}<input type="file" accept="application/json" :disabled="busy !== null" @change="pickLayoutFile"></label><button class="secondary" @click="exportLayers">{{ t('app.exportLayers') }}</button><button v-if="layerBackups.every(layer => layer !== null)" class="secondary" :disabled="busy !== null" @click="restoreLayers">{{ t('layer.restoreAll') }}</button><button :disabled="busy !== null || layerDrafts.some(layer => !layer)" @click="applyLayers">{{ t('layer.applyAll') }}</button></div></div><div class="layout-meta"><span class="layout-status" :class="{ active: hardwareState?.userLayout === 1 }">{{ hardwareState?.userLayout === 1 ? t('layer.userActive') : t('layer.userInactive') }}</span><span>{{ t('layer.totalChanges', { count: layerChangeCount }) }}</span><span v-if="layoutNotice" role="status" aria-live="polite">{{ layoutNotice }}</span></div><KeyboardLayout v-if="layers[activeLayer] && layerDrafts[activeLayer]" :layer="layers[activeLayer]!" :draft="layerDrafts[activeLayer]!" :spec="keyboardLayoutSpec" :busy="busy !== null" @update="updateLayerDraft" /></div></section>
         <KeyTester v-if="device && protocolReady && activeSection === 'tester'" />
         <div v-if="device && protocolReady && activeSection === 'lighting'" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :color="audioColor" :busy="busy !== null" :frames="audioFrames" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-color="audioColor = $event" /></div>
         <div v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></div>
