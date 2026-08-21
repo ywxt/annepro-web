@@ -50,3 +50,14 @@ commands `21/01` and `21/02`, while Anne Pro 2 uses `20/11`.
 Only model IDs 3 and 5 currently receive Anne Pro 2 configuration capabilities in
 the web app. All other identifiers are named for diagnostics but remain disabled
 until their descriptors, layout geometry, command responses, and writes are tested.
+
+## What “C18 support” means
+
+`AnnePro2C18` is exactly model ID 5 in this ObinsKit release; it is not a family of
+multiple model IDs. The normal device physically verified by this project is
+`0x04d9:0xa293`. ObinsKit also discovers `0x8008`, `0xa292`, and `0x8009`, but those
+PIDs cover normal/IAP generations and do not independently prove model 5. The web
+chooser accepts all four so it can read identity, then uses the `01/01` model reply
+and capability profile before enabling configuration. Model 3 (`AnnePro2`) shares
+ObinsKit's Anne Pro 2 physical profile and is kept compatible, but remains a distinct
+model rather than being relabeled C18.
