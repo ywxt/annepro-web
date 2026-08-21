@@ -14,7 +14,10 @@ export const messages = {
       developerTools: '開發工具', developerHint: 'HID collections、原始 report 與協議診斷資訊',
       footer: '一般設定會自動回讀驗證；危險操作需要明確確認；IAP、韌體與 flash erase 永遠停用。',
     },
-    nav: { device: '裝置', keys: '鍵位', lighting: '燈效', macros: '巨集', settings: '設定' },
+    nav: { device: '裝置', keys: '鍵位', tester: '按鍵測試', lighting: '燈效', macros: '巨集', settings: '設定' },
+    shell: { debug: '調試模式', connectHint: '連接鍵盤後顯示工作區', noDevice: '尚未連接鍵盤', ready: '準備連接 WebHID 裝置' },
+    tester: { title: '按鍵測試', help: '點擊鍵盤區域後按下實體按鍵；測試使用瀏覽器鍵盤事件，不會向裝置寫入資料。', clear: '清除', pressed: '正按下 {count} 鍵', focus: '點擊此處開始測試', note: '瀏覽器無法辨識 Fn 鍵，作業系統保留的快捷鍵也可能被攔截。' },
+    coverage: { title: '協議覆蓋狀態', help: '依照 ObinsKit 1.2.11 Electron 與 native addon 整理；只對目前裝置開放相容命令。', ready: 'Anne Pro 2 已實作', readyItems: '裝置資訊、韌體、電量、鍵位層、一般設定、燈效、巨集、藍牙識別與音訊視覺化', gated: '其他型號／能力限制', gatedItems: 'OLED、指示燈位置、虛擬滑鼠與替代音訊協議；僅在辨識出支援型號後才能啟用', blocked: '安全限制', blockedItems: 'IAP 切換、韌體寫入與 Flash erase 不在 Web configurator 中提供' },
     locale: { label: '語言', zh: '繁體中文', en: 'English' },
     layer: {
       0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer',
@@ -53,7 +56,10 @@ export const messages = {
       developerTools: 'Developer tools', developerHint: 'HID collections, raw reports, and protocol diagnostics',
       footer: 'Ordinary settings are verified by readback; dangerous actions require explicit confirmation; IAP, firmware, and flash erase are always disabled.',
     },
-    nav: { device: 'Device', keys: 'Keys', lighting: 'Lighting', macros: 'Macros', settings: 'Settings' },
+    nav: { device: 'Device', keys: 'Keys', tester: 'Key tester', lighting: 'Lighting', macros: 'Macros', settings: 'Settings' },
+    shell: { debug: 'Debug mode', connectHint: 'Connect a keyboard to open the workspace', noDevice: 'No keyboard connected', ready: 'Ready for a WebHID device' },
+    tester: { title: 'Key tester', help: 'Click the keyboard area, then press physical keys. This uses browser keyboard events and never writes to the device.', clear: 'Clear', pressed: '{count} keys pressed', focus: 'Click here to start testing', note: 'Browsers cannot identify the Fn key, and operating-system shortcuts may be intercepted.' },
+    coverage: { title: 'Protocol coverage', help: 'Mapped against the ObinsKit 1.2.11 Electron bundle and native addon; commands are enabled only for compatible devices.', ready: 'Anne Pro 2 ready', readyItems: 'Device info, firmware, battery, key layers, general settings, lighting, macros, Bluetooth identity, and audio visualization', gated: 'Other model / capability gated', gatedItems: 'OLED, indicator location, virtual mouse, and alternate audio protocols; enabled only after a supported model is identified', blocked: 'Safety boundary', blockedItems: 'IAP switching, firmware writes, and flash erase are not exposed by this web configurator' },
     locale: { label: 'Language', zh: '繁體中文', en: 'English' },
     layer: {
       0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer',

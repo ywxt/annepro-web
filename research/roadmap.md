@@ -88,6 +88,10 @@ device trial, and only then product UI.
 - [x] Match the real ANSI 60% geometry and replace raw numeric keycode editing with categorized selection; render Transparent as a blank keycap.
 - [x] Remove the duplicated read-only Settings summary and keep current values in the editable controls.
 - [x] Force every component onto the reactive global i18n scope and test immediate locale switching.
+- [x] Replace the top tab strip with a responsive desktop-style sidebar, persistent device command bar, and focused editing canvas.
+- [x] Add an optional, persisted Debug mode; raw HID collections, reports, and protocol coverage are absent from the normal workflow.
+- [x] Add a read-only browser Key Tester inspired by keyboard configurator workflows, with an explicit Fn/OS-shortcut limitation.
+- [x] Surface the native protocol audit as three product states: Anne Pro 2 implemented, other-model capability-gated, and firmware/IAP safety-excluded.
 
 ### M7 — IAP and firmware (deferred)
 
@@ -111,3 +115,4 @@ device trial, and only then product UI.
 - Clearing BLE host bindings is implemented with typed destructive confirmation and physically verified with success status `00`.
 - Model-only combination-mode and virtual-mouse commands are excluded from the Anne Pro 2 UI after C18 returned no response.
 - The native/renderer command audit is recorded in `completion-audit.md`; all ordinary renderer-visible C18 configuration areas are implemented, while model-specific and internal maintenance operations remain capability-excluded.
+- Other-model OLED, indicator-location, virtual-mouse, and alternate-audio routes remain disabled until their model identity and physical response are available; they are documented in Debug mode rather than sent speculatively to C18.
