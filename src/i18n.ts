@@ -6,8 +6,8 @@ export type AppLocale = 'zh-TW' | 'en'
 export const messages = {
   'zh-TW': {
     app: {
-      title: 'Anne Pro Web Configurator',
-      subtitle: '直接在瀏覽器中查看、備份與設定 Anne Pro 2。一般設定會立即套用並回讀驗證；IAP、韌體與 flash erase 永遠停用。',
+      title: 'Obins Keyboard Configurator',
+      subtitle: '直接在瀏覽器中識別 ObinsLab 鍵盤；已驗證的 Anne Pro 2 可備份與設定，其他型號按獨立 profile 逐步開放。',
       available: 'WebHID 可用', unsupported: '此瀏覽器不支援 WebHID',
       reconnect: '快速重連', connect: '選擇鍵盤', keyboardLayers: '鍵位層',
       importLayers: '匯入四層備份', exportLayers: '匯出完整備份',
@@ -18,6 +18,7 @@ export const messages = {
     shell: { debug: '調試模式', connectHint: '連接鍵盤後顯示工作區', noDevice: '尚未連接鍵盤', ready: '準備連接 WebHID 裝置' },
     tester: { title: '按鍵測試', help: '點擊鍵盤區域後按下實體按鍵；測試使用瀏覽器鍵盤事件，不會向裝置寫入資料。', clear: '清除', pressed: '正按下 {count} 鍵', focus: '點擊此處開始測試', note: '瀏覽器無法辨識 Fn 鍵，作業系統保留的快捷鍵也可能被攔截。' },
     coverage: { title: '協議覆蓋狀態', help: '依照 ObinsKit 1.2.11 Electron 與 native addon 整理；只對目前裝置開放相容命令。', ready: 'Anne Pro 2 已實作', readyItems: '裝置資訊、韌體、電量、鍵位層、一般設定、燈效、巨集、藍牙識別與音訊視覺化', gated: '其他型號／能力限制', gatedItems: 'OLED、指示燈位置、虛擬滑鼠與替代音訊協議；僅在辨識出支援型號後才能啟用', blocked: '安全限制', blockedItems: 'IAP 切換、韌體寫入與 Flash erase 不在 Web configurator 中提供' },
+    models: { title: '此型號正在建立獨立配置', identify: '唯讀識別', full: '完整支援', help: '已安全識別 {model}。在確認其矩陣和協議前，不會套用 Anne Pro 2 的設定。', stepMetadata: '辨識與描述', stepMetadataHelp: '目前已完成：USB、HID collection、model、firmware 與 IAP 狀態。', stepRead: '唯讀協議', stepReadHelp: '下一步需要對照該型號的 ObinsKit renderer 分支並取得回應 fixture。', stepWrite: '設定寫入', stepWriteHelp: '只有備份、封包測試與實機回讀全部確認後才會開放。', showAll: '查看 ObinsKit 1.2.11 型號支援表' },
     locale: { label: '語言', zh: '繁體中文', en: 'English' },
     layer: {
       0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer',
@@ -48,8 +49,8 @@ export const messages = {
   },
   en: {
     app: {
-      title: 'Anne Pro Web Configurator',
-      subtitle: 'View, back up, and configure your Anne Pro 2 directly in the browser. Ordinary settings are applied immediately and verified by readback; IAP, firmware, and flash erase remain disabled.',
+      title: 'Obins Keyboard Configurator',
+      subtitle: 'Identify ObinsLab keyboards in the browser. Verified Anne Pro 2 models can be backed up and configured; other models are enabled through independent profiles.',
       available: 'WebHID available', unsupported: 'This browser does not support WebHID',
       reconnect: 'Quick reconnect', connect: 'Choose keyboard', keyboardLayers: 'Key layers',
       importLayers: 'Import four-layer backup', exportLayers: 'Export layer backup',
@@ -60,6 +61,7 @@ export const messages = {
     shell: { debug: 'Debug mode', connectHint: 'Connect a keyboard to open the workspace', noDevice: 'No keyboard connected', ready: 'Ready for a WebHID device' },
     tester: { title: 'Key tester', help: 'Click the keyboard area, then press physical keys. This uses browser keyboard events and never writes to the device.', clear: 'Clear', pressed: '{count} keys pressed', focus: 'Click here to start testing', note: 'Browsers cannot identify the Fn key, and operating-system shortcuts may be intercepted.' },
     coverage: { title: 'Protocol coverage', help: 'Mapped against the ObinsKit 1.2.11 Electron bundle and native addon; commands are enabled only for compatible devices.', ready: 'Anne Pro 2 ready', readyItems: 'Device info, firmware, battery, key layers, general settings, lighting, macros, Bluetooth identity, and audio visualization', gated: 'Other model / capability gated', gatedItems: 'OLED, indicator location, virtual mouse, and alternate audio protocols; enabled only after a supported model is identified', blocked: 'Safety boundary', blockedItems: 'IAP switching, firmware writes, and flash erase are not exposed by this web configurator' },
+    models: { title: 'A dedicated profile is being built', identify: 'Read-only identification', full: 'Full support', help: '{model} was identified safely. Anne Pro 2 settings stay disabled until its matrix and protocol are confirmed.', stepMetadata: 'Identity and descriptors', stepMetadataHelp: 'Complete: USB, HID collections, model, firmware, and IAP state.', stepRead: 'Read-only protocol', stepReadHelp: 'Next: map this model’s ObinsKit renderer branch and collect response fixtures.', stepWrite: 'Configuration writes', stepWriteHelp: 'Enabled only after backups, packet tests, and physical readback are all confirmed.', showAll: 'Show ObinsKit 1.2.11 model support' },
     locale: { label: 'Language', zh: '繁體中文', en: 'English' },
     layer: {
       0: 'Base Layer', 1: 'Fn1 Layer', 2: 'Fn2 Layer', 3: 'Tap Layer',
