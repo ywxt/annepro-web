@@ -57,10 +57,11 @@ readback. Other model-specific settings remain capability-disabled rather than
 falling through to the C18 implementation.
 
 The ordinary General workspace follows the renderer's shared model path for every
-known profile. Base layout/Tap/CapsLock/macro-trigger controls use the common
+known profile. Base layout/Tap/CapsLock controls use the common
 hardware-state transaction, while modern Tap fields, battery sleep timeout, LED
 power, D87 indicator brightness, and indicator color retain the exact official
-model/firmware gates. C18-only full restore, factory reset, macro image management,
+model/firmware gates. The renderer-wide Macro workspace and model-specific matrix
+offsets are enabled for every known profile. C18-only full restore, factory reset,
 and Bluetooth mutation remain separately disabled.
 
 The layout codec no longer assumes 61 bytes. It derives 8-bit payload sizes from

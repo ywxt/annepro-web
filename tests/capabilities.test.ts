@@ -68,9 +68,15 @@ describe('ObinsKit capability gates', () => {
   })
 
   it('reproduces official general-settings gates for non-C18 profiles', () => {
-    expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ generalSettings: true, modernTapSettings: true, sleepTimeout: true })
-    expect(deriveDeviceCapabilities({ ...device, model: 12 }, null)).toMatchObject({ generalSettings: true, modernTapSettings: true, sleepTimeout: false, capslockColor: true })
-    expect(deriveDeviceCapabilities({ ...device, model: 6 }, firmware)).toMatchObject({ generalSettings: true, modernTapSettings: true, sleepTimeout: false })
+    expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 12 }, null)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false, capslockColor: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 6 }, firmware)).toMatchObject({ generalSettings: true, macros: true, modernTapSettings: true, sleepTimeout: false })
+  })
+
+  it('exposes the renderer-wide macro workspace for every known model', () => {
+    for (const model of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 33]) {
+      expect(deriveDeviceCapabilities({ ...device, model }, firmware)?.macros, `model ${model}`).toBe(true)
+    }
   })
 
   it('gates firmware-dependent controls on older Anne Pro 2 firmware', () => {

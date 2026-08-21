@@ -51,7 +51,9 @@ export function deriveDeviceCapabilities(
   return {
     profileKnown: isAnnePro2,
     keyboardLayers: model !== null,
-    macros: isAnnePro2,
+    // The official keyboard shell always renders the Macro workspace, and every
+    // shipped hardware profile supplies its model-specific macro matrix offsets.
+    macros: model !== null,
     generalSettings: model !== null,
     bluetooth: isAnnePro2,
     factoryReset: isAnnePro2,

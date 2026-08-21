@@ -125,7 +125,7 @@ const navigation = computed<Array<{ id: WorkspaceSection; label: string }>>(() =
   return items
 })
 const fullBackupReady = computed(() => Boolean(
-  deviceType.value && firmware.value && hardwareState.value && macroBackup.value && allLayersLoaded.value
+  capabilities.value?.profileKnown && deviceType.value && firmware.value && hardwareState.value && macroBackup.value && allLayersLoaded.value
   && (!capabilities.value?.ledPowerMode || ledPowerMode.value)
   && (!capabilities.value?.capslockColor || indicatorColor.value),
 ))
@@ -292,6 +292,7 @@ async function readAll(): Promise<void> {
       iap.value = await transport.value.readIapMode().catch(() => null)
       powerOnTime.value = await transport.value.readPowerOnTime().catch(() => null)
       hardwareState.value = await transport.value.readHardwareState().catch(() => null)
+      if (capabilities.value?.macros) macroBackup.value = await transport.value.readMacroBackup().catch(() => null)
       if (capabilities.value?.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode().catch(() => null)
       if (capabilities.value?.capslockColor) indicatorColor.value = await transport.value.readIndicatorColor().catch(() => null)
       if (capabilities.value?.combinationMode) combinationMode.value = await transport.value.readCombinationMode().catch(() => null)

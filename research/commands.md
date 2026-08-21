@@ -26,10 +26,10 @@ Evidence labels:
 | D87 indicator brightness | write + readback | MCU_LED `20/14`, one value from 1–10 | native dispatch + exact model-7 renderer gate | W1/static | D87-only slider, bounded ACK and `01/09` semantic readback; physical validation pending |
 | `prepare/clearMacro(length)` | write | native `10/31/10`, command/action `30/0a`; UInt32LE complete image length | renderer + native empty-state round trip | W1 | implemented |
 | `downloadMacro(offset, chunk)` | chunked write | native `10/31/10`, command/action `30/05`; UInt32LE offset + up to 49 image bytes | native staged 49-byte physical round trip | W1 | implemented with backup and semantic readback |
-| `readMacroConfig` | read | command/action `30/06`, two-byte response | captured | R1 | implemented |
-| `readMacroActiveList` | read | command/action `30/07` | static native dispatch | R1 | capture only when config is non-empty |
-| `readMacroMap` | read | command/action `30/08` | static native dispatch | R1 | capture only when config is non-empty |
-| `readMacro(index)` | indexed read | command/action `30/09`, one-byte index | static native dispatch | R1 | capture only for indices declared by map |
+| `readMacroConfig` | read | command/action `30/06`, two-byte response | captured + renderer-wide model path | R1 | implemented for every known model |
+| `readMacroActiveList` | read | command/action `30/07` | static native dispatch | R1 | known-model workspace; requested only when config is non-empty |
+| `readMacroMap` | read | command/action `30/08` | static native dispatch | R1 | known-model workspace; requested only when config is non-empty |
+| `readMacro(index)` | indexed read | command/action `30/09`, one-byte index | static native dispatch | R1 | known-model workspace; requested only for indices declared by map |
 | `previewLight` | transient write | MCU LED `20/03`; repeated slot `ff`/type prefix + up to 51 RGB bytes | native physical single/multipart traces | W1 | implemented with status `00` ACK per packet |
 | `downloadLight` | persistent multi-packet write | MCU main `20/02`; repeated slot/type prefix + up to 51 RGB bytes | renderer + native dispatch/trace | W1 | implemented as host-managed list; status `00` ACK per packet |
 | `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
