@@ -214,6 +214,8 @@ async function readAll(): Promise<void> {
   try {
     deviceType.value = await transport.value.readDeviceType()
     if (!capabilities.value?.profileKnown) {
+      firmware.value = await transport.value.readFirmwareVersion().catch(() => null)
+      iap.value = await transport.value.readIapMode().catch(() => null)
       message.value = t('notice.identificationOnly', { model: deviceType.value.modelName })
       return
     }

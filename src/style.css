@@ -11,6 +11,9 @@ header { max-width: 720px; margin-bottom: 36px; }
 .raw-details { margin-top: 16px; }
 .protocol-actions { margin-top: 12px; }
 .capability-summary { margin-top: 16px; color: #929dac; font-size: 13px; }
+.profile-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 22px; color: #7f8b99; font-size: 12px; }
+.profile-line > span:not(.profile-badge) { padding-left: 10px; border-left: 1px solid #354252; }
+.profile-badge { padding: 4px 8px; border-radius: 99px; font-weight: 800; }.profile-badge.anne-pro-2 { color: #8ef2ce; background: #183b30; }.profile-badge.identify-only { color: #ffcf70; background: #332a18; }
 .workspace-nav { position: sticky; top: 10px; z-index: 5; display: flex; gap: 6px; margin: 20px 0 28px; padding: 6px; overflow-x: auto; border: 1px solid #293340; border-radius: 12px; background: rgba(12, 16, 23, .94); backdrop-filter: blur(12px); }
 .nav-button { flex: 1; min-width: 92px; color: #929dac; background: transparent; }
 .nav-button:hover { color: #e8ecf2; background: #18222e; }

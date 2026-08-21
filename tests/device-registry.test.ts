@@ -11,6 +11,8 @@ describe('device registry', () => {
 
   it('keeps model naming and configuration profiles together', () => {
     expect(getObinsModel(5)?.name).toBe('AnnePro2C18')
+    expect(getObinsModel(5)).toMatchObject({ family: 'Anne Pro 2', traits: ['61-key', 'RGB', 'BLE'] })
+    expect(getObinsModel(12)).toMatchObject({ family: 'Tenet 70', traits: ['OLED', '16-bit keycodes'] })
     expect(hasConfigurationProfile(5)).toBe(true)
     expect(hasConfigurationProfile(12)).toBe(false)
     expect(getObinsModel(16)).toBeNull()
