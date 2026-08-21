@@ -6,13 +6,28 @@ export interface IndicatorLocationResponse {
   trailingLength: number
 }
 
+export const D87_INDICATOR_FUNCTIONS = [1, 2, 3, 4, 5] as const
+export const TENET70_INDICATOR_FUNCTIONS = [1, 2, 3, 4, 6] as const
+
+export function indicatorFunctionsForModel(modelId: number): readonly number[] {
+  if (modelId === 7) return D87_INDICATOR_FUNCTIONS
+  if (modelId === 12) return TENET70_INDICATOR_FUNCTIONS
+  return []
+}
+
 export function createReadIndicatorLocationRequest(): Uint8Array {
   return new Uint8Array([0x7b, 0x12, 0x31, 0, 2, 0, 0, 0x7d, 0x20, 0x18])
 }
 
-export function createWriteIndicatorLocationRequest(locations: readonly number[]): Uint8Array {
+export function createWriteIndicatorLocationRequest(locations: readonly number[], modelId?: number): Uint8Array {
   if (locations.length < 1 || locations.length > 8 || locations.some(location => !Number.isInteger(location) || location < 0 || location > 0xff)) {
     throw new Error('Indicator locations must contain 1–8 byte values')
+  }
+  if (modelId !== undefined) {
+    const allowed = indicatorFunctionsForModel(modelId)
+    if (allowed.length === 0 || locations.some(location => !allowed.includes(location))) {
+      throw new Error(`Indicator locations contain a function unsupported by model ${modelId}`)
+    }
   }
   return new Uint8Array([0x7b, 0x10, 0x31, 0x10, locations.length + 2, 0, 0, 0x7d, 0x20, 0x19, ...locations])
 }

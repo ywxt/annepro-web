@@ -146,6 +146,7 @@ export class AnneProHidTransport {
   private confirmedReadPending = false
   private layoutSpec: KeyboardLayoutSpec = C18_LAYOUT_SPEC
   private lightingProfile: LightingProfile = C18_LIGHTING_PROFILE
+  private modelId: number | null = null
 
   constructor(readonly device: HIDDevice) {}
 
@@ -184,6 +185,7 @@ export class AnneProHidTransport {
     )
     this.layoutSpec = keyboardLayoutSpecForModel(response.model) ?? C18_LAYOUT_SPEC
     this.lightingProfile = lightingProfileForModel(response.model)
+    this.modelId = response.model
     return response
   }
 
@@ -311,7 +313,7 @@ export class AnneProHidTransport {
   }
 
   async writeIndicatorLocation(locations: readonly number[], timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorLocationResponse> {
-    await this.requestConfirmedRead(createWriteIndicatorLocationRequest(locations), parseWriteIndicatorLocationAck, timeoutMs)
+    await this.requestConfirmedRead(createWriteIndicatorLocationRequest(locations, this.modelId ?? undefined), parseWriteIndicatorLocationAck, timeoutMs)
     const readback = await this.readIndicatorLocation(timeoutMs)
     if (readback.locations.length !== locations.length || !readback.locations.every((value, index) => value === locations[index])) {
       throw new Error('Indicator location readback does not match written values')
