@@ -12,10 +12,6 @@
         packages = with pkgs; [
           nodejs_24
           pnpm
-          gcc
-          gnumake
-          python3
-          pkg-config
         ];
 
         shellHook = ''
