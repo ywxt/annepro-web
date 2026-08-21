@@ -126,7 +126,7 @@ const navigation = computed<Array<{ id: WorkspaceSection; label: string }>>(() =
   return items
 })
 const fullBackupReady = computed(() => Boolean(
-  capabilities.value?.profileKnown && deviceType.value && firmware.value && hardwareState.value && macroBackup.value && allLayersLoaded.value
+  deviceType.value?.model === 5 && firmware.value && hardwareState.value && macroBackup.value && allLayersLoaded.value
   && (!capabilities.value?.ledPowerMode || ledPowerMode.value)
   && (!capabilities.value?.capslockColor || indicatorColor.value),
 ))
@@ -491,7 +491,7 @@ async function deleteBleHosts(): Promise<void> {
 }
 
 async function factoryReset(): Promise<void> {
-  if (!transport.value || !hardwareState.value || !capabilities.value?.profileKnown) return
+  if (!transport.value || !hardwareState.value || deviceType.value?.model !== 5 || !capabilities.value?.factoryReset) return
   const confirmation = window.prompt(t('danger.factory'))
   if (confirmation !== 'FACTORY RESET') return
   busy.value = 'factory reset'

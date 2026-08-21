@@ -114,8 +114,9 @@ state preflight is required before the four-layer write transaction can begin.
 
 The WebHID chooser now includes every exact VID/PID pair in the Electron discovery
 table. Known non-C18 models use their own geometry and explicitly gated protocol
-branches; C18-only settings, macros, Bluetooth mutations, factory reset and full
-restore never fall through to them. Unknown model IDs remain metadata-only.
+branches. Common settings/macros and MCU-BLE operations follow the renderer's model
+gates, while C18-specific factory reset and full restore never fall through to other
+profiles. Unknown model IDs remain metadata-only.
 
 ## What “C18 support” means
 

@@ -103,4 +103,14 @@ describe('ObinsKit capability gates', () => {
       modernTapSettings: false, sleepTimeout: false, ledPowerMode: false, capslockColor: false,
     })
   })
+
+  it('keeps destructive and special transports on their exact model sets', () => {
+    const known = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 33]
+    const enabled = (key: 'factoryReset' | 'bluetooth' | 'audioVisualization' | 'oled' | 'indicatorLocation') => known.filter(model => deriveDeviceCapabilities({ ...device, model }, firmware)?.[key])
+    expect(enabled('factoryReset')).toEqual([5])
+    expect(enabled('bluetooth')).toEqual([1, 2, 3, 4, 5, 10, 14])
+    expect(enabled('audioVisualization')).toEqual([3, 4, 5])
+    expect(enabled('oled')).toEqual([12])
+    expect(enabled('indicatorLocation')).toEqual([7, 12])
+  })
 })

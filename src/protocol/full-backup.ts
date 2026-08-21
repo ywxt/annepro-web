@@ -1,7 +1,7 @@
 import { decodeMacroEvents, type ActiveMacroBinding, type StoredMacro } from './macro-info.ts'
 import { lightingProfileForModel, normalizeLightEffects, type LightEffect } from './lighting.ts'
 import { createWriteHardwareSettingRequest, type HardwareSettingKey } from './settings-write.ts'
-import { hasConfigurationProfile, isKnownObinsUsbDevice } from '../device-registry.ts'
+import { isKnownObinsUsbDevice } from '../device-registry.ts'
 
 type RequiredSetting = Exclude<HardwareSettingKey, 'ledPowerMode' | 'sleepTimeoutRaw'>
 
@@ -54,7 +54,7 @@ export function parseFullBackup(value: unknown): ParsedFullBackup {
     type: integer(sourceDevice.type, 'device.type'),
   }
   if (!isKnownObinsUsbDevice(device.vendorId, device.productId)
-    || !hasConfigurationProfile(device.model) || device.type !== 1) {
+    || device.model !== 5 || device.type !== 1) {
     throw new Error('Backup is not from a supported Obins keyboard profile')
   }
 

@@ -15,7 +15,7 @@ const { t } = useI18n({ useScope: 'global' })
 </script>
 
 <template>
-  <section class="card">
+  <section v-if="section !== 'device' || capabilities?.hasBattery" class="card">
     <div class="section-heading"><div><p class="eyebrow">READ · WRITE · VERIFIED</p><h2>{{ t(`settings.${section}Section`) }}</h2></div><div class="actions"><button class="secondary" :disabled="busy" @click="$emit('readState')">{{ t('settings.refresh') }}</button></div></div>
     <p v-if="!state" class="empty">{{ t('common.notRead') }}</p>
     <IsoLayoutPreference v-if="section === 'keys' && capabilities?.isoCharacterLayout" />

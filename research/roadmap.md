@@ -121,5 +121,6 @@ device trial, and only then product UI.
 - BLE MAC reading uses the confirmed MCU BLE route.
 - Clearing BLE host bindings is implemented with typed destructive confirmation and physically verified with success status `00`.
 - Model-only combination-mode and virtual-mouse commands are excluded from the Anne Pro 2 UI after C18 returned no response.
-- The native/renderer command audit is recorded in `completion-audit.md`; all ordinary renderer-visible C18 configuration areas are implemented, while model-specific and internal maintenance operations remain capability-excluded.
-- Other-model OLED, indicator-location, virtual-mouse, and alternate-audio routes remain disabled until their model identity and physical response are available; they are documented in Debug mode rather than sent speculatively to C18.
+- The native/renderer command audit is recorded in `completion-audit.md`; all ordinary renderer-visible C18 configuration areas and statically identifiable official model branches are implemented behind exact capability gates.
+- Tenet OLED/dual indicators, D87 indicators, Discovery battery/CapsLock color, ISO character preference, common model layouts/macros/settings, Fuji65 RGB bottom light, MCU-BLE identity, and the alternate MCU-LED audio configuration route are model-selected. Static-only writes remain labelled as requiring matching-hardware validation.
+- Virtual-mouse writes, identity mutation, power-time reset, backlight-auto internals, and all firmware/IAP/erase operations remain deliberately absent from the product UI.

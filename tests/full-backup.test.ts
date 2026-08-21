@@ -28,6 +28,8 @@ describe('full backup parser', () => {
     expect(() => parseFullBackup(setting)).toThrow('backlightBrightness')
     const light = validBackup(); light.lights = [{ name: 'Bad', type: 2, colors: ['#fff'] }]
     expect(() => parseFullBackup(light)).toThrow()
+    const nonC18 = validBackup(); (nonC18.device as Record<string, unknown>).model = 3
+    expect(() => parseFullBackup(nonC18)).toThrow('supported Obins keyboard profile')
   })
   it('validates macro events and bindings', () => {
     const invalid = validBackup()
