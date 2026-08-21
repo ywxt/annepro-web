@@ -94,6 +94,7 @@ device trial, and only then product UI.
 - [x] Surface the native protocol audit as three product states: Anne Pro 2 implemented, other-model capability-gated, and firmware/IAP safety-excluded.
 - [x] Replace scattered setting cards with flat semantic clusters and verified, debounced auto-apply for reversible ordinary settings.
 - [x] Centralize operation-specific timeouts while retaining the physically verified layout pacing and slower multipart budgets.
+- [x] Clear all device-scoped data when switching keyboards and block reconnects while HID operations are active.
 
 ### M7 — IAP and firmware (deferred)
 

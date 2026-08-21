@@ -146,7 +146,34 @@ function downloadJson(filename: string, value: unknown): void {
   URL.revokeObjectURL(url)
 }
 
+function resetDeviceSession(): void {
+  deviceType.value = null
+  firmware.value = null
+  iap.value = null
+  hardwareState.value = null
+  macroBackup.value = null
+  originalMacroBackup.value = null
+  ledPowerMode.value = null
+  battery.value = null
+  powerOnTime.value = null
+  udid.value = null
+  bleMac.value = null
+  indicatorColor.value = null
+  indicatorColorBackup.value = null
+  settingsBackup.value = null
+  layers.value = [null, null, null, null]
+  layerDrafts.value = [null, null, null, null]
+  layerBackups.value = [null, null, null, null]
+  records.value = []
+  activeSection.value = 'device'
+  activeLayer.value = 0
+  layoutNotice.value = ''
+  writeError.value = null
+  audioFrames.value = 0
+}
+
 async function connect(): Promise<void> {
+  if (busy.value || connecting.value) return
   connecting.value = true
   message.value = t('notice.selecting')
   try {
@@ -160,9 +187,11 @@ async function useSelection(selection: DeviceSelection): Promise<void> {
   if (!selection.device) { message.value = t('notice.noDevice'); return }
   const previous = transport.value
   const nextTransport = new AnneProHidTransport(selection.device)
+  await stopAudioVisualize(false)
   await nextTransport.open()
   stopListening?.()
   if (previous && previous.device !== selection.device) await previous.close().catch(() => undefined)
+  resetDeviceSession()
   device.value = selection.device
   transport.value = nextTransport
   protocolReady.value = selection.hasProtocolCollection
@@ -172,6 +201,7 @@ async function useSelection(selection: DeviceSelection): Promise<void> {
 }
 
 async function reconnectGranted(): Promise<void> {
+  if (busy.value || connecting.value) return
   connecting.value = true
   message.value = t('notice.connecting')
   try { await useSelection(await getPreferredGrantedAnneProDevice()) }
@@ -791,7 +821,7 @@ onBeforeUnmount(() => {
       <div class="sidebar-footer"><label class="debug-switch"><input v-model="debugMode" type="checkbox"><span>{{ t('shell.debug') }}</span></label><LanguageSwitcher /></div>
     </aside>
     <div class="app-main">
-      <div class="command-bar"><div class="device-heading"><span class="connection-dot" :class="{ online: device?.opened }"></span><div><strong>{{ device?.productName || t('shell.noDevice') }}</strong><small>{{ device ? `0x${device.vendorId.toString(16).padStart(4, '0')}:0x${device.productId.toString(16).padStart(4, '0')}` : t('shell.ready') }}</small></div></div><div class="actions"><button class="secondary compact" :disabled="!supported || connecting" @click="reconnectGranted">{{ t('app.reconnect') }}</button><button class="compact" :disabled="!supported || connecting" @click="connect">{{ t('app.connect') }}</button></div></div>
+      <div class="command-bar"><div class="device-heading"><span class="connection-dot" :class="{ online: device?.opened }"></span><div><strong>{{ device?.productName || t('shell.noDevice') }}</strong><small>{{ device ? `0x${device.vendorId.toString(16).padStart(4, '0')}:0x${device.productId.toString(16).padStart(4, '0')}` : t('shell.ready') }}</small></div></div><div class="actions"><button class="secondary compact" :disabled="!supported || connecting || busy !== null" @click="reconnectGranted">{{ t('app.reconnect') }}</button><button class="compact" :disabled="!supported || connecting || busy !== null" @click="connect">{{ t('app.connect') }}</button></div></div>
       <div v-if="!device" class="welcome"><p class="eyebrow">WEBHID CONFIGURATOR</p><h1>{{ t('app.title') }}</h1><p class="lede">{{ t('app.subtitle') }}</p></div>
       <PlatformRequirements v-if="!device" />
       <p v-if="message" id="message" role="status" aria-live="polite">{{ message }}</p>
