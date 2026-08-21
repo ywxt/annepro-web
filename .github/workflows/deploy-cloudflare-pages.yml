@@ -55,6 +55,8 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          packageManager: pnpm
+          # Keep the app build on pnpm, but let the action install its own
+          # Wrangler with npm so pnpm's ignored-build policy does not block workerd.
+          packageManager: npm
           wranglerVersion: "4"
           command: pages deploy dist --project-name=annepro-web --branch=main
