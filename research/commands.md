@@ -33,8 +33,8 @@ Evidence labels:
 | `writeLightList` | persistent write | `20/04`; one-byte list count | renderer + native dispatch | W1 | implemented before bounded list download |
 | `writeSleepTimeout` | configuration write | command/action `01/0f`, UInt16LE seconds | native dispatch | W1 | implemented with readback |
 | `writeAudioVisualize` | transient stream | MCU LED `20/11`; repeated `ff 01/02` prefix + up to 51 RGB bytes | native physical single/multipart traces | W1 | status `00` ACK per packet, max 20 FPS |
-| `writeAudioVisualConfig` | other-model transient config | MCU_LED route, command/action `21/01` | native dispatch + advanced renderer path | N/A | intentionally capability-excluded on C18 |
-| `writeAudioVisualData` | other-model transient stream | MCU_LED route, command/action `21/02` | native dispatch + advanced renderer path | N/A | intentionally capability-excluded on C18 |
+| `writeAudioVisualConfig` | other-model transient config | MCU_LED route, command/action `21/01`; one-byte `AudioLightType` 0–10 | native dispatch + advanced renderer path | W1/static | encoded and exposed through a model-gated transport API; no general UI |
+| `writeAudioVisualData` | other-model transient stream | MCU_LED route, command/action `21/02`; renderer constructs 18-byte analyser frames | native dispatch; shipped renderer sender is a no-op | W1/static | bounded single-report API for hardware validation; no general UI |
 | indicator color | read/write/readback | `20/1a` read RGB, `20/1b` write RGB | captured same-value round trip | W1 | implemented with backup/restore |
 | indicator location | D87/Tenet read/write/readback | `20/18` reads the complete location byte array; `20/19` writes the complete array | native dispatch + renderer model branch | W1 | editor, first backup, bounded ACK, and exact array readback; 3 values on D87 and 2 on Tenet |
 | factory reset | composed write | ObinsKit defaults + empty macro + final 14-effect model-5 light group + BLE clear | renderer/SQL defaults | W2 | implemented behind typed confirmation |
@@ -55,8 +55,11 @@ implemented by the web configurator as command/action `20/11` on MCU_MAIN.
 The unpacked renderer also contains a separate, more advanced audio-analysis path.
 Native dispatch maps its `writeAudioVisualConfig` and `writeAudioVisualData` calls to
 MCU_LED command/actions `21/01` and `21/02`. The C18 keyboard page does not consume
-that path, so these reports are classified as another model's capability and are
-not sent to the current keyboard.
+that path. Module `50585` defines modes 0 through 10, and the advanced analyser
+constructs 18-byte RMS/ZCR/spectrum frames. However, the shipped 1.2.11 renderer's
+`writeAudioVisualData` wrapper is an empty function, so there is no official evidence
+that it streams those frames to production hardware. The protocol is encoded and
+unit-tested, but remains out of the ordinary UI pending a matching-device capture.
 
 ## Captured startup traffic
 

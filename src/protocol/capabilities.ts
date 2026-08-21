@@ -15,6 +15,7 @@ export interface DeviceCapabilities {
   hasBattery: boolean | null
   batteryPercentage: boolean | null
   audioVisualization: boolean | null
+  advancedAudioProtocol: boolean | null
   modernTapSettings: boolean | null
   sleepTimeout: boolean | null
   ledPowerMode: boolean | null
@@ -40,6 +41,7 @@ export function deriveDeviceCapabilities(
   const isAnnePro2 = hasConfigurationProfile(deviceType.model)
   const model = getObinsModel(deviceType.model)
   const keyVersion = firmware?.key
+  const usesAnnePro2Audio = model ? [3, 4, 5].includes(model.id) : false
   return {
     profileKnown: isAnnePro2,
     keyboardLayers: model !== null,
@@ -53,6 +55,7 @@ export function deriveDeviceCapabilities(
     hasBattery: model ? model.hardware.mcuBle : null,
     batteryPercentage: model ? model.id === 14 : null,
     audioVisualization: isAnnePro2 ? true : null,
+    advancedAudioProtocol: model ? model.hardware.mcuLed && !usesAnnePro2Audio : null,
     modernTapSettings: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.11') >= 0 : null,
     sleepTimeout: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.14') > 0 : null,
     ledPowerMode: isAnnePro2 && keyVersion ? compareVersion(keyVersion, '2.35') > 0 : null,

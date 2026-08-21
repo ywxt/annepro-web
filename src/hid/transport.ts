@@ -79,6 +79,12 @@ import {
 } from '../protocol/runtime-info.ts'
 import { createAudioVisualizeRequests, parseAudioVisualizeAck } from '../protocol/audio-visualize.ts'
 import {
+  createAdvancedAudioConfigRequest,
+  createAdvancedAudioDataRequest,
+  parseAdvancedAudioAck,
+  type AdvancedAudioMode,
+} from '../protocol/advanced-audio.ts'
+import {
   createDeleteBleHostRequest,
   createReadBleMacRequest,
   createReadUdidRequest,
@@ -455,6 +461,24 @@ export class AnneProHidTransport {
     for (const request of requests) {
       await this.requestConfirmedRead(request, parseAudioVisualizeAck, timeoutMs)
     }
+  }
+
+  /** Static/native parity API. Keep capability-gated: ObinsKit 1.2.11 never invokes its data sender. */
+  async configureAdvancedAudio(mode: AdvancedAudioMode, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.requestConfirmedRead(
+      createAdvancedAudioConfigRequest(mode),
+      response => parseAdvancedAudioAck(0x01, response),
+      timeoutMs,
+    )
+  }
+
+  /** Sends one bounded analyser frame; callers must provide their own single-flight/rate guard. */
+  async sendAdvancedAudioData(data: Uint8Array, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
+    await this.requestConfirmedRead(
+      createAdvancedAudioDataRequest(data),
+      response => parseAdvancedAudioAck(0x02, response),
+      timeoutMs,
+    )
   }
 
   async installLights(effects: readonly LightEffect[], timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {

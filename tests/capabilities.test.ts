@@ -12,7 +12,7 @@ describe('ObinsKit capability gates', () => {
       profileKnown: true, keyboardLayers: true, macros: true, generalSettings: true,
       bluetooth: true, factoryReset: true, hasLed: true, hasIndicatorLed: false, indicatorLocation: false, hasBattery: true,
       batteryPercentage: false,
-      audioVisualization: true, modernTapSettings: true, sleepTimeout: true,
+      audioVisualization: true, advancedAudioProtocol: false, modernTapSettings: true, sleepTimeout: true,
       ledPowerMode: true, capslockColor: true,
     })
   })
@@ -28,9 +28,16 @@ describe('ObinsKit capability gates', () => {
       profileKnown: false, keyboardLayers: false, macros: false, generalSettings: false,
       bluetooth: false, factoryReset: false, hasLed: null, hasIndicatorLed: null, indicatorLocation: null, hasBattery: null,
       batteryPercentage: null,
-      audioVisualization: null, modernTapSettings: null, sleepTimeout: null,
+      audioVisualization: null, advancedAudioProtocol: null, modernTapSettings: null, sleepTimeout: null,
       ledPowerMode: null, capslockColor: null,
     })
+  })
+
+  it('selects the static advanced MCU-LED route only for matching non-AP2 models', () => {
+    expect(deriveDeviceCapabilities({ ...device, model: 8 }, firmware)).toMatchObject({ advancedAudioProtocol: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 6 }, firmware)).toMatchObject({ advancedAudioProtocol: true })
+    expect(deriveDeviceCapabilities({ ...device, model: 7 }, firmware)).toMatchObject({ advancedAudioProtocol: false })
+    expect(deriveDeviceCapabilities({ ...device, model: 4 }, firmware)).toMatchObject({ advancedAudioProtocol: false })
   })
 
   it('selects the direct battery-percentage route for Discovery', () => {
