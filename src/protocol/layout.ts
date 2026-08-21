@@ -158,6 +158,19 @@ export function keycapLabel(keycode: number): string {
   return keycode === 0x01 ? '' : keycodeName(keycode)
 }
 
+/** Compact symbols shared by the key picker and the physical key preview. */
+export function keycodeIcon(keycode: number): string | null {
+  const icons: Record<number, string> = {
+    0x28: '↵', 0x29: '⎋', 0x2a: '⌫', 0x2b: '⇥', 0x2c: '␣', 0x39: '⇪',
+    0x4c: '⌦', 0x4f: '→', 0x50: '←', 0x51: '↓', 0x52: '↑',
+    0xa8: '🔇', 0xa9: '🔊', 0xaa: '🔉', 0xab: '▶', 0xac: '⏭', 0xad: '⏮',
+    0xae: '☀+', 0xaf: '☀−', 0xc0: 'F₁', 0xc1: 'F₂',
+    0xe0: '⌃', 0xe1: '⇧', 0xe2: '⌥', 0xe3: '◆', 0xe4: '⌃', 0xe5: '⇧', 0xe6: '⌥', 0xe7: '◆',
+    0xf0: '☼', 0xf1: '◉', 0xf2: '◐', 0xf3: '☀+', 0xf4: '☀−', 0xf5: '⏱', 0xf6: '🔋',
+  }
+  return icons[keycode] ?? null
+}
+
 export function keycodeOptions(): KeycodeOption[] {
   const values = new Set<number>(Object.keys(KEY_NAMES).map(Number))
   for (let value = 0x04; value <= 0x73; value += 1) values.add(value)

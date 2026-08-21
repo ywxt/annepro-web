@@ -8,11 +8,13 @@ const history = ref<string[]>([])
 const focused = ref(false)
 
 const rows = [
-  ['Escape', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal', 'Backspace'],
-  ['Tab', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP', 'BracketLeft', 'BracketRight', 'Backslash'],
-  ['CapsLock', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'Quote', 'Enter'],
-  ['ShiftLeft', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM', 'Comma', 'Period', 'Slash', 'ShiftRight'],
-  ['ControlLeft', 'MetaLeft', 'AltLeft', 'Space', 'AltRight', 'Fn', 'ControlRight'],
+  [['AudioVolumeMute', 'AudioVolumeDown', 'AudioVolumeUp', 'MediaPlayPause']],
+  [['Escape'], ['F1', 'F2', 'F3', 'F4'], ['F5', 'F6', 'F7', 'F8'], ['F9', 'F10', 'F11', 'F12'], ['PrintScreen', 'ScrollLock', 'Pause']],
+  [['Backquote', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal', 'Backspace'], ['Insert', 'Home', 'PageUp'], ['NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract']],
+  [['Tab', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP', 'BracketLeft', 'BracketRight', 'Backslash'], ['Delete', 'End', 'PageDown'], ['Numpad7', 'Numpad8', 'Numpad9', 'NumpadAdd']],
+  [['CapsLock', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'Quote', 'Enter'], [], ['Numpad4', 'Numpad5', 'Numpad6']],
+  [['ShiftLeft', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM', 'Comma', 'Period', 'Slash', 'ShiftRight'], ['ArrowUp'], ['Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter']],
+  [['ControlLeft', 'MetaLeft', 'AltLeft', 'Space', 'AltRight', 'MetaRight', 'ContextMenu', 'ControlRight'], ['ArrowLeft', 'ArrowDown', 'ArrowRight'], ['Numpad0', 'NumpadDecimal']],
 ]
 
 const labels: Record<string, string> = {
@@ -20,10 +22,18 @@ const labels: Record<string, string> = {
   Enter: 'Enter', ShiftLeft: 'Shift', ShiftRight: 'Shift', ControlLeft: 'Ctrl', ControlRight: 'Ctrl',
   MetaLeft: 'Win', AltLeft: 'Alt', AltRight: 'Alt', Space: 'Space', Fn: 'Fn', Minus: '−', Equal: '=',
   BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
+  Backquote: '`', MetaRight: 'Win', ContextMenu: 'Menu', PrintScreen: 'PrtSc', ScrollLock: 'ScrLk',
+  Pause: 'Pause', Insert: 'Ins', Delete: 'Del', PageUp: 'PgUp', PageDown: 'PgDn', NumLock: 'Num',
+  NumpadDivide: '÷', NumpadMultiply: '×', NumpadSubtract: '−', NumpadAdd: '+', NumpadEnter: 'Enter',
+  NumpadDecimal: '.', AudioVolumeMute: '🔇', AudioVolumeDown: '🔉', AudioVolumeUp: '🔊', MediaPlayPause: '▶',
+  ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
 }
 
 const count = computed(() => pressed.value.size)
-function label(code: string): string { return labels[code] ?? code.replace(/^(Key|Digit)/, '') }
+function label(code: string): string {
+  const numpadDigit = /^Numpad([0-9])$/.exec(code)
+  return labels[code] ?? numpadDigit?.[1] ?? code.replace(/^(Key|Digit)/, '')
+}
 function update(code: string, down: boolean): void {
   if (!focused.value || code === 'Fn') return
   const next = new Set(pressed.value)
@@ -51,7 +61,9 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeyDown); window
     <div class="tester-stats"><span>{{ t('tester.pressed', { count }) }}</span><span>{{ history.map(label).join(' · ') || '—' }}</span></div>
     <div class="tester-board" :class="{ focused }" tabindex="0" @focus="focused = true" @blur="blur" @click="($event.currentTarget as HTMLElement).focus()">
       <div v-for="(row, rowIndex) in rows" :key="rowIndex" class="tester-row">
-        <div v-for="code in row" :key="code" class="tester-key" :class="[{ pressed: pressed.has(code) }, `code-${code}`]">{{ label(code) }}</div>
+        <div v-for="(group, groupIndex) in row" :key="groupIndex" class="tester-key-group">
+          <div v-for="code in group" :key="code" class="tester-key" :class="[{ pressed: pressed.has(code) }, `code-${code}`]" :title="code">{{ label(code) }}</div>
+        </div>
       </div>
       <p v-if="!focused" class="tester-overlay">{{ t('tester.focus') }}</p>
     </div>
