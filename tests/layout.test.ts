@@ -164,6 +164,7 @@ describe('keyboard layout read protocol', () => {
     expect(keycodeIcon(0x2a)).toBe('⟵')
     expect(keycodeIcon(0x4c)).toBeNull()
     expect(keycodeIcon(0x46)).toBe('⧉')
+    expect([0xc0, 0xc1].map(keycodeIcon)).toEqual(['Fn1', 'Fn2'])
     expect([0xc8, 0xc9, 0xca, 0xcb, 0xcc].map(keycodeIcon)).toEqual(['🛜₁', '🛜₂', '🛜₃', '🛜₄', '🛜'])
     expect(keycodeIcon(0xcf)).toBe('Fn↻')
     expect([0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe].map(keycodeIcon)).toEqual([
