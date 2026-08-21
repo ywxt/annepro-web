@@ -54,6 +54,12 @@ describe('ObinsKit capability gates', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 11 }, firmware)).toMatchObject({ hasLed: false })
   })
 
+  it('reproduces the official lighting gate for every other known model', () => {
+    for (const model of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 17, 33]) {
+      expect(deriveDeviceCapabilities({ ...device, model }, firmware)?.hasLed, `model ${model}`).toBe(true)
+    }
+  })
+
   it('gates the native indicator-location route to D87', () => {
     expect(deriveDeviceCapabilities({ ...device, model: 7 }, firmware)).toMatchObject({ keyboardLayers: true, indicatorLocation: true })
     expect(deriveDeviceCapabilities({ ...device, model: 33 }, firmware)).toMatchObject({ indicatorLocation: false })

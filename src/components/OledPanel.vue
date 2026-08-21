@@ -2,9 +2,10 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { OLED_HEIGHT, OLED_WIDTH, packOledRgba } from '../protocol/oled.ts'
+import type { CombinationModeResponse } from '../protocol/combination-mode.ts'
 
-defineProps<{ busy: boolean }>()
-const emit = defineEmits<{ syncDate: []; writeImage: [packed: Uint8Array]; writeText: [packed: Uint8Array]; scroll: [enabled: boolean] }>()
+defineProps<{ busy: boolean; combinationMode: CombinationModeResponse | null }>()
+const emit = defineEmits<{ readCombination: []; syncDate: []; writeImage: [packed: Uint8Array]; writeText: [packed: Uint8Array]; scroll: [enabled: boolean] }>()
 const { t } = useI18n({ useScope: 'global' })
 const canvas = ref<HTMLCanvasElement | null>(null)
 const text = ref('TENET 70')
@@ -37,6 +38,10 @@ function toggleScroll(event: Event): void { scroll.value = (event.target as HTML
   <section class="card oled-panel">
     <div class="section-heading"><div><p class="eyebrow">TENET 70 · 256×32 OLED</p><h2>{{ t('oled.title') }}</h2></div><button class="secondary" :disabled="busy" @click="$emit('syncDate')">{{ t('oled.syncDate') }}</button></div>
     <p class="empty">{{ t('oled.help') }}</p>
+    <div class="oled-status">
+      <div><span>{{ t('oled.combination') }}</span><strong>{{ combinationMode ? t(combinationMode.enabled ? 'oled.combinationEnabled' : 'oled.combinationDisabled') : t('common.notRead') }}</strong><code v-if="combinationMode">0x{{ combinationMode.rawValue.toString(16).padStart(2, '0') }}</code></div>
+      <button class="secondary compact" :disabled="busy" @click="$emit('readCombination')">{{ t('common.read') }}</button>
+    </div>
     <canvas ref="canvas" :width="OLED_WIDTH" :height="OLED_HEIGHT" class="oled-preview" />
     <div class="oled-controls">
       <label>{{ t('oled.image') }} <input type="file" accept="image/*" :disabled="busy" @change="pickImage"></label><button :disabled="busy" @click="$emit('writeImage', packedCanvas())">{{ t('oled.writeImage') }}</button>

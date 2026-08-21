@@ -46,6 +46,7 @@ import { parseFullBackup } from './protocol/full-backup.ts'
 import { isKnownObinsVendor } from './device-registry.ts'
 import { OBINSKIT_AUDIO_INTERVAL_MS } from './protocol/timing.ts'
 import { oledDateTimeFromDate } from './protocol/oled.ts'
+import type { CombinationModeResponse } from './protocol/combination-mode.ts'
 
 const supported = isWebHidSupported()
 const { t } = useI18n({ useScope: 'global' })
@@ -71,6 +72,7 @@ const bleMac = ref<BleMacAddress | null>(null)
 const indicatorColor = ref<IndicatorColorResponse | null>(null)
 const indicatorColorBackup = ref<string | null>(null)
 const indicatorLocation = ref<IndicatorLocationResponse | null>(null)
+const combinationMode = ref<CombinationModeResponse | null>(null)
 const indicatorLocationBackup = ref<number[] | null>(null)
 const audioRunning = ref(false)
 const audioMode = ref<AudioVisualizeMode>('pure')
@@ -181,6 +183,7 @@ function resetDeviceSession(): void {
   indicatorColorBackup.value = null
   indicatorLocation.value = null
   indicatorLocationBackup.value = null
+  combinationMode.value = null
   settingsBackup.value = null
   layers.value = [null, null, null, null]
   layerDrafts.value = [null, null, null, null]
@@ -277,6 +280,7 @@ async function readAll(): Promise<void> {
       iap.value = await transport.value.readIapMode().catch(() => null)
       powerOnTime.value = await transport.value.readPowerOnTime().catch(() => null)
       hardwareState.value = await transport.value.readHardwareState().catch(() => null)
+      if (capabilities.value?.combinationMode) combinationMode.value = await transport.value.readCombinationMode().catch(() => null)
       if (capabilities.value?.hasBattery) battery.value = await readBatteryForModel().catch(() => null)
       if (capabilities.value?.indicatorLocation) indicatorLocation.value = await transport.value.readIndicatorLocation().catch(() => null)
       if (capabilities.value?.keyboardLayers) {
@@ -297,6 +301,7 @@ async function readAll(): Promise<void> {
     if (capabilities.value?.bluetooth) bleMac.value = await transport.value.readBleMac()
     if (capabilities.value?.ledPowerMode) ledPowerMode.value = await transport.value.readLedPowerMode()
     if (capabilities.value?.capslockColor) indicatorColor.value = await transport.value.readIndicatorColor()
+    if (capabilities.value?.combinationMode) combinationMode.value = await transport.value.readCombinationMode()
     if (capabilities.value?.keyboardLayers) {
       const nextLayers: KeyboardLayerResponse[] = []
       for (let layer = 0; layer < 4; layer += 1) nextLayers.push(await transport.value.readKeyboardLayer(layer))
@@ -330,6 +335,11 @@ const readHardwareState = () => transport.value && confirmedRead(
   t('settings.title'),
   () => transport.value!.readHardwareState(),
   value => { hardwareState.value = value },
+)
+const readCombinationMode = () => transport.value && confirmedRead(
+  t('oled.combination'),
+  () => transport.value!.readCombinationMode(),
+  value => { combinationMode.value = value },
 )
 const readLedPowerMode = () => transport.value && confirmedRead(
   t('settings.ledPower'),
@@ -922,7 +932,7 @@ onBeforeUnmount(() => {
         <KeyTester v-if="device && protocolReady && activeSection === 'tester'" />
         <div v-if="device && protocolReady && activeSection === 'lighting'" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="lighting" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><LightingPanel v-if="capabilities?.hasLed" :effects="lightEffects" :profile="lightingProfile" :busy="busy !== null" @update="lightEffects = $event" @preview="previewLight" @install="installLights" @export="exportLights" @import="importLights" /><AudioVisualizePanel v-if="capabilities?.audioVisualization" :running="audioRunning" :mode="audioMode" :source="audioSource" :color="audioColor" :busy="busy !== null" :frames="audioFrames" :level="audioLevel" @start="startAudioVisualize" @stop="stopAudioVisualize" @update-mode="audioMode = $event" @update-source="audioSource = $event" @update-color="audioColor = $event" /></div>
         <div v-if="device && protocolReady && activeSection === 'macros' && capabilities?.macros" class="feature-surface"><SettingsPanel v-if="capabilities?.generalSettings" section="macros" :state="hardwareState" :led-power-mode="ledPowerMode" :indicator-color="indicatorColor" :capabilities="capabilities" :busy="busy !== null" :has-backup="settingsBackup !== null" :has-color-backup="indicatorColorBackup !== null" @read-state="readHardwareState" @read-led-power-mode="readLedPowerMode" @read-indicator-color="readIndicatorColor" @apply-settings="applySettings" @apply-indicator-color="applyIndicatorColor" @restore-settings="restoreSettings" @restore-indicator-color="restoreIndicatorColor" /><MacroPanel :backup="macroBackup" :busy="busy !== null" :has-backup="originalMacroBackup !== null" @read-backup="readMacroBackup" @export-backup="exportMacros" @import-backup="importMacros" @apply="applyMacros" @restore="restoreMacros" /></div>
-        <OledPanel v-if="device && protocolReady && activeSection === 'oled' && capabilities?.oled" :busy="busy !== null" @sync-date="syncOledDate" @write-image="writeOledImage" @write-text="writeOledText" @scroll="writeOledScroll" />
+        <OledPanel v-if="device && protocolReady && activeSection === 'oled' && capabilities?.oled" :busy="busy !== null" :combination-mode="combinationMode" @read-combination="readCombinationMode" @sync-date="syncOledDate" @write-image="writeOledImage" @write-text="writeOledText" @scroll="writeOledScroll" />
         <div v-if="device && debugMode" class="debug-workspace"><div class="debug-banner"><span>DEBUG</span>{{ t('app.developerHint') }}</div><ProtocolCoverage /><CollectionsView :collections="collections" @export-metadata="exportMetadata" /><ReportsView :records="records" @clear="records = []" @export-reports="exportReports" /></div>
       </div>
       <footer>{{ t('app.footer') }}</footer>

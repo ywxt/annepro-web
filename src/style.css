@@ -124,6 +124,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { padd
 .key-choice-icon.text-icon { font-size: 11px; }
 .layout-raw { display: block; margin-top: 18px; overflow-wrap: anywhere; line-height: 1.6; }
 .oled-panel { display: grid; gap: 16px; }.oled-preview { width: min(100%, 768px); image-rendering: pixelated; border: 1px solid #405064; border-radius: 8px; background: #000; box-shadow: 0 0 24px rgba(98, 229, 180, .08); }.oled-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }.oled-controls label { display: grid; gap: 6px; color: #aab4c1; font-size: 12px; }.oled-controls label:last-child { display: flex; align-items: center; }
+.oled-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid #293744; border-radius: 10px; background: #151d25; }.oled-status > div { display: flex; align-items: center; gap: 12px; }.oled-status span { color: #9caaba; }.oled-status strong { color: #62e5b4; }.oled-status code { color: #8292a3; }
 .macro-item { display: grid; gap: 5px; margin-top: 12px; padding: 12px; border: 1px solid #293340; border-radius: 8px; }
 .macro-item span { color: #929dac; font-size: 12px; }
 .macro-item code { overflow-wrap: anywhere; }

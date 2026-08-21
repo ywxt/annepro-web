@@ -75,6 +75,12 @@ into the 32-position wire strip and reuse the native light-list/download command
 The non-RGB Fuji65 (model 11) remains lighting-disabled, matching ObinsKit's
 `isHaveLed` gate.
 
+The product lighting gate now reproduces ObinsKit's model getter: every known model
+except the non-RGB Fuji65 (model 11) receives its profile-sized lighting workspace.
+Writes still use the common native preview/list/download queue with per-model key
+count, RGB holes, and effect limit; only the physically captured C18 response is
+classified as hardware-verified.
+
 The key workspace now decodes raw layer bytes before rendering: 8-bit models show
 their profile row counts, while Tenet shows 73 keys instead of 146 individual bytes.
 Standalone layer backups store semantic keycodes and record their width; import

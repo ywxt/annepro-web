@@ -51,7 +51,8 @@ export function deriveDeviceCapabilities(
     generalSettings: isAnnePro2,
     bluetooth: isAnnePro2,
     factoryReset: isAnnePro2,
-    hasLed: model ? isAnnePro2 || model.id === 13 : null,
+    // ObinsKit's isHaveLed getter excludes only the non-RGB Fuji65 (model 11).
+    hasLed: model ? model.id !== 11 : null,
     hasIndicatorLed: isAnnePro2 ? false : null,
     indicatorLocation: model ? model.id === 7 || model.id === 12 : null,
     hasBattery: model ? model.hardware.mcuBle : null,
