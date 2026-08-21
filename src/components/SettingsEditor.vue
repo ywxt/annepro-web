@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, watch } from 'vue'
 import type { DeviceCapabilities } from '../protocol/capabilities.ts'
 import type { HardwareState } from '../protocol/hardware-state.ts'
 import type { LedPowerModeResponse } from '../protocol/led-power.ts'
@@ -7,6 +7,7 @@ import type { HardwareSettingKey } from '../protocol/settings-write.ts'
 import { useI18n } from 'vue-i18n'
 import ToggleSwitch from './ToggleSwitch.vue'
 import SegmentedControl from './SegmentedControl.vue'
+import { SETTINGS_AUTOSAVE_DELAY_MS } from '../protocol/timing.ts'
 
 type SettingsSection = 'device' | 'keys' | 'lighting' | 'macros'
 
@@ -53,27 +54,26 @@ const canApply = computed(() => changes.value.length > 0 && !(
   && (form.sleepTimeoutRaw < 10 || form.sleepTimeoutRaw > 3600)
 ))
 
-function apply(): void {
-  emit('apply', changes.value)
-}
+let autosaveTimer: number | null = null
+watch(changes, (next) => {
+  if (autosaveTimer !== null) window.clearTimeout(autosaveTimer)
+  autosaveTimer = null
+  if (!canApply.value || props.busy) return
+  const snapshot = next.map(change => ({ ...change }))
+  autosaveTimer = window.setTimeout(() => {
+    if (!props.busy) emit('apply', snapshot)
+    autosaveTimer = null
+  }, SETTINGS_AUTOSAVE_DELAY_MS)
+}, { deep: true })
+onBeforeUnmount(() => { if (autosaveTimer !== null) window.clearTimeout(autosaveTimer) })
 </script>
 
 <template>
   <div class="settings-editor">
-    <div class="section-heading"><div><p class="eyebrow">WRITE · VERIFIED</p><h3>{{ t('settings.edit') }}</h3></div><div class="actions"><button v-if="hasBackup" class="secondary" :disabled="busy" @click="$emit('restore')">{{ t('settings.restore') }}</button><button :title="t('settings.apply')" :aria-label="t('settings.apply')" :disabled="busy || !canApply" @click="apply"><span aria-hidden="true">✓</span><span class="button-label">{{ t('settings.apply') }}</span></button></div></div>
-    <p class="empty">{{ t('settings.groupHelp') }}</p>
-    <div class="control-grid">
-      <label v-if="section === 'keys'">{{ t('settings.layout') }}<ToggleSwitch v-model="form.userLayout" :off-label="t('settings.defaultLayout')" :on-label="t('settings.userLayout')" /></label>
-      <label v-if="section === 'keys'">Magic Fn<SegmentedControl v-model="form.magicFn" :options="[{ value: 0, label: t('settings.disabled'), icon: '○' }, { value: 1, label: 'Fn1', icon: 'F₁' }, { value: 2, label: 'Fn2', icon: 'F₂' }]" /></label>
-      <label v-if="section === 'macros'">{{ t('settings.macroTrigger') }}<ToggleSwitch v-model="form.macroTrigger" :off-label="t('settings.disabled')" :on-label="t('settings.enabled')" /></label>
-      <label v-if="section === 'lighting'">{{ t('settings.capsLed') }}<ToggleSwitch v-model="form.capslockLed" :off-label="t('settings.capsOnly')" :on-label="t('settings.allKeys')" /></label>
-      <label v-if="section === 'lighting'">{{ t('settings.backlight') }}<input v-model.number="form.backlightBrightness" type="range" min="1" max="10"><span>{{ form.backlightBrightness * 10 }}%</span></label>
-      <label v-if="section === 'device'">{{ t('settings.autoSleep') }}<ToggleSwitch v-model="form.ledHold" :off-label="t('settings.disabled')" :on-label="t('settings.enabled')" /></label>
-      <label v-if="section === 'keys'">Tap<ToggleSwitch v-model="form.tapStatus" :off-label="t('settings.disabled')" :on-label="t('settings.enabled')" /></label>
-      <label v-if="section === 'keys'">{{ t('settings.tapMode') }}<SegmentedControl v-model="form.tapActMode" :options="[{ value: 2, label: t('settings.normal'), icon: 'A' }, { value: 3, label: t('settings.combo'), icon: 'A+B' }]" /></label>
-      <label v-if="section === 'keys'">{{ t('settings.tapTime') }}<input v-model.number="tapTimeoutMs" type="range" min="100" max="2000" step="10"><span>{{ tapTimeoutMs }} ms</span></label>
-      <label v-if="section === 'device' && capabilities?.sleepTimeout" :class="{ inactive: form.ledHold === 0 }">{{ t('settings.sleepTime') }}<input v-model.number="form.sleepTimeoutRaw" type="number" min="10" max="3600" :disabled="form.ledHold === 0"><span>{{ t('settings.seconds') }}</span></label>
-      <label v-if="section === 'lighting' && capabilities?.ledPowerMode && ledPowerMode">{{ t('settings.ledPower') }}<SegmentedControl v-model="form.ledPowerMode" :options="[{ value: 1, label: 'Low', icon: '◐' }, { value: 2, label: 'High', icon: '●' }]" /></label>
-    </div>
+    <div class="settings-bar"><span class="autosave-state"><span class="status-pulse" :class="{ saving: busy }"></span>{{ busy ? t('settings.saving') : t('settings.autoApply') }}</span><button v-if="hasBackup" class="text-action" :disabled="busy" @click="$emit('restore')">{{ t('settings.restore') }}</button></div>
+    <div v-if="section === 'device'" class="setting-cluster"><div class="cluster-heading"><span class="cluster-icon">◷</span><div><h3>{{ t('settings.sleepGroup') }}</h3><p>{{ t('settings.sleepHelp') }}</p></div></div><div class="cluster-controls"><label>{{ t('settings.autoSleep') }}<ToggleSwitch v-model="form.ledHold" :off-label="t('settings.disabled')" :on-label="t('settings.enabled')" /></label><label v-if="capabilities?.sleepTimeout" :class="{ inactive: form.ledHold === 0 }">{{ t('settings.sleepTime') }}<span class="number-unit"><input v-model.number="form.sleepTimeoutRaw" type="number" min="10" max="3600" :disabled="form.ledHold === 0"><span>{{ t('settings.seconds') }}</span></span></label></div></div>
+    <template v-if="section === 'keys'"><div class="setting-cluster"><div class="cluster-heading"><span class="cluster-icon">⌨</span><div><h3>{{ t('settings.layoutGroup') }}</h3></div></div><div class="cluster-controls"><label>{{ t('settings.layout') }}<ToggleSwitch v-model="form.userLayout" :off-label="t('settings.defaultLayout')" :on-label="t('settings.userLayout')" /></label><label>Magic Fn<SegmentedControl v-model="form.magicFn" :options="[{ value: 0, label: t('settings.disabled'), icon: '○' }, { value: 1, label: 'Fn1', icon: 'F₁' }, { value: 2, label: 'Fn2', icon: 'F₂' }]" /></label></div></div><div class="setting-cluster"><div class="cluster-heading"><span class="cluster-icon">T</span><div><h3>{{ t('settings.tapGroup') }}</h3><p>{{ t('settings.tapHelp') }}</p></div></div><div class="cluster-controls"><label>Tap<ToggleSwitch v-model="form.tapStatus" :off-label="t('settings.disabled')" :on-label="t('settings.enabled')" /></label><label>{{ t('settings.tapMode') }}<SegmentedControl v-model="form.tapActMode" :options="[{ value: 2, label: t('settings.normal'), icon: 'A' }, { value: 3, label: t('settings.combo'), icon: 'A+B' }]" /></label><label class="wide-control">{{ t('settings.tapTime') }}<input v-model.number="tapTimeoutMs" type="range" min="100" max="2000" step="10"><span>{{ tapTimeoutMs }} ms</span></label></div></div></template>
+    <div v-if="section === 'lighting'" class="setting-cluster"><div class="cluster-heading"><span class="cluster-icon">☀</span><div><h3>{{ t('settings.lightGroup') }}</h3></div></div><div class="cluster-controls"><label class="caps-effect-control">{{ t('settings.capsLed') }}<ToggleSwitch v-model="form.capslockLed" :off-label="t('settings.capsOnly')" :on-label="t('settings.allKeys')" /></label><label class="wide-control">{{ t('settings.backlight') }}<input v-model.number="form.backlightBrightness" type="range" min="1" max="10"><span>{{ form.backlightBrightness * 10 }}%</span></label><label v-if="capabilities?.ledPowerMode && ledPowerMode">{{ t('settings.ledPower') }}<SegmentedControl v-model="form.ledPowerMode" :options="[{ value: 1, label: 'Low', icon: '◐' }, { value: 2, label: 'High', icon: '●' }]" /></label></div></div>
+    <div v-if="section === 'macros'" class="setting-cluster"><div class="cluster-heading"><span class="cluster-icon">◆</span><div><h3>{{ t('settings.macroTrigger') }}</h3></div></div><div class="cluster-controls"><label>{{ t('settings.macroTrigger') }}<ToggleSwitch v-model="form.macroTrigger" :off-label="t('settings.disabled')" :on-label="t('settings.enabled')" /></label></div></div>
   </div>
 </template>

@@ -90,6 +90,7 @@ import {
   parseWriteIndicatorColorAck,
   type IndicatorColorResponse,
 } from '../protocol/indicator-color.ts'
+import { AUDIO_TIMEOUT_MS, INTER_LAYER_DELAY_MS, LAYOUT_ACTIVATION_DELAY_MS, LAYOUT_TRANSACTION_TIMEOUT_MS, MACRO_TIMEOUT_MS, MULTIPART_TIMEOUT_MS, OBINSKIT_TIMEOUT_MS } from '../protocol/timing.ts'
 
 export type InputReportListener = (report: InputReportRecord) => void
 
@@ -127,7 +128,7 @@ export class AnneProHidTransport {
   }
 
   /** Captured, independently verified read-only query. */
-  async readDeviceType(timeoutMs = 1500): Promise<DeviceTypeResponse> {
+  async readDeviceType(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<DeviceTypeResponse> {
     return this.requestConfirmedRead(
       createReadDeviceTypeRequest(),
       parseDeviceTypeResponse,
@@ -135,7 +136,7 @@ export class AnneProHidTransport {
     )
   }
 
-  async readFirmwareVersion(timeoutMs = 1500): Promise<FirmwareVersions> {
+  async readFirmwareVersion(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<FirmwareVersions> {
     return this.requestConfirmedRead(
       createReadFirmwareVersionRequest(),
       parseFirmwareVersionResponse,
@@ -143,7 +144,7 @@ export class AnneProHidTransport {
     )
   }
 
-  async readIapMode(timeoutMs = 1500): Promise<IapModeResponse> {
+  async readIapMode(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IapModeResponse> {
     return this.requestConfirmedRead(
       createReadIapModeRequest(),
       parseIapModeResponse,
@@ -151,7 +152,7 @@ export class AnneProHidTransport {
     )
   }
 
-  async readMacroConfig(timeoutMs = 1500): Promise<MacroConfigResponse> {
+  async readMacroConfig(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<MacroConfigResponse> {
     return this.requestConfirmedRead(
       createReadMacroConfigRequest(),
       parseMacroConfigResponse,
@@ -159,7 +160,7 @@ export class AnneProHidTransport {
     )
   }
 
-  async readHardwareState(timeoutMs = 1500): Promise<HardwareState> {
+  async readHardwareState(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<HardwareState> {
     return this.requestConfirmedRead(
       createReadHardwareStateRequest(),
       parseHardwareStateResponse,
@@ -167,7 +168,7 @@ export class AnneProHidTransport {
     )
   }
 
-  async readLedPowerMode(timeoutMs = 1500): Promise<LedPowerModeResponse> {
+  async readLedPowerMode(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<LedPowerModeResponse> {
     return this.requestConfirmedRead(
       createReadLedPowerModeRequest(),
       parseLedPowerModeResponse,
@@ -175,31 +176,31 @@ export class AnneProHidTransport {
     )
   }
 
-  async readBattery(timeoutMs = 1500): Promise<BatteryResponse> {
+  async readBattery(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<BatteryResponse> {
     return this.requestConfirmedRead(createReadBatteryRequest(), parseBatteryResponse, timeoutMs)
   }
 
-  async readPowerOnTime(timeoutMs = 1500): Promise<PowerOnTimeResponse> {
+  async readPowerOnTime(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<PowerOnTimeResponse> {
     return this.requestConfirmedRead(createReadPowerOnTimeRequest(), parsePowerOnTimeResponse, timeoutMs)
   }
 
-  async readUdid(timeoutMs = 1500): Promise<DeviceUdid> {
+  async readUdid(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<DeviceUdid> {
     return this.requestConfirmedRead(createReadUdidRequest(), parseUdidResponse, timeoutMs)
   }
 
-  async readBleMac(timeoutMs = 1500): Promise<BleMacAddress> {
+  async readBleMac(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<BleMacAddress> {
     return this.requestConfirmedRead(createReadBleMacRequest(), parseBleMacResponse, timeoutMs)
   }
 
-  async deleteBleHosts(timeoutMs = 1500): Promise<void> {
+  async deleteBleHosts(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<void> {
     return this.requestConfirmedRead(createDeleteBleHostRequest(), parseDeleteBleHostAck, timeoutMs)
   }
 
-  async readIndicatorColor(timeoutMs = 1500): Promise<IndicatorColorResponse> {
+  async readIndicatorColor(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorColorResponse> {
     return this.requestConfirmedRead(createReadIndicatorColorRequest(), parseIndicatorColorResponse, timeoutMs)
   }
 
-  async writeIndicatorColor(hex: string, timeoutMs = 1500): Promise<IndicatorColorResponse> {
+  async writeIndicatorColor(hex: string, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorColorResponse> {
     await this.requestConfirmedRead(createWriteIndicatorColorRequest(hex), parseWriteIndicatorColorAck, timeoutMs)
     const readback = await this.readIndicatorColor(timeoutMs)
     if (readback.hex.toLowerCase() !== hex.toLowerCase()) throw new Error(`Indicator color readback ${readback.hex} does not match ${hex}`)
@@ -209,7 +210,7 @@ export class AnneProHidTransport {
   async writeHardwareSetting(
     key: HardwareSettingKey,
     value: number,
-    timeoutMs = 1500,
+    timeoutMs = OBINSKIT_TIMEOUT_MS,
   ): Promise<SettingWriteResult> {
     return this.requestConfirmedRead(
       createWriteHardwareSettingRequest(key, value),
@@ -218,7 +219,7 @@ export class AnneProHidTransport {
     )
   }
 
-  async readMacroBackup(timeoutMs = 2000): Promise<MacroBackup> {
+  async readMacroBackup(timeoutMs = MULTIPART_TIMEOUT_MS): Promise<MacroBackup> {
     const config = await this.readMacroConfig(timeoutMs)
     if (!config.hasMacros) return { config, map: [], macros: [], activeList: [] }
 
@@ -249,7 +250,7 @@ export class AnneProHidTransport {
   async writeMacros(
     macros: readonly Pick<StoredMacro, 'icon' | 'name' | 'events'>[],
     bindings: readonly ActiveMacroBinding[],
-    timeoutMs = 2500,
+    timeoutMs = MACRO_TIMEOUT_MS,
   ): Promise<MacroBackup> {
     const image = macros.length === 0 && bindings.length === 0
       ? new Uint8Array()
@@ -292,7 +293,7 @@ export class AnneProHidTransport {
   }
 
   /** All four C18 layer indices have been independently confirmed on physical hardware. */
-  async readKeyboardLayer(layer: number, timeoutMs = 2000): Promise<KeyboardLayerResponse> {
+  async readKeyboardLayer(layer: number, timeoutMs = MULTIPART_TIMEOUT_MS): Promise<KeyboardLayerResponse> {
     const request = createReadKeyboardLayerRequest(layer)
     if (this.confirmedReadPending) throw new Error('Another confirmed read is already pending')
     this.confirmedReadPending = true
@@ -333,14 +334,14 @@ export class AnneProHidTransport {
     })
   }
 
-  async readKeyboardLayer0(timeoutMs = 2000): Promise<KeyboardLayerResponse> {
+  async readKeyboardLayer0(timeoutMs = MULTIPART_TIMEOUT_MS): Promise<KeyboardLayerResponse> {
     return this.readKeyboardLayer(0, timeoutMs)
   }
 
   async writeKeyboardLayer(
     layer: number,
     data: Uint8Array,
-    timeoutMs = 2000,
+    timeoutMs = MULTIPART_TIMEOUT_MS,
   ): Promise<KeyboardLayerResponse> {
     const requests = createWriteKeyboardLayerRequests(layer, data)
     for (const [packet, request] of requests.entries()) {
@@ -360,7 +361,7 @@ export class AnneProHidTransport {
   /** Mirrors ObinsKit: download all four layers, then activate/reload User layout. */
   async writeKeyboardLayers(
     layers: readonly Uint8Array[],
-    timeoutMs = 5000,
+    timeoutMs = LAYOUT_TRANSACTION_TIMEOUT_MS,
   ): Promise<{ layers: KeyboardLayerResponse[]; state: HardwareState }> {
     if (layers.length !== 4) throw new Error(`Expected four keyboard layers, got ${layers.length}`)
     let stage = 'preparing layout'
@@ -379,11 +380,11 @@ export class AnneProHidTransport {
         // two IPC hops before the renderer starts the next layer. Preserve a
         // small, bounded equivalent gap instead of starting the next layer in
         // the same JavaScript microtask.
-        if (layer < layers.length - 1) await new Promise(resolve => globalThis.setTimeout(resolve, 20))
+        if (layer < layers.length - 1) await new Promise(resolve => globalThis.setTimeout(resolve, INTER_LAYER_DELAY_MS))
       }
       stage = 'activating User layout'
       await this.writeHardwareSetting('userLayout', 1, timeoutMs)
-      await new Promise(resolve => globalThis.setTimeout(resolve, 150))
+      await new Promise(resolve => globalThis.setTimeout(resolve, LAYOUT_ACTIVATION_DELAY_MS))
       stage = 'verifying User layout state'
       const state = await this.readHardwareState(timeoutMs)
       if (state.userLayout !== 1) throw new Error(`readback is ${state.userLayout}, expected 1`)
@@ -403,7 +404,7 @@ export class AnneProHidTransport {
   }
 
   /** Native ObinsKit advances each preview packet only after a success ACK. */
-  async previewLight(effect: LightEffect, timeoutMs = 2000): Promise<void> {
+  async previewLight(effect: LightEffect, timeoutMs = MULTIPART_TIMEOUT_MS): Promise<void> {
     const requests = createPreviewLightRequests(effect)
     for (const [packet, request] of requests.entries()) {
       await this.requestConfirmedRead(
@@ -415,14 +416,14 @@ export class AnneProHidTransport {
   }
 
   /** Bounded native-style ACK queue; callers must still rate-limit each frame. */
-  async sendAudioVisualizeFrame(rgb: Uint8Array, timeoutMs = 1000): Promise<void> {
+  async sendAudioVisualizeFrame(rgb: Uint8Array, timeoutMs = AUDIO_TIMEOUT_MS): Promise<void> {
     const requests = createAudioVisualizeRequests(rgb)
     for (const request of requests) {
       await this.requestConfirmedRead(request, parseAudioVisualizeAck, timeoutMs)
     }
   }
 
-  async installLights(effects: readonly LightEffect[], timeoutMs = 2000): Promise<void> {
+  async installLights(effects: readonly LightEffect[], timeoutMs = MULTIPART_TIMEOUT_MS): Promise<void> {
     await this.requestConfirmedRead(
       createWriteLightListRequest(effects.length),
       parseWriteLightListAck,

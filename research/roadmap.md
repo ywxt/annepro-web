@@ -92,6 +92,8 @@ device trial, and only then product UI.
 - [x] Add an optional, persisted Debug mode; raw HID collections, reports, and protocol coverage are absent from the normal workflow.
 - [x] Add a read-only browser Key Tester inspired by keyboard configurator workflows, with an explicit Fn/OS-shortcut limitation.
 - [x] Surface the native protocol audit as three product states: Anne Pro 2 implemented, other-model capability-gated, and firmware/IAP safety-excluded.
+- [x] Replace scattered setting cards with flat semantic clusters and verified, debounced auto-apply for reversible ordinary settings.
+- [x] Centralize operation-specific timeouts while retaining the physically verified layout pacing and slower multipart budgets.
 
 ### M7 — IAP and firmware (deferred)
 
