@@ -5,6 +5,7 @@ import {
   createReadKeyboardLayerRequest,
   keyboardLayerRows,
   keycodeName,
+  keycodeIcon,
   keycapLabel,
   keycodeOptions,
   parseKeyboardLayerResponse,
@@ -155,6 +156,15 @@ describe('keyboard layout read protocol', () => {
       'Transparent', 'A', 'Z', '1', '0', 'Enter', 'F1', 'F12', 'Up',
       'Mute', 'Fn1', 'Bluetooth 1', 'Fn Wheel', 'Backlight Toggle',
       'Backlight Battery', 'Mouse Up', 'Mouse Right', '0xff',
+    ])
+  })
+
+  it('uses compact icons for long special-key names', () => {
+    expect(keycodeIcon(0x46)).toBe('⧉')
+    expect([0xc8, 0xc9, 0xca, 0xcb, 0xcc].map(keycodeIcon)).toEqual(['BT₁', 'BT₂', 'BT₃', 'BT₄', 'BT'])
+    expect(keycodeIcon(0xcf)).toBe('Fn↻')
+    expect([0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe].map(keycodeIcon)).toEqual([
+      '🖱₁', '🖱₂', '🖱₃', '🖱↑', '🖱↓', '🖱←', '🖱→',
     ])
   })
 })
