@@ -160,8 +160,11 @@ describe('keyboard layout read protocol', () => {
   })
 
   it('uses compact icons for long special-key names', () => {
+    expect(keycodeIcon(0x00)).toBe('⊘')
+    expect(keycodeIcon(0x2a)).toBe('⟵')
+    expect(keycodeIcon(0x4c)).toBeNull()
     expect(keycodeIcon(0x46)).toBe('⧉')
-    expect([0xc8, 0xc9, 0xca, 0xcb, 0xcc].map(keycodeIcon)).toEqual(['BT₁', 'BT₂', 'BT₃', 'BT₄', 'BT'])
+    expect([0xc8, 0xc9, 0xca, 0xcb, 0xcc].map(keycodeIcon)).toEqual(['🛜₁', '🛜₂', '🛜₃', '🛜₄', '🛜'])
     expect(keycodeIcon(0xcf)).toBe('Fn↻')
     expect([0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe].map(keycodeIcon)).toEqual([
       '🖱₁', '🖱₂', '🖱₃', '🖱↑', '🖱↓', '🖱←', '🖱→',
