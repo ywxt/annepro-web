@@ -121,9 +121,13 @@ import {
   type DeviceUdid,
 } from '../protocol/device-identity.ts'
 import {
+  createReadCapslockColorRequest,
   createReadIndicatorColorRequest,
+  createWriteCapslockColorRequest,
   createWriteIndicatorColorRequest,
+  parseCapslockColorResponse,
   parseIndicatorColorResponse,
+  parseWriteCapslockColorAck,
   parseWriteIndicatorColorAck,
   type IndicatorColorResponse,
 } from '../protocol/indicator-color.ts'
@@ -298,11 +302,21 @@ export class AnneProHidTransport {
   }
 
   async readIndicatorColor(timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorColorResponse> {
-    return this.requestConfirmedRead(createReadIndicatorColorRequest(), parseIndicatorColorResponse, timeoutMs)
+    const capslockRoute = this.modelId === 7 || this.modelId === 14
+    return this.requestConfirmedRead(
+      capslockRoute ? createReadCapslockColorRequest() : createReadIndicatorColorRequest(),
+      capslockRoute ? parseCapslockColorResponse : parseIndicatorColorResponse,
+      timeoutMs,
+    )
   }
 
   async writeIndicatorColor(hex: string, timeoutMs = OBINSKIT_TIMEOUT_MS): Promise<IndicatorColorResponse> {
-    await this.requestConfirmedRead(createWriteIndicatorColorRequest(hex), parseWriteIndicatorColorAck, timeoutMs)
+    const capslockRoute = this.modelId === 7 || this.modelId === 14
+    await this.requestConfirmedRead(
+      capslockRoute ? createWriteCapslockColorRequest(hex) : createWriteIndicatorColorRequest(hex),
+      capslockRoute ? parseWriteCapslockColorAck : parseWriteIndicatorColorAck,
+      timeoutMs,
+    )
     const readback = await this.readIndicatorColor(timeoutMs)
     if (readback.hex.toLowerCase() !== hex.toLowerCase()) throw new Error(`Indicator color readback ${readback.hex} does not match ${hex}`)
     return readback
