@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { OBINS_USB_DEVICES } from '../device-registry.ts'
+import { nixosUdevModule, standardLinuxUdevRules } from '../udev-rules.ts'
 
 type Platform = 'linux' | 'windows' | 'macos'
 const { t } = useI18n({ useScope: 'global' })
 const agent = navigator.userAgent.toLowerCase()
 const detected: Platform = agent.includes('win') ? 'windows' : agent.includes('mac') ? 'macos' : 'linux'
 const selected = ref<Platform>(detected)
+const linuxVariant = ref<'standard' | 'nixos'>('standard')
 const copied = ref(false)
-const linuxRule = ['# ObinsLab keyboard WebHID access — exact known VID/PID pairs', ...OBINS_USB_DEVICES.map(({ vendorId, productId, family }) =>
-  `# ${family} (${vendorId.toString(16).padStart(4, '0')}:${productId.toString(16).padStart(4, '0')})\nKERNEL=="hidraw*", ATTRS{idVendor}=="${vendorId.toString(16).padStart(4, '0')}", ATTRS{idProduct}=="${productId.toString(16).padStart(4, '0')}", TAG+="uaccess"`,
-)].join('\n')
+const linuxRule = standardLinuxUdevRules()
+const nixosModule = nixosUdevModule()
+const displayedRule = computed(() => linuxVariant.value === 'nixos' ? nixosModule : linuxRule)
 
 async function copyRule(): Promise<void> {
-  await navigator.clipboard.writeText(linuxRule)
+  await navigator.clipboard.writeText(displayedRule.value)
   copied.value = true
   window.setTimeout(() => { copied.value = false }, 1500)
 }
@@ -26,9 +27,12 @@ async function copyRule(): Promise<void> {
     <p>{{ t('requirements.common') }}</p>
     <div v-if="selected === 'linux'" class="platform-guide">
       <p>{{ t('requirements.linuxIntro') }}</p>
-      <div class="code-heading"><strong>{{ t('requirements.udevTitle') }}</strong><button class="secondary" @click="copyRule">{{ copied ? t('requirements.copied') : t('requirements.copy') }}</button></div>
-      <pre><code>{{ linuxRule }}</code></pre>
-      <ol><li>{{ t('requirements.linuxStep1') }}</li><li>{{ t('requirements.linuxStep2') }}</li><li>{{ t('requirements.linuxStep3') }}</li></ol>
+      <div class="platform-tabs"><button class="secondary" :class="{ active: linuxVariant === 'standard' }" @click="linuxVariant = 'standard'">{{ t('requirements.standardLinux') }}</button><button class="secondary" :class="{ active: linuxVariant === 'nixos' }" @click="linuxVariant = 'nixos'">NixOS</button></div>
+      <p>{{ linuxVariant === 'nixos' ? t('requirements.nixosIntro') : t('requirements.standardIntro') }}</p>
+      <div class="code-heading"><strong>{{ linuxVariant === 'nixos' ? t('requirements.nixosTitle') : t('requirements.udevTitle') }}</strong><button class="secondary" @click="copyRule">{{ copied ? t('requirements.copied') : t('requirements.copy') }}</button></div>
+      <pre><code>{{ displayedRule }}</code></pre>
+      <ol v-if="linuxVariant === 'standard'"><li>{{ t('requirements.linuxStep1') }}</li><li>{{ t('requirements.linuxStep2') }}</li><li>{{ t('requirements.linuxStep3') }}</li></ol>
+      <ol v-else><li>{{ t('requirements.nixosStep1') }}</li><li>{{ t('requirements.nixosStep2') }}</li><li>{{ t('requirements.linuxStep3') }}</li></ol>
     </div>
     <div v-else-if="selected === 'windows'" class="platform-guide"><p>{{ t('requirements.windowsHelp') }}</p></div>
     <div v-else class="platform-guide"><p>{{ t('requirements.macosHelp') }}</p></div>
